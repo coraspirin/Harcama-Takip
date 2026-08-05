@@ -84,8 +84,26 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
 
   // --- Build edilmis frontend (yalnizca production) ---
   if (env.isProd && fs.existsSync(env.CLIENT_DIR)) {
-    app.use(express.static(env.CLIENT_DIR, { index: false, maxAge: '1h' }));
+    app.use(
+      express.static(env.CLIENT_DIR, {
+        index: false,
+        maxAge: '1h',
+        setHeaders: (res, filePath) => {
+          const name = path.basename(filePath);
+          // Service worker ve manifest ONBELLEGE ALINMAMALI: onbellekten
+          // servis edilen eski bir sw.js, guncellemeyi kalici olarak bloke
+          // eder ve kullanicilar surekli eski surumde kalir.
+          if (name === 'sw.js' || name === 'manifest.webmanifest' || name.startsWith('workbox-')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          }
+        },
+      }),
+    );
+
     app.get('*', (_req, res) => {
+      // index.html de onbelleklenmemeli; yeni hash'li varlik adlarini
+      // yalnizca taze bir index.html duyurur.
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(env.CLIENT_DIR, 'index.html'));
     });
   }

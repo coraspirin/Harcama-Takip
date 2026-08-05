@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { FullPageSpinner } from './components/ui/Card.tsx';
+import { GuncellemeUyarisi } from './components/GuncellemeUyarisi.tsx';
 import AppLayout from './layouts/AppLayout.tsx';
 import AdminLayout from './layouts/AdminLayout.tsx';
 import Kurulum from './pages/Kurulum.tsx';
@@ -93,6 +94,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppRoutes />
+      <GuncellemeUyarisi />
     </AuthProvider>
   );
 }
