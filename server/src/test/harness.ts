@@ -1,30 +1,14 @@
+/**
+ * Ortam degiskenleri ayri bir modulde ayarlanir ve BURADA ILK SIRADA import
+ * edilir: bir test dosyasi uygulama modullerinden birini (or. middleware)
+ * sunucuyu baslatmadan once import ederse, config/env.ts o anda yuklenir ve
+ * DATA_DIR'i dondurur - bu durumda testler GERCEK veri dizinine yazardi.
+ */
+import { TEST_DATA_DIR } from './env.ts';
+
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-
-/**
- * Test kosumu icin izole ortam. env.ts ortam degiskenlerini import aninda
- * okudugu icin bu ayarlar, uygulama modulleri yuklenmeden ONCE yapilmalidir;
- * bu yuzden app dinamik olarak import edilir.
- */
-process.env.NODE_ENV = 'test';
-process.env.TZ = 'Europe/Istanbul';
-process.env.JWT_ACCESS_SECRET = 'test-access-secret-en-az-otuziki-karakter-uzunlugunda';
-process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-en-az-otuziki-karakter-uzunlugunda';
-process.env.COOKIE_SECURE = 'false';
-
-/**
- * Gecici veri dizini MODUL YUKLENIRKEN ayarlanir, startTestServer icinde degil:
- * bir test dosyasi uygulama modullerinden birini (or. middleware) sunucuyu
- * baslatmadan once import ederse, env.ts o anda yuklenir ve DATA_DIR'i
- * dondurur - bu durumda testler GERCEK veri dizinine yazardi.
- * Testin harness'i ilk sirada import etmesi bu tuzagi kapatir.
- */
-const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'harcama-test-'));
-process.env.DATA_DIR = TEST_DATA_DIR;
-process.env.UPLOAD_DIR = path.join(TEST_DATA_DIR, 'uploads');
 
 export type TestResponse<T = unknown> = {
   status: number;

@@ -9,6 +9,7 @@ import { Card, PageHeader } from '../components/ui/Card.tsx';
 import { formatDateTime } from '../lib/format.ts';
 import BankalarBolumu from './ayarlar/BankalarBolumu.tsx';
 import VeriYonetimiBolumu from './ayarlar/VeriYonetimiBolumu.tsx';
+import HomeAssistantBolumu from './ayarlar/HomeAssistantBolumu.tsx';
 
 export default function Ayarlar() {
   const { user, activeSessions, changePassword, logoutAll } = useAuth();
@@ -70,6 +71,7 @@ export default function Ayarlar() {
 
       <div className="mb-6 space-y-6">
         <BankalarBolumu />
+        <HomeAssistantBolumu />
         <VeriYonetimiBolumu />
       </div>
 

@@ -5,6 +5,7 @@ import { migration003CardStatements } from './003_card_statements.ts';
 import { migration004Budgets } from './004_budgets.ts';
 import { migration005Scheduled } from './005_scheduled.ts';
 import { migration006Ocr } from './006_ocr.ts';
+import { migration007HomeAssistant } from './007_home_assistant.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
@@ -20,4 +21,5 @@ export const migrations: Migration[] = [
   migration004Budgets,
   migration005Scheduled,
   migration006Ocr,
+  migration007HomeAssistant,
 ];
