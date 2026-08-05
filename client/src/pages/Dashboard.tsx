@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { ArrowDownRight, ArrowUpRight, Plus, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
-import { dashboardService } from '../services/finance.ts';
+import { dashboardService, reportService } from '../services/finance.ts';
+import { currentYearMonth } from '../components/MonthPicker.tsx';
+import { KategoriDagilimi } from '../components/charts/KategoriDagilimi.tsx';
+import { AylikTrend } from '../components/charts/AylikTrend.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { buttonClasses } from '../components/ui/Button.tsx';
 import { Card, EmptyState, PageHeader } from '../components/ui/Card.tsx';
@@ -29,6 +32,9 @@ function ChangeBadge({ percent, invert = false }: { percent: number | null; inve
 
 export default function Dashboard() {
   const summary = useAsync(() => dashboardService.summary(), []);
+  const month = currentYearMonth();
+  const monthly = useAsync(() => reportService.monthly(month), [month]);
+  const trend = useAsync(() => reportService.trend(month, 6), [month]);
 
   if (summary.error) {
     return (
@@ -115,6 +121,16 @@ export default function Dashboard() {
               </p>
               <p className="mt-1 text-xs text-slate-400">Transferler haric</p>
             </div>
+          </div>
+
+          <div className="mb-6 grid gap-6 lg:grid-cols-2">
+            <Card title="Bu ay kategori dagilimi">
+              <KategoriDagilimi items={monthly.data?.expenseByCategory ?? []} />
+            </Card>
+
+            <Card title="Son 6 ay" description="Gelir ve gider trendi">
+              {trend.data && <AylikTrend series={trend.data.series} />}
+            </Card>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">

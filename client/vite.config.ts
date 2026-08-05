@@ -18,5 +18,17 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        /**
+         * recharts + d3 tek basina paketin yarisindan fazlasi. Ayri parcaya
+         * alindiginda giris/kurulum gibi grafiksiz ekranlar onu hic indirmez.
+         */
+        manualChunks: {
+          charts: ['recharts'],
+          react: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
   },
 });

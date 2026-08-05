@@ -15,6 +15,7 @@ import { transactionsRouter } from './routes/transactions.ts';
 import { statementsRouter } from './routes/statements.ts';
 import { budgetsRouter } from './routes/budgets.ts';
 import { dataRouter } from './routes/data.ts';
+import { reportsRouter } from './routes/reports.ts';
 import { dashboardRouter } from './routes/dashboard.ts';
 
 export type CreateAppOptions = {
@@ -60,6 +61,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use('/api/statements', statementsRouter);
   app.use('/api/budgets', budgetsRouter);
   app.use('/api/data', dataRouter);
+  app.use('/api/reports', reportsRouter);
   app.use('/api/dashboard', dashboardRouter);
 
   options.configure?.(app);

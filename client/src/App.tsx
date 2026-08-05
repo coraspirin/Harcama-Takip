@@ -12,6 +12,7 @@ import Hesaplar from './pages/Hesaplar.tsx';
 import Islemler from './pages/Islemler.tsx';
 import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
+import Raporlar from './pages/Raporlar.tsx';
 import Yakinda from './pages/Yakinda.tsx';
 
 /**
@@ -89,7 +90,7 @@ function AppRoutes() {
           path="faturalar"
           element={<Yakinda title="Faturalar" phase="Faz 6 (Zamanlanmis kayitlar)" />}
         />
-        <Route path="raporlar" element={<Yakinda title="Raporlar" phase="Faz 5 (Raporlar)" />} />
+        <Route path="raporlar" element={<Raporlar />} />
         <Route path="kategoriler" element={<Kategoriler />} />
         <Route path="butce" element={<Butce />} />
         <Route path="ice-aktar" element={<Yakinda title="Ice aktar" phase="Faz 8 (OCR)" />} />

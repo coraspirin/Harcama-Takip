@@ -6,10 +6,13 @@ import type {
   BudgetListResponse,
   CardStatement,
   CardSummary,
+  CategoryReport,
   Category,
   DashboardSummary,
   ImportResult,
+  MonthlyReport,
   Pagination,
+  TrendReport,
   Totals,
   Transaction,
 } from '../types/index.ts';
@@ -175,6 +178,14 @@ export const statementService = {
   update: (id: number, input: StatementInput) =>
     api.patch<{ statement: CardStatement }>(`/api/statements/${id}`, input).then((r) => r.statement),
   remove: (id: number) => api.delete<{ deleted: boolean }>(`/api/statements/${id}`),
+};
+
+export const reportService = {
+  monthly: (month: string) => api.get<MonthlyReport>(`/api/reports/monthly?month=${month}`),
+  categories: (from: string, to: string, kind: 'income' | 'expense' = 'expense') =>
+    api.get<CategoryReport>(`/api/reports/categories?from=${from}&to=${to}&kind=${kind}`),
+  trend: (to: string, months = 12) =>
+    api.get<TrendReport>(`/api/reports/trend?to=${to}&months=${months}`),
 };
 
 export const dashboardService = {

@@ -114,6 +114,44 @@ export type BudgetListResponse = {
   totals: { limitKurus: number; spentKurus: number; exceededCount: number };
 };
 
+export type CategoryBreakdownItem = {
+  categoryId: number | null;
+  categoryName: string;
+  totalKurus: number;
+  transactionCount: number;
+  sharePercent: number;
+};
+
+export type MonthlyReport = {
+  month: string;
+  totals: { incomeKurus: number; expenseKurus: number; netKurus: number };
+  previous: {
+    month: string;
+    incomeKurus: number;
+    expenseKurus: number;
+    netKurus: number;
+    incomeChangePercent: number | null;
+    expenseChangePercent: number | null;
+  };
+  expenseByCategory: CategoryBreakdownItem[];
+  incomeByCategory: CategoryBreakdownItem[];
+  byAccount: { accountId: number; accountName: string; incomeKurus: number; expenseKurus: number }[];
+};
+
+export type CategoryReport = {
+  from: string;
+  to: string;
+  kind: 'income' | 'expense';
+  totalKurus: number;
+  categories: CategoryBreakdownItem[];
+};
+
+export type TrendReport = {
+  from: string;
+  to: string;
+  series: { month: string; incomeKurus: number; expenseKurus: number; netKurus: number }[];
+};
+
 export type ImportResult = {
   mode: 'merge' | 'replace';
   banks: number;
