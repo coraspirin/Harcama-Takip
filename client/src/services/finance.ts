@@ -2,6 +2,8 @@ import { api } from './api.ts';
 import type {
   Account,
   Bank,
+  CardStatement,
+  CardSummary,
   Category,
   DashboardSummary,
   Pagination,
@@ -21,6 +23,18 @@ export type AccountInput = {
   bankId: number | null;
   openingBalanceKurus: number;
   archived?: boolean;
+  statementDay?: number | null;
+  dueDay?: number | null;
+  creditLimitKurus?: number | null;
+};
+
+export type StatementInput = {
+  accountId: number;
+  periodEnd: string;
+  dueDate: string | null;
+  statementAmountKurus: number;
+  paidAmountKurus: number;
+  minimumPaymentKurus: number | null;
 };
 
 export type TransactionInput = {
@@ -117,6 +131,20 @@ export const transactionService = {
       '/api/transactions/transfer',
       input,
     ),
+};
+
+export const statementService = {
+  list: (accountId: number) =>
+    api
+      .get<{ statements: CardStatement[] }>(`/api/statements?accountId=${accountId}`)
+      .then((r) => r.statements),
+  summary: (accountId: number) =>
+    api.get<CardSummary>(`/api/statements/summary?accountId=${accountId}`),
+  create: (input: StatementInput) =>
+    api.post<{ statement: CardStatement }>('/api/statements', input).then((r) => r.statement),
+  update: (id: number, input: StatementInput) =>
+    api.patch<{ statement: CardStatement }>(`/api/statements/${id}`, input).then((r) => r.statement),
+  remove: (id: number) => api.delete<{ deleted: boolean }>(`/api/statements/${id}`),
 };
 
 export const dashboardService = {

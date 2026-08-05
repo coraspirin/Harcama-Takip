@@ -29,6 +29,9 @@ export function serializeAccount(row: AccountWithBalance) {
     balanceKurus: row.balance_kurus,
     transactionCount: row.transaction_count,
     archived: row.archived === 1,
+    statementDay: row.statement_day,
+    dueDay: row.due_day,
+    creditLimitKurus: row.credit_limit_kurus,
     createdAt: row.created_at,
   };
 }

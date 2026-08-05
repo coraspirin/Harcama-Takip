@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { Archive, ArrowLeftRight, Banknote, CreditCard, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
+import {
+  Archive,
+  ArrowLeftRight,
+  Banknote,
+  CreditCard,
+  Pencil,
+  Plus,
+  ReceiptText,
+  Trash2,
+  Wallet,
+} from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { accountService, bankService, transactionService } from '../services/finance.ts';
 import { ApiError } from '../services/api.ts';
@@ -11,6 +21,7 @@ import { Card, EmptyState, PageHeader } from '../components/ui/Card.tsx';
 import { ConfirmDialog, Modal } from '../components/ui/Modal.tsx';
 import { MoneyInput } from '../components/MoneyInput.tsx';
 import { Money } from '../components/Money.tsx';
+import { KrediKartiPaneli } from '../components/KrediKartiPaneli.tsx';
 import { todayIso } from '../lib/format.ts';
 
 const TYPE_ICONS: Record<AccountType, typeof Wallet> = {
@@ -37,6 +48,11 @@ export default function Hesaplar() {
   const [bankId, setBankId] = useState<number | null>(null);
   const [openingKurus, setOpeningKurus] = useState<number | null>(0);
   const [archived, setArchived] = useState(false);
+  const [statementDay, setStatementDay] = useState('');
+  const [dueDay, setDueDay] = useState('');
+  const [creditLimitKurus, setCreditLimitKurus] = useState<number | null>(null);
+
+  const [cardPanel, setCardPanel] = useState<Account | null>(null);
 
   // --- transfer formu ---
   const [fromId, setFromId] = useState<number | null>(null);
@@ -52,6 +68,9 @@ export default function Hesaplar() {
     setBankId(null);
     setOpeningKurus(0);
     setArchived(false);
+    setStatementDay('');
+    setDueDay('');
+    setCreditLimitKurus(null);
     setError(null);
     setFormOpen(true);
   }
@@ -63,6 +82,9 @@ export default function Hesaplar() {
     setBankId(account.bankId);
     setOpeningKurus(account.openingBalanceKurus);
     setArchived(account.archived);
+    setStatementDay(account.statementDay === null ? '' : String(account.statementDay));
+    setDueDay(account.dueDay === null ? '' : String(account.dueDay));
+    setCreditLimitKurus(account.creditLimitKurus);
     setError(null);
     setFormOpen(true);
   }
@@ -71,6 +93,7 @@ export default function Hesaplar() {
     setBusy(true);
     setError(null);
     try {
+      const isCard = type === 'credit_card';
       const input = {
         name: name.trim(),
         type,
@@ -78,6 +101,10 @@ export default function Hesaplar() {
         bankId: type === 'cash' ? null : bankId,
         openingBalanceKurus: openingKurus ?? 0,
         archived,
+        // Kredi kartina ozgu alanlar diger turlerde temizlenir
+        statementDay: isCard && statementDay ? Number(statementDay) : null,
+        dueDay: isCard && dueDay ? Number(dueDay) : null,
+        creditLimitKurus: isCard ? creditLimitKurus : null,
       };
       if (editing) await accountService.update(editing.id, input);
       else await accountService.create(input);
@@ -244,10 +271,33 @@ export default function Hesaplar() {
                 </div>
                 <p className="text-xs text-slate-400">{account.transactionCount} islem</p>
               </div>
+
+              {account.type === 'credit_card' && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => setCardPanel(account)}
+                  >
+                    <ReceiptText className="h-4 w-4" aria-hidden />
+                    Ekstre ve tahmini faiz
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
+
+      {cardPanel && (
+        <KrediKartiPaneli
+          account={cardPanel}
+          open
+          onClose={() => setCardPanel(null)}
+          onChanged={() => void accounts.reload()}
+        />
+      )}
 
       <div className="mt-6">
         <label className="inline-flex items-center gap-2 text-sm text-slate-600">
@@ -324,6 +374,40 @@ export default function Hesaplar() {
             onChangeKurus={setOpeningKurus}
             hint="Bu hesabin uygulamaya baslarken sahip oldugu tutar. Kredi karti borcu icin eksi deger girin."
           />
+
+          {type === 'credit_card' && (
+            <div className="space-y-4 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
+              <p className="text-sm font-medium text-slate-700">Kredi karti bilgileri</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <TextField
+                  label="Kesim gunu"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={statementDay}
+                  onChange={(e) => setStatementDay(e.target.value)}
+                  placeholder="15"
+                />
+                <TextField
+                  label="Son odeme gunu"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  placeholder="25"
+                />
+              </div>
+
+              <MoneyInput
+                label="Kart limiti"
+                valueKurus={creditLimitKurus}
+                onChangeKurus={setCreditLimitKurus}
+                hint="Istege bagli"
+              />
+            </div>
+          )}
 
           {editing && (
             <label className="flex items-center gap-2 text-sm">

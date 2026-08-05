@@ -27,6 +27,10 @@ const accountSchema = z.object({
   bankId: z.number().int().positive().nullable().default(null),
   openingBalanceKurus: kurusSchema.default(0),
   archived: z.boolean().default(false),
+  /** Kredi kartina ozgu: ekstre kesim gunu, son odeme gunu ve limit */
+  statementDay: z.number().int().min(1).max(31).nullable().default(null),
+  dueDay: z.number().int().min(1).max(31).nullable().default(null),
+  creditLimitKurus: kurusSchema.refine((v) => v >= 0, 'Limit negatif olamaz').nullable().default(null),
 });
 
 /** Hesap turu ile banka baglantisi arasindaki tutarlilik kurallari. */

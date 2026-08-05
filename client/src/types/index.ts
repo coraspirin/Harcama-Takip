@@ -39,7 +39,48 @@ export type Account = {
   balanceKurus: number;
   transactionCount: number;
   archived: boolean;
+  /** Kredi kartina ozgu alanlar */
+  statementDay: number | null;
+  dueDay: number | null;
+  creditLimitKurus: number | null;
   createdAt: string;
+};
+
+export type CardStatement = {
+  id: number;
+  accountId: number;
+  periodEnd: string;
+  dueDate: string | null;
+  statementAmountKurus: number;
+  paidAmountKurus: number;
+  minimumPaymentKurus: number | null;
+  createdAt: string;
+};
+
+export type InterestBreakdown = {
+  unpaidKurus: number;
+  baseInterestKurus: number;
+  taxKurus: number;
+  totalInterestKurus: number;
+  estimatedDebtKurus: number;
+  monthlyInterestBp: number;
+  taxesIncluded: boolean;
+};
+
+export type CardSummary = {
+  accountId: number;
+  balanceKurus: number;
+  bank: { id: number; name: string; monthlyInterestBp?: number; taxesIncluded?: boolean } | null;
+  statement: CardStatement | null;
+  period?: { start: string | null; end: string };
+  interest: InterestBreakdown | null;
+  reconciliation: {
+    statementAmountKurus: number;
+    transactionsTotalKurus: number;
+    differenceKurus: number;
+    matches: boolean;
+  } | null;
+  warning: string | null;
 };
 
 export type CategoryKind = 'income' | 'expense';

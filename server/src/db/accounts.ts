@@ -11,6 +11,10 @@ export type AccountRow = {
   type: AccountType;
   opening_balance_kurus: number;
   archived: number;
+  /** Kredi kartina ozgu alanlar (diger turlerde null) */
+  statement_day: number | null;
+  due_day: number | null;
+  credit_limit_kurus: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -90,15 +94,29 @@ export type CreateAccountInput = {
   type: AccountType;
   bankId: number | null;
   openingBalanceKurus: number;
+  statementDay?: number | null;
+  dueDay?: number | null;
+  creditLimitKurus?: number | null;
 };
 
 export function createAccount(userId: number, input: CreateAccountInput): AccountWithBalance {
   const result = getDb()
     .prepare(
-      `INSERT INTO accounts (user_id, bank_id, name, type, opening_balance_kurus)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO accounts
+         (user_id, bank_id, name, type, opening_balance_kurus,
+          statement_day, due_day, credit_limit_kurus)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(userId, input.bankId, input.name, input.type, input.openingBalanceKurus);
+    .run(
+      userId,
+      input.bankId,
+      input.name,
+      input.type,
+      input.openingBalanceKurus,
+      input.statementDay ?? null,
+      input.dueDay ?? null,
+      input.creditLimitKurus ?? null,
+    );
 
   const created = findAccount(userId, Number(result.lastInsertRowid));
   if (!created) throw new Error('Hesap olusturuldu ancak okunamadi');
@@ -116,6 +134,7 @@ export function updateAccount(
     .prepare(
       `UPDATE accounts
        SET name = ?, type = ?, bank_id = ?, opening_balance_kurus = ?, archived = ?,
+           statement_day = ?, due_day = ?, credit_limit_kurus = ?,
            updated_at = datetime('now')
        WHERE user_id = ? AND id = ?`,
     )
@@ -125,6 +144,9 @@ export function updateAccount(
       input.bankId,
       input.openingBalanceKurus,
       input.archived ? 1 : 0,
+      input.statementDay ?? null,
+      input.dueDay ?? null,
+      input.creditLimitKurus ?? null,
       userId,
       id,
     );
