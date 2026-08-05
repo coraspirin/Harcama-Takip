@@ -7,6 +7,7 @@ import { TextField } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { Card, PageHeader } from '../components/ui/Card.tsx';
 import { formatDateTime } from '../lib/format.ts';
+import BankalarBolumu from './ayarlar/BankalarBolumu.tsx';
 
 export default function Ayarlar() {
   const { user, activeSessions, changePassword, logoutAll } = useAuth();
@@ -63,8 +64,12 @@ export default function Ayarlar() {
     <>
       <PageHeader
         title="Ayarlar"
-        description="Hesap bilgileri ve oturum guvenligi. Banka ve veri yonetimi sonraki fazlarda eklenecek."
+        description="Bankalar, hesap bilgileri ve oturum guvenligi"
       />
+
+      <div className="mb-6">
+        <BankalarBolumu />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Hesap bilgileri">

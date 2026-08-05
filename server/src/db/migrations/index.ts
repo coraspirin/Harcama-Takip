@@ -1,5 +1,6 @@
 import type { Migration } from '../migrate.ts';
 import { migration001Auth } from './001_auth.ts';
+import { migration002FinanceCore } from './002_finance_core.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
@@ -8,4 +9,4 @@ import { migration001Auth } from './001_auth.ts';
  * Uygulanmis bir migration'in SQL'i asla degistirilmez; duzeltme yeni bir
  * migration ile yapilir.
  */
-export const migrations: Migration[] = [migration001Auth];
+export const migrations: Migration[] = [migration001Auth, migration002FinanceCore];

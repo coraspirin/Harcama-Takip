@@ -18,6 +18,11 @@ const SIZES: Record<Size, string> = {
   md: 'px-4 py-2.5 text-sm gap-2',
 };
 
+/** Baglanti gibi davranan ama butona benzeyen ogeler icin ortak sinif uretici. */
+export function buttonClasses(variant: Variant = 'primary', size: Size = 'md'): string {
+  return `inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${VARIANTS[variant]} ${SIZES[size]}`;
+}
+
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
   size?: Size;

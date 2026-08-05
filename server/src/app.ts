@@ -8,6 +8,11 @@ import { apiNotFoundHandler, errorHandler } from './middleware/error.ts';
 import { healthRouter } from './routes/health.ts';
 import { setupRouter } from './routes/setup.ts';
 import { authRouter } from './routes/auth.ts';
+import { banksRouter } from './routes/banks.ts';
+import { accountsRouter } from './routes/accounts.ts';
+import { categoriesRouter } from './routes/categories.ts';
+import { transactionsRouter } from './routes/transactions.ts';
+import { dashboardRouter } from './routes/dashboard.ts';
 
 export type CreateAppOptions = {
   /**
@@ -42,6 +47,14 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use('/api/health', healthRouter);
   app.use('/api/setup', setupRouter);
   app.use('/api/auth', authRouter);
+
+  // Normal kullanici veri uclari. Tumu requireUser ile korunur; super admin
+  // bu route'larin hicbirine erisemez.
+  app.use('/api/banks', banksRouter);
+  app.use('/api/accounts', accountsRouter);
+  app.use('/api/categories', categoriesRouter);
+  app.use('/api/transactions', transactionsRouter);
+  app.use('/api/dashboard', dashboardRouter);
 
   options.configure?.(app);
 

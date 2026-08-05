@@ -7,6 +7,9 @@ import Kurulum from './pages/Kurulum.tsx';
 import Giris from './pages/Giris.tsx';
 import SifreDegistir from './pages/SifreDegistir.tsx';
 import Ayarlar from './pages/Ayarlar.tsx';
+import Dashboard from './pages/Dashboard.tsx';
+import Hesaplar from './pages/Hesaplar.tsx';
+import Islemler from './pages/Islemler.tsx';
 import Yakinda from './pages/Yakinda.tsx';
 
 /**
@@ -69,15 +72,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<Yakinda title="Ozet" phase="Faz 2 (Hesaplar ve islemler)" />} />
-        <Route
-          path="hesaplar"
-          element={<Yakinda title="Hesaplar" phase="Faz 2 (Hesaplar ve islemler)" />}
-        />
-        <Route
-          path="islemler"
-          element={<Yakinda title="Islemler" phase="Faz 2 (Hesaplar ve islemler)" />}
-        />
+        <Route index element={<Dashboard />} />
+        <Route path="hesaplar" element={<Hesaplar />} />
+        <Route path="islemler" element={<Islemler />} />
         <Route
           path="planlanan"
           element={<Yakinda title="Planlanan odemeler" phase="Faz 6 (Zamanlanmis kayitlar)" />}
