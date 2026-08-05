@@ -39,3 +39,18 @@ services:
 
 volumes:
   harcama-data:
+
+networks:
+  # Subnet BILEREK sabit. Home Assistant gibi host uzerinde (container disinda)
+  # calisan servislere erisim, host guvenlik duvarinda bu araliga izin veren bir
+  # kural gerektirir:
+  #
+  #   sudo ufw allow from 172.30.7.0/24 to any port 8123 proto tcp
+  #
+  # Docker subnet'i otomatik atasaydi, ag her yeniden olustugunda (docker compose
+  # down/up) baska bir aralik secilebilir ve kural sessizce gecersizlesirdi --
+  # entegrasyon aylar sonra, gorunurde sebepsiz calismayi birakirdi.
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.7.0/24
