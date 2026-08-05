@@ -153,6 +153,36 @@ describe('bozuk/eksik girdiye dayaniklilik', () => {
     assert.equal(lines[0]?.amountKurus, 150_000);
   });
 
+  test('aciklamasi iki satira tasan kayit kaybolmaz', () => {
+    // Gercek Garanti ekstresinde uzun aciklama sariliyor ve TUTAR ikinci
+    // satira dusuyor. Birlestirme olmadan kayit iki kez elenip yok olurdu:
+    // ilk satirda tutar yok, ikinci satirda tarih yok.
+    const wrapped = [
+      '03.08.2026 ornek alici-ACIKLAMA -FAST-CEP',
+      'SUBE-7125000222 Para Transferi -57.200,00 TL -249.146,27 TL',
+    ].join('\n');
+
+    const lines = parseStatementText(wrapped);
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0]?.date, '2026-08-03');
+    assert.equal(lines[0]?.amountKurus, 5_720_000);
+    assert.equal(lines[0]?.type, 'expense');
+    assert.match(lines[0]?.description ?? '', /ACIKLAMA/);
+  });
+
+  test('birlestirme bagimsiz satirlari birbirine yapistirmaz', () => {
+    // Iki tam kayit arka arkaya: her ikisinde de tarih VE tutar var,
+    // dolayisiyla birlestirilmemeliler.
+    const lines = parseStatementText(
+      ['05.08.2026 BIRINCI -100,00 TL 900,00 TL', '06.08.2026 IKINCI -200,00 TL 700,00 TL'].join(
+        '\n',
+      ),
+    );
+    assert.equal(lines.length, 2);
+    assert.equal(lines[0]?.amountKurus, 10_000);
+    assert.equal(lines[1]?.amountKurus, 20_000);
+  });
+
   test('OCR gurultusu ayristirmayi durdurmaz', () => {
     const noisy = `
       ~~~ garbled header |||

@@ -67,6 +67,41 @@ const DATE_RE = /(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/;
 /** 1.234,56 · 1234,56 · -1.234,56 · 1.234,56- (sonda eksi) */
 const MONEY_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}-?|-?\d+,\d{2}-?/g;
 
+/** MONEY_RE'nin durumsuz (global olmayan) esi; test() icin gerekli. */
+const HAS_MONEY_RE = new RegExp(MONEY_RE.source);
+
+/**
+ * Aciklamasi iki satira tasan kayitlari tek satirda birlestirir.
+ *
+ * Ekstrelerde uzun aciklama sarildiginda tarih ilk satirda, tutar ise ikinci
+ * satirda kalir. Satir satir bakildiginda ilk satirda tutar, ikinci satirda
+ * tarih bulunmadigi icin kayit IKI KEZ elenir ve tamamen kaybolur. Ornek:
+ *
+ *   03.08.2026 abdullah mucahid erdogan-KENDIME -FAST-CEP
+ *   SUBE-7125000222 Para Transferi -57.200,00 TL -249.146,27 TL
+ */
+function mergeWrappedRows(lines: string[]): string[] {
+  const merged: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const next = lines[i + 1];
+
+    const isOrphanHead = DATE_RE.test(line) && !HAS_MONEY_RE.test(line);
+    const isOrphanTail =
+      next !== undefined && !DATE_RE.test(next) && HAS_MONEY_RE.test(next);
+
+    if (isOrphanHead && isOrphanTail) {
+      merged.push(`${line} ${next}`);
+      i++; // ikinci satir tuketildi
+    } else {
+      merged.push(line);
+    }
+  }
+
+  return merged;
+}
+
 /** Ozet/baslik satirlarini eleyen ifadeler. */
 const SKIP_PATTERNS = [
   /^\s*(tarih|islem tarihi|açıklama|aciklama|tutar|bakiye|toplam)\b/i,
@@ -118,11 +153,11 @@ export function parseStatementText(
   options: Partial<ParserOptions> = {},
 ): ParsedLine[] {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const lines = text.split(/\r?\n/);
+  const normalized = text.split(/\r?\n/).map((raw) => raw.replace(/\s+/g, ' ').trim());
+  const lines = mergeWrappedRows(normalized);
   const result: ParsedLine[] = [];
 
-  for (const raw of lines) {
-    const line = raw.replace(/\s+/g, ' ').trim();
+  for (const line of lines) {
     if (shouldSkip(line)) continue;
 
     const dateMatch = DATE_RE.exec(line);

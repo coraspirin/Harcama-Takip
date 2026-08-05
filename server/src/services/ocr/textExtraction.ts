@@ -29,6 +29,65 @@ export type ExtractionResult = {
  */
 const MIN_USEFUL_CHARS = 20;
 
+export type TextFragment = { x: number; y: number; width: number; text: string };
+
+/**
+ * Ayni satira ait parcalarin y farki icin tolerans (pt). Bir tablo satirinda
+ * farkli punto/stildeki hucreler (kalin tutar, kucuk kurus) birkac ondalik pt
+ * kayabilir.
+ */
+const ROW_TOLERANCE = 2.5;
+
+/**
+ * Iki parca arasinda BOSLUK sayilmasi icin gereken en kucuk yatay bosluk (pt).
+ *
+ * Sifirdan buyuk olmasi sart: pdfjs bir sayiyi cogu zaman birden fazla parcaya
+ * boler (Garanti ekstresinde tutarin kurus kismi kucuk puntoyla ayri bir parca
+ * olarak gelir). Parcalar arasina kosulsuz bosluk konursa "-820," + "00 TL"
+ * birlesip "-820, 00 TL" olur ve para deseni (virgulden hemen sonra iki hane)
+ * ARTIK ESLESMEZ -- ekstredeki tutarlarin tamami sessizce kaybolur.
+ */
+const SPACE_GAP = 1;
+
+/**
+ * pdfjs parcalarini gorsel satirlara toplar.
+ *
+ * y'yi yuvarlayarak kova olusturmak yerine KUMELEME yapar: yuvarlama, ayni
+ * satirdaki iki hucre kova sinirinin iki yanina dustugunde (or. 500,9 ve 501,2)
+ * satiri ikiye bolerdi.
+ */
+export function assembleRows(fragments: TextFragment[]): string[] {
+  // PDF'te y yukaridan asagi azalir
+  const sorted = [...fragments].sort((a, b) => b.y - a.y);
+  const rows: TextFragment[][] = [];
+
+  for (const fragment of sorted) {
+    const current = rows[rows.length - 1];
+    if (current && Math.abs(current[0]!.y - fragment.y) <= ROW_TOLERANCE) {
+      current.push(fragment);
+    } else {
+      rows.push([fragment]);
+    }
+  }
+
+  return rows.map((parts) => {
+    const ordered = [...parts].sort((a, b) => a.x - b.x);
+    let line = '';
+
+    for (let i = 0; i < ordered.length; i++) {
+      const part = ordered[i]!;
+      if (i > 0) {
+        const previous = ordered[i - 1]!;
+        const gap = part.x - (previous.x + previous.width);
+        if (gap > SPACE_GAP) line += ' ';
+      }
+      line += part.text;
+    }
+
+    return line;
+  });
+}
+
 /**
  * PDF'ten metin cikarir.
  *
@@ -72,30 +131,20 @@ async function extractTextLayer(buffer: Buffer): Promise<{ text: string; pageCou
     const page = await doc.getPage(pageNo);
     const content = await page.getTextContent();
 
-    // Ayni satirdaki parcalari y konumuna gore birlestir: pdfjs metni
-    // sutun sutun dondurdugu icin duz birlestirme satirlari karistirir.
-    const rows = new Map<number, { x: number; text: string }[]>();
+    const fragments: TextFragment[] = [];
 
     for (const item of content.items) {
       if (!('str' in item) || item.str.trim() === '') continue;
       const transform = item.transform as number[];
-      const y = Math.round((transform[5] ?? 0) / 2) * 2; // 2pt tolerans
-      const x = transform[4] ?? 0;
-      const row = rows.get(y) ?? [];
-      row.push({ x, text: item.str });
-      rows.set(y, row);
+      fragments.push({
+        x: transform[4] ?? 0,
+        y: transform[5] ?? 0,
+        width: typeof item.width === 'number' ? item.width : 0,
+        text: item.str,
+      });
     }
 
-    const orderedRows = [...rows.entries()]
-      .sort((a, b) => b[0] - a[0]) // PDF'te y yukaridan asagi azalir
-      .map(([, parts]) =>
-        parts
-          .sort((a, b) => a.x - b.x)
-          .map((p) => p.text)
-          .join(' '),
-      );
-
-    pages.push(orderedRows.join('\n'));
+    pages.push(assembleRows(fragments).join('\n'));
     page.cleanup();
   }
 
