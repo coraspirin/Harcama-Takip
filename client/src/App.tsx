@@ -14,6 +14,8 @@ import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
 import Raporlar from './pages/Raporlar.tsx';
 import ZamanlanmisSayfa from './pages/ZamanlanmisSayfa.tsx';
+import Kullanicilar from './pages/admin/Kullanicilar.tsx';
+import IslemGunlugu from './pages/admin/IslemGunlugu.tsx';
 import Yakinda from './pages/Yakinda.tsx';
 
 /**
@@ -59,14 +61,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/kullanicilar" replace />} />
-          <Route
-            path="kullanicilar"
-            element={<Yakinda title="Kullanicilar" phase="Faz 7 (Super admin paneli)" />}
-          />
-          <Route
-            path="islem-gunlugu"
-            element={<Yakinda title="Islem gunlugu" phase="Faz 7 (Super admin paneli)" />}
-          />
+          <Route path="kullanicilar" element={<Kullanicilar />} />
+          <Route path="islem-gunlugu" element={<IslemGunlugu />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin/kullanicilar" replace />} />
       </Routes>

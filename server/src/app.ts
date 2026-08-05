@@ -18,6 +18,8 @@ import { dataRouter } from './routes/data.ts';
 import { reportsRouter } from './routes/reports.ts';
 import { occurrencesRouter, scheduledRouter } from './routes/scheduled.ts';
 import { notificationsRouter } from './routes/notifications.ts';
+import { adminUsersRouter } from './routes/admin/users.ts';
+import { adminAuditLogRouter } from './routes/admin/auditLog.ts';
 import { dashboardRouter } from './routes/dashboard.ts';
 
 export type CreateAppOptions = {
@@ -68,6 +70,11 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use('/api/occurrences', occurrencesRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
+
+  // Super admin uclari: yukaridaki veri route'larindan tamamen ayri bir grup.
+  // requireSuperAdmin ile korunur ve hicbir finansal veriye dokunmaz.
+  app.use('/api/admin/users', adminUsersRouter);
+  app.use('/api/admin/audit-log', adminAuditLogRouter);
 
   options.configure?.(app);
 
