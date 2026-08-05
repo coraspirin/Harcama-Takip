@@ -4,8 +4,10 @@ services:
     image: harcama-takip:latest
     container_name: harcama-takip
     ports:
-      # Sol taraf = sunucudaki dis port. Gerekirse degistirin (or. "8080:4000").
-      - '4000:4000'
+      # Sol taraf = sunucudaki dis port; .env icindeki HOST_PORT ile degistirilir.
+      # Ayni sunucuda 4000'i kullanan baska bir servis varsa dosyayi duzenlemek
+      # yerine HOST_PORT=4001 yazmak yeterli -- git pull ile catisma cikmaz.
+      - '${HOST_PORT:-4000}:4000'
     volumes:
       # SQLite veritabani + yuklenen ekstreler kalici olarak burada tutulur.
       - harcama-data:/data
@@ -19,6 +21,12 @@ services:
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
       - TZ=Europe/Istanbul
     restart: unless-stopped
+    logging:
+      # Sinirsiz log dosyasi diski doldurur; gunluk tarama her gun yazar.
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
 
 volumes:
   harcama-data:
