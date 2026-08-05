@@ -14,9 +14,9 @@ import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
 import Raporlar from './pages/Raporlar.tsx';
 import ZamanlanmisSayfa from './pages/ZamanlanmisSayfa.tsx';
+import IceAktar from './pages/IceAktar.tsx';
 import Kullanicilar from './pages/admin/Kullanicilar.tsx';
 import IslemGunlugu from './pages/admin/IslemGunlugu.tsx';
-import Yakinda from './pages/Yakinda.tsx';
 
 /**
  * Yonlendirme tamamen oturum durumuna gore kurulur: kullanicinin erisemeyecegi
@@ -81,7 +81,7 @@ function AppRoutes() {
         <Route path="raporlar" element={<Raporlar />} />
         <Route path="kategoriler" element={<Kategoriler />} />
         <Route path="butce" element={<Butce />} />
-        <Route path="ice-aktar" element={<Yakinda title="Ice aktar" phase="Faz 8 (OCR)" />} />
+        <Route path="ice-aktar" element={<IceAktar />} />
         <Route path="ayarlar" element={<Ayarlar />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

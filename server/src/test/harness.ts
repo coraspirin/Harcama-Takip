@@ -100,6 +100,38 @@ export class TestClient {
     return this.request<T>('DELETE', endpoint, body);
   }
 
+  /** multipart/form-data yukleme (OCR ekstre testleri icin). */
+  async upload<T = unknown>(
+    endpoint: string,
+    file: { field: string; filename: string; content: Buffer; type: string },
+    fields: Record<string, string> = {},
+  ): Promise<TestResponse<T>> {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) form.set(key, value);
+    form.set(
+      file.field,
+      new Blob([new Uint8Array(file.content)], { type: file.type }),
+      file.filename,
+    );
+
+    const headers: Record<string, string> = {};
+    if (this.cookies.size > 0) {
+      headers['cookie'] = [...this.cookies.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+    }
+
+    const res = await fetch(`${this.baseUrl}${endpoint}`, { method: 'POST', headers, body: form });
+    const text = await res.text();
+
+    let parsed: unknown = text;
+    try {
+      parsed = text === '' ? null : JSON.parse(text);
+    } catch {
+      /* JSON degilse ham metin kalir */
+    }
+
+    return { status: res.status, body: parsed as T, headers: res.headers };
+  }
+
   hasCookie(name: string): boolean {
     return this.cookies.has(name);
   }

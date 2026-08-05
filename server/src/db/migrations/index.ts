@@ -4,6 +4,7 @@ import { migration002FinanceCore } from './002_finance_core.ts';
 import { migration003CardStatements } from './003_card_statements.ts';
 import { migration004Budgets } from './004_budgets.ts';
 import { migration005Scheduled } from './005_scheduled.ts';
+import { migration006Ocr } from './006_ocr.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
@@ -18,4 +19,5 @@ export const migrations: Migration[] = [
   migration003CardStatements,
   migration004Budgets,
   migration005Scheduled,
+  migration006Ocr,
 ];

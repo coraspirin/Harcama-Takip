@@ -39,6 +39,19 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
 
+  // Dosya yukleme hatalari (multer) kullaniciya anlasilir sekilde donmeli
+  const uploadCode = (err as { code?: string }).code;
+  if (uploadCode === 'LIMIT_FILE_SIZE') {
+    res.status(400).json({
+      error: { code: 'FILE_TOO_LARGE', message: 'Dosya cok buyuk (en fazla 15 MB)' },
+    });
+    return;
+  }
+  if (err instanceof Error && err.message === 'Yalnizca PDF dosyasi yuklenebilir') {
+    res.status(400).json({ error: { code: 'INVALID_FILE_TYPE', message: err.message } });
+    return;
+  }
+
   // Beklenmeyen hata: istemciye ic detay sizdirmayiz, sunucuya tam log dusuruz.
   console.error('[error]', err);
   res.status(500).json({

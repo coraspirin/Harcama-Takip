@@ -29,6 +29,12 @@ WORKDIR /app/server
 # Kod degisiminden bagimsiz cache'lensin diye COPY'lerden ONCE.
 RUN apk add --no-cache poppler-utils font-liberation tzdata
 
+# Tesseract Turkce dil verisi imaja GOMULUR: calisma aninda agdan model
+# cekilmesi beklenmez (sunucu intranette olabilir) ve ilk OCR yavaslamaz.
+RUN mkdir -p /app/server/tessdata && \
+    wget -qO /app/server/tessdata/tur.traineddata \
+      https://raw.githubusercontent.com/tesseract-ocr/tessdata/4.1.0/tur.traineddata
+
 # Yalnizca uretim bagimliliklari. node:sqlite yerlesiktir, bcryptjs ve
 # tesseract.js saf JS/WASM oldugu icin native derleme gerekmez.
 COPY server/package*.json ./
@@ -40,6 +46,7 @@ COPY --from=client-build /app/client/dist /app/client/dist
 ENV CLIENT_DIR=/app/client/dist \
     DATA_DIR=/data/db \
     UPLOAD_DIR=/data/uploads \
+    TESSDATA_DIR=/app/server/tessdata \
     PORT=4000 \
     TZ=Europe/Istanbul
 
