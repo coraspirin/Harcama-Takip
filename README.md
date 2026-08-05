@@ -51,11 +51,26 @@ cookie'ler CORS ayarı gerektirmeden çalışır.
 
 ```bash
 cp .env.example .env      # JWT_* ve ENCRYPTION_KEY değerlerini MUTLAKA değiştirin
-docker compose up --build
+docker compose up -d --build
 ```
 
-`http://localhost:4000` adresinde yayına girer. Veritabanı ve yüklenen dosyalar
+`http://SUNUCU_IP:4000` adresinde yayına girer. Veritabanı ve yüklenen dosyalar
 `harcama-data` volume'ünde kalıcıdır. Türkçe OCR dil verisi imaja gömülüdür.
+
+Sunucuda 4000 portu doluysa `docker-compose.yml`'i düzenlemeyin (her `git pull`'da
+çakışır) — `.env` içine `HOST_PORT=4001` yazmanız yeterlidir.
+
+`.env` içindeki `DATA_DIR`, `UPLOAD_DIR`, `CLIENT_DIR`, `TESSDATA_DIR` satırları
+**yalnızca yerel geliştirme içindir**; Docker'da compose bunları container içi
+değerlerle ezer. Bırakmanız zararsızdır.
+
+Sırları sunucuda üretmek için:
+
+```bash
+openssl rand -base64 48 | tr -d '\n=+/'   # JWT_ACCESS_SECRET (ve ayrıca REFRESH)
+openssl rand -base64 32                   # ENCRYPTION_KEY (32 bayt olmalı)
+chmod 600 .env
+```
 
 ## İlk süper admin hesabının oluşturulması
 
