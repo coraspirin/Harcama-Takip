@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { BildirimZili } from '../components/BildirimZili.tsx';
 
 const NAV = [
   { to: '/', label: 'Ozet', icon: LayoutDashboard, end: true },
@@ -110,6 +111,9 @@ export default function AppLayout() {
           </div>
           <span className="font-semibold text-slate-900">Harcama Takip</span>
         </div>
+        <div className="ml-auto">
+          <BildirimZili />
+        </div>
       </header>
 
       {/* Mobil cekmece */}
@@ -138,6 +142,11 @@ export default function AppLayout() {
       )}
 
       <main className="lg:pl-64">
+        {/* Masaustunde bildirim zili icin ince ust serit */}
+        <div className="sticky top-0 z-20 hidden justify-end border-b border-slate-200 bg-slate-50/80 px-8 py-2 backdrop-blur lg:flex">
+          <BildirimZili />
+        </div>
+
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </div>

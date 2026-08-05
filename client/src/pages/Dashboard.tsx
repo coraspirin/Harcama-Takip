@@ -1,7 +1,16 @@
 import { Link } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, Plus, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarClock,
+  Plus,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { dashboardService, reportService } from '../services/finance.ts';
+import { scheduledService } from '../services/scheduled.ts';
 import { currentYearMonth } from '../components/MonthPicker.tsx';
 import { KategoriDagilimi } from '../components/charts/KategoriDagilimi.tsx';
 import { AylikTrend } from '../components/charts/AylikTrend.tsx';
@@ -35,6 +44,7 @@ export default function Dashboard() {
   const month = currentYearMonth();
   const monthly = useAsync(() => reportService.monthly(month), [month]);
   const trend = useAsync(() => reportService.trend(month, 6), [month]);
+  const upcoming = useAsync(() => scheduledService.upcoming(30), []);
 
   if (summary.error) {
     return (
@@ -122,6 +132,50 @@ export default function Dashboard() {
               <p className="mt-1 text-xs text-slate-400">Transferler haric</p>
             </div>
           </div>
+
+          {upcoming.data && upcoming.data.occurrences.length > 0 && (
+            <div className="mb-6">
+              <Card
+                title="Yaklasan odemeler"
+                description={
+                  upcoming.data.overdueCount > 0
+                    ? `${upcoming.data.overdueCount} kayit gecikmis durumda`
+                    : 'Onumuzdeki 30 gun'
+                }
+              >
+                <ul className="-my-2 divide-y divide-slate-100">
+                  {upcoming.data.occurrences.slice(0, 6).map((occurrence) => {
+                    const overdue = occurrence.dueDate < upcoming.data!.today;
+                    return (
+                      <li key={occurrence.id} className="flex items-center gap-3 py-2.5">
+                        <CalendarClock
+                          className={`h-4 w-4 shrink-0 ${overdue ? 'text-red-500' : 'text-slate-400'}`}
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-slate-900">
+                            {occurrence.itemName}
+                            {occurrence.seq !== null && ` (${occurrence.seq}/${occurrence.totalSeq})`}
+                          </p>
+                          <p className={`text-sm ${overdue ? 'text-red-600' : 'text-slate-500'}`}>
+                            {overdue ? 'Gecikti · ' : ''}
+                            {formatDate(occurrence.dueDate)} · {occurrence.accountName}
+                          </p>
+                        </div>
+                        <span className="tabular shrink-0 text-sm font-medium text-slate-900">
+                          {occurrence.amountKurus === null ? (
+                            <span className="text-slate-400">tutar girilmedi</span>
+                          ) : (
+                            <Money kurus={occurrence.amountKurus} />
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+            </div>
+          )}
 
           <div className="mb-6 grid gap-6 lg:grid-cols-2">
             <Card title="Bu ay kategori dagilimi">

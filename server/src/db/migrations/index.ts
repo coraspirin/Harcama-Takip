@@ -3,6 +3,7 @@ import { migration001Auth } from './001_auth.ts';
 import { migration002FinanceCore } from './002_finance_core.ts';
 import { migration003CardStatements } from './003_card_statements.ts';
 import { migration004Budgets } from './004_budgets.ts';
+import { migration005Scheduled } from './005_scheduled.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
@@ -16,4 +17,5 @@ export const migrations: Migration[] = [
   migration002FinanceCore,
   migration003CardStatements,
   migration004Budgets,
+  migration005Scheduled,
 ];

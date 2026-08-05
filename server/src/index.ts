@@ -2,6 +2,7 @@ import { env } from './config/env.ts';
 import { createApp } from './app.ts';
 import { closeDb, getDb } from './db/connection.ts';
 import { purgeExpiredTokens } from './db/sessions.ts';
+import { startScheduler, stopScheduler } from './services/scheduler.ts';
 
 // Tarih hesaplari (vade, ay sonu) surec saat dilimine bagli oldugu icin
 // TZ'yi acilista sabitleriz.
@@ -16,6 +17,9 @@ if (purged > 0) console.log(`[server] ${purged} suresi dolmus oturum kaydi temiz
 
 const app = createApp();
 
+// Vadesi yaklasan planlanan odeme/taksit/fatura taramasi
+startScheduler();
+
 const server = app.listen(env.PORT, () => {
   console.log(`[server] http://localhost:${env.PORT} (${env.NODE_ENV}, TZ=${env.TZ})`);
   console.log(`[server] veri dizini: ${env.DATA_DIR}`);
@@ -23,6 +27,7 @@ const server = app.listen(env.PORT, () => {
 
 function shutdown(signal: string): void {
   console.log(`[server] ${signal} alindi, kapaniyor...`);
+  stopScheduler();
   server.close(() => {
     closeDb();
     process.exit(0);

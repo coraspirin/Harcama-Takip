@@ -152,6 +152,67 @@ export type TrendReport = {
   series: { month: string; incomeKurus: number; expenseKurus: number; netKurus: number }[];
 };
 
+export type ScheduledKind = 'planned' | 'installment' | 'bill';
+export type BillPeriod = 'monthly' | 'quarterly' | 'yearly';
+export type OccurrenceStatus = 'pending' | 'confirmed' | 'skipped';
+
+export type ScheduledItem = {
+  id: number;
+  kind: ScheduledKind;
+  name: string;
+  direction: 'income' | 'expense';
+  accountId: number;
+  accountName: string;
+  categoryId: number | null;
+  categoryName: string | null;
+  counterparty: string | null;
+  description: string | null;
+  totalAmountKurus: number | null;
+  installmentCount: number | null;
+  period: BillPeriod | null;
+  amountKurus: number | null;
+  startDate: string;
+  active: boolean;
+  progress: { total: number; confirmed: number; pending: number };
+  nextDueDate: string | null;
+  remainingKurus: number;
+};
+
+export type Occurrence = {
+  id: number;
+  scheduledItemId: number;
+  itemName: string;
+  kind: ScheduledKind;
+  direction: 'income' | 'expense';
+  accountId: number;
+  accountName: string;
+  categoryName: string | null;
+  dueDate: string;
+  amountKurus: number | null;
+  status: OccurrenceStatus;
+  transactionId: number | null;
+  seq: number | null;
+  totalSeq: number | null;
+};
+
+export type Notification = {
+  id: number;
+  type: string;
+  title: string;
+  body: string | null;
+  relatedType: string | null;
+  relatedId: number | null;
+  dueDate: string | null;
+  read: boolean;
+  createdAt: string;
+};
+
+export const BILL_PERIOD_LABELS: Record<BillPeriod, string> = {
+  monthly: 'Aylik',
+  quarterly: 'Uc aylik',
+  yearly: 'Yillik',
+};
+
 export type ImportResult = {
   mode: 'merge' | 'replace';
   banks: number;
