@@ -40,11 +40,29 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
+  // COOKIE_SECURE, uygulamanin TLS arkasinda olup olmadiginin gostergesidir;
+  // asagida iki HTTPS varsayimi buna baglanir.
+  const behindTls = env.COOKIE_SECURE;
+
   app.use(
     helmet({
       // SPA ayni origin'den servis edildigi icin varsayilan CSP yeterli;
       // gelistirmede Vite'in inline script'lerini engellememesi icin kapali.
-      contentSecurityPolicy: env.isProd,
+      contentSecurityPolicy: env.isProd && {
+        useDefaults: true,
+        directives: {
+          // upgrade-insecure-requests helmet varsayilanlarinda VARDIR ve duz
+          // HTTP ile yayinda felakettir: tarayici belgeyi http'den alir ama
+          // TUM alt kaynaklari https'e yukseltir. TLS yoksa her script, css
+          // ve ikon ERR_SSL_PROTOCOL_ERROR ile duser -- yani bos beyaz ekran.
+          // Sunucu HTTP'de dinliyorsa direktifi kaldiriyoruz (null = sil).
+          ...(behindTls ? {} : { 'upgrade-insecure-requests': null }),
+        },
+      },
+      // HSTS'i de yalnizca gercekten HTTPS varken gonder. Duz HTTP uzerinde
+      // tarayici zaten yok sayar; ayrica ileride ayni host HTTPS'e gecerse
+      // yanlislikla bir yila kilitlemis olmayalim.
+      hsts: behindTls,
       crossOriginEmbedderPolicy: false,
     }),
   );

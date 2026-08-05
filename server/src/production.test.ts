@@ -114,4 +114,25 @@ describe('uretim modu (tek container)', () => {
     assert.ok(res.headers.get('content-security-policy'), 'CSP uretimde acik olmali');
     assert.equal(res.headers.get('x-powered-by'), null, 'sunucu imzasi gizlenmeli');
   });
+
+  // Bu iki test gercek bir uretim arizasindan sonra yazildi: helmet'in
+  // varsayilan CSP'si upgrade-insecure-requests iceriyor. Sunucu duz HTTP'de
+  // yayindayken tarayici belgeyi alir ama tum alt kaynaklari https'e yukseltir;
+  // TLS olmadigi icin her script/css/ikon ERR_SSL_PROTOCOL_ERROR ile duser ve
+  // kullanici bos beyaz ekran gorur. Baslik VARDIR, o yuzden yukaridaki test
+  // gecerken uygulama tamamen kirikti.
+  test('HTTPS yokken upgrade-insecure-requests GONDERILMEZ', async () => {
+    const csp = (await fetch(`${baseUrl}/`)).headers.get('content-security-policy') ?? '';
+    assert.doesNotMatch(
+      csp,
+      /upgrade-insecure-requests/,
+      'COOKIE_SECURE=false iken bu direktif tum varliklari kirar',
+    );
+    assert.match(csp, /default-src 'self'/, 'CSP yine de uygulanmali');
+  });
+
+  test('HTTPS yokken HSTS gonderilmez', async () => {
+    const res = await fetch(`${baseUrl}/api/health`);
+    assert.equal(res.headers.get('strict-transport-security'), null);
+  });
 });
