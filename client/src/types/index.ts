@@ -91,6 +91,38 @@ export type Category = {
   kind: CategoryKind;
   isDefault: boolean;
   archived: boolean;
+  /** Yalnizca /api/categories listesinde doner */
+  usageCount?: number;
+};
+
+export type Budget = {
+  id: number;
+  categoryId: number;
+  categoryName: string;
+  categoryArchived: boolean;
+  yearMonth: string;
+  limitKurus: number;
+  spentKurus: number;
+  remainingKurus: number;
+  usagePercent: number;
+  exceeded: boolean;
+};
+
+export type BudgetListResponse = {
+  month: string;
+  budgets: Budget[];
+  totals: { limitKurus: number; spentKurus: number; exceededCount: number };
+};
+
+export type ImportResult = {
+  mode: 'merge' | 'replace';
+  banks: number;
+  accounts: number;
+  categories: number;
+  transactions: number;
+  cardStatements: number;
+  budgets: number;
+  skippedTransactions: number;
 };
 
 export type TransactionType = 'income' | 'expense' | 'transfer_in' | 'transfer_out';

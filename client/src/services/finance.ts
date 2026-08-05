@@ -2,10 +2,13 @@ import { api } from './api.ts';
 import type {
   Account,
   Bank,
+  Budget,
+  BudgetListResponse,
   CardStatement,
   CardSummary,
   Category,
   DashboardSummary,
+  ImportResult,
   Pagination,
   Totals,
   Transaction,
@@ -112,6 +115,33 @@ export const categoryService = {
         `/api/categories${includeArchived ? '?includeArchived=true' : ''}`,
       )
       .then((r) => r.categories),
+  create: (input: { name: string; kind: Category['kind'] }) =>
+    api.post<{ category: Category }>('/api/categories', input).then((r) => r.category),
+  update: (id: number, input: { name: string; archived: boolean }) =>
+    api.patch<{ category: Category }>(`/api/categories/${id}`, input).then((r) => r.category),
+  /** Kullanimda olan kategori silinmez, arsivlenir; hangisi oldugu yanitla doner. */
+  remove: (id: number) =>
+    api.delete<{ action: 'deleted' | 'archived'; usageCount: number }>(`/api/categories/${id}`),
+};
+
+export const budgetService = {
+  list: (month: string) => api.get<BudgetListResponse>(`/api/budgets?month=${month}`),
+  create: (input: { categoryId: number; yearMonth: string; limitKurus: number }) =>
+    api.post<{ budget: Budget }>('/api/budgets', input),
+  update: (id: number, limitKurus: number) =>
+    api.patch<{ budget: Budget }>(`/api/budgets/${id}`, { limitKurus }),
+  remove: (id: number) => api.delete<{ deleted: boolean }>(`/api/budgets/${id}`),
+  copyFromPreviousMonth: (toMonth: string) =>
+    api.post<{ fromMonth: string; toMonth: string; copied: number }>('/api/budgets/copy', {
+      toMonth,
+    }),
+};
+
+export const dataService = {
+  exportAll: () => api.get<Record<string, unknown>>('/api/data/export'),
+  importAll: (mode: 'merge' | 'replace', data: unknown) =>
+    api.post<{ result: ImportResult }>('/api/data/import', { mode, data }),
+  reset: (confirm: string) => api.post<{ reset: boolean }>('/api/data/reset', { confirm }),
 };
 
 export const transactionService = {
