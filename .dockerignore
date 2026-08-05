@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/build
+.git
+.github
+data
+.env
+.env.*
+!.env.example
+sample_ekstre
+*.md
+!README.md
+**/*.log
+.vscode

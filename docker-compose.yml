@@ -1,0 +1,24 @@
+services:
+  harcama-takip:
+    build: .
+    image: harcama-takip:latest
+    container_name: harcama-takip
+    ports:
+      # Sol taraf = sunucudaki dis port. Gerekirse degistirin (or. "8080:4000").
+      - '4000:4000'
+    volumes:
+      # SQLite veritabani + yuklenen ekstreler kalici olarak burada tutulur.
+      - harcama-data:/data
+    env_file:
+      # Sirlar (.env) imaja gomulmez, calisma aninda okunur.
+      # Ilk kurulumda: cp .env.example .env  ve degerleri doldurun.
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - TZ=Europe/Istanbul
+    restart: unless-stopped
+
+volumes:
+  harcama-data:

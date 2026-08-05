@@ -1,0 +1,31 @@
+# Bagimliliklar
+node_modules/
+
+# Build ciktilari
+dist/
+build/
+
+# Ortam degiskenleri - ASLA commit edilmez
+.env
+.env.local
+.env.*.local
+
+# Veritabani ve kalici veri
+data/
+*.db
+*.db-wal
+*.db-shm
+server/uploads/
+
+# Gercek banka ekstreleri kisisel finansal veridir - repoya girmez.
+# Yalnizca README ve anonimlestirilmis test fixture'lari izinli.
+sample_ekstre/*
+!sample_ekstre/README.md
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+.vscode/*
+!.vscode/extensions.json

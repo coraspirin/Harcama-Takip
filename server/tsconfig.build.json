@@ -1,0 +1,6 @@
+{
+  /* Uretim derlemesi: testler ve test yardimcilari imaja girmez.
+     Tip kontrolu icin (testler dahil) tsconfig.json kullanilir. */
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/test/**"]
+}
