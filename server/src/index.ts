@@ -1,6 +1,7 @@
 import { env } from './config/env.ts';
 import { createApp } from './app.ts';
 import { closeDb, getDb } from './db/connection.ts';
+import { purgeExpiredTokens } from './db/sessions.ts';
 
 // Tarih hesaplari (vade, ay sonu) surec saat dilimine bagli oldugu icin
 // TZ'yi acilista sabitleriz.
@@ -8,6 +9,10 @@ process.env.TZ = env.TZ;
 
 // Migration'lar burada, istekler gelmeye baslamadan once calisir.
 getDb();
+
+// Suresi coktan dolmus refresh token kayitlarini temizle.
+const purged = purgeExpiredTokens();
+if (purged > 0) console.log(`[server] ${purged} suresi dolmus oturum kaydi temizlendi`);
 
 const app = createApp();
 

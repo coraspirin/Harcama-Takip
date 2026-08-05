@@ -93,6 +93,15 @@ export class TestClient {
     return this.cookies.has(name);
   }
 
+  getCookie(name: string): string | undefined {
+    return this.cookies.get(name);
+  }
+
+  /** Calinmis token senaryolarini kurmak icin. */
+  setCookie(name: string, value: string): void {
+    this.cookies.set(name, value);
+  }
+
   clearCookies(): void {
     this.cookies.clear();
   }
@@ -109,7 +118,22 @@ export type TestServer = {
  * Gecici bir dizinde temiz veritabaniyla uygulamayi rastgele bir portta baslatir.
  * Her test dosyasi kendi ornegini alir; testler birbirinin verisini gormez.
  */
-export async function startTestServer(): Promise<TestServer> {
+let started = false;
+
+export async function startTestServer(
+  options: { configure?: (app: import('express').Express) => void } = {},
+): Promise<TestServer> {
+  // env.ts degiskenleri import aninda okur, bu yuzden DATA_DIR surec basina bir
+  // kez sabitlenebilir. Node test kosucusu her dosyayi ayri surecte calistirdigi
+  // icin bu bir kisit degil; ayni dosyada ikinci sunucu istenirse sessizce ayni
+  // veritabanini paylasirdi - erken ve acik hata veriyoruz.
+  if (started) {
+    throw new Error(
+      'startTestServer surec basina bir kez cagrilabilir. Izole veritabani gereken testleri ayri bir test dosyasina alin.',
+    );
+  }
+  started = true;
+
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harcama-test-'));
   process.env.DATA_DIR = dir;
   process.env.UPLOAD_DIR = path.join(dir, 'uploads');
@@ -121,7 +145,7 @@ export async function startTestServer(): Promise<TestServer> {
   const { createApp } = await import('../app.ts');
   const { closeDb } = await import('../db/connection.ts');
 
-  const app = createApp();
+  const app = createApp({ configure: options.configure });
   const server: Server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });

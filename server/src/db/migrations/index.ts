@@ -1,4 +1,5 @@
 import type { Migration } from '../migrate.ts';
+import { migration001Auth } from './001_auth.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
@@ -7,4 +8,4 @@ import type { Migration } from '../migrate.ts';
  * Uygulanmis bir migration'in SQL'i asla degistirilmez; duzeltme yeni bir
  * migration ile yapilir.
  */
-export const migrations: Migration[] = [];
+export const migrations: Migration[] = [migration001Auth];
