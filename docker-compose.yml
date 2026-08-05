@@ -16,8 +16,17 @@ services:
       # Ilk kurulumda: cp .env.example .env  ve degerleri doldurun.
       - .env
     environment:
+      # DIKKAT: buradakiler env_file'i EZER (compose onceligi). Yol degiskenleri
+      # bilerek burada sabitlenmistir: .env.example'daki degerler gelistirme
+      # icindir (./data, ../client/dist) ve "cp .env.example .env" yapan biri
+      # onlari container'a tasirsa frontend 404 doner, veritabani da kalici
+      # volume yerine container katmanina yazilip her rebuild'de silinirdi.
       - NODE_ENV=production
       - PORT=4000
+      - DATA_DIR=/data/db
+      - UPLOAD_DIR=/data/uploads
+      - CLIENT_DIR=/app/client/dist
+      - TESSDATA_DIR=/app/server/tessdata
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
       - TZ=Europe/Istanbul
     restart: unless-stopped
