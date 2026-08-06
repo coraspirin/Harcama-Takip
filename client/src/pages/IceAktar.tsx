@@ -1,5 +1,15 @@
-import { useRef, useState } from 'react';
-import { Check, FileText, FileUp, ScanLine, Trash2, Upload, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import {
+  Check,
+  CircleAlert,
+  CircleCheck,
+  FileText,
+  FileUp,
+  ScanLine,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { accountService, categoryService } from '../services/finance.ts';
 import { ocrService, type OcrDraftLine } from '../services/ocr.ts';
@@ -13,6 +23,34 @@ import { MoneyInput } from '../components/MoneyInput.tsx';
 import { Money } from '../components/Money.tsx';
 import { formatDate, formatDateTime } from '../lib/format.ts';
 
+type LineFilter = 'all' | 'duplicates' | 'unique' | 'uncategorized' | 'chainBreaks';
+
+const FILTERS: { id: LineFilter; label: string }[] = [
+  { id: 'all', label: 'Tumu' },
+  { id: 'duplicates', label: 'Yalnizca mukerrer' },
+  { id: 'unique', label: 'Mukerrer olmayan' },
+  { id: 'uncategorized', label: 'Kategorisiz' },
+  { id: 'chainBreaks', label: 'Bakiye kopugu' },
+];
+
+/** Bir ekstrede yuzlerce satir olabiliyor; tamami tek sayfaya basilmaz. */
+const PAGE_SIZE = 50;
+
+function matchesFilter(line: OcrDraftLine, filter: LineFilter): boolean {
+  switch (filter) {
+    case 'duplicates':
+      return line.isDuplicate;
+    case 'unique':
+      return !line.isDuplicate;
+    case 'uncategorized':
+      return line.categoryId === null;
+    case 'chainBreaks':
+      return line.chainBreak;
+    default:
+      return true;
+  }
+}
+
 export default function IceAktar() {
   const accounts = useAsync(() => accountService.list(), []);
   const categories = useAsync(() => categoryService.list(), []);
@@ -23,6 +61,7 @@ export default function IceAktar() {
 
   const [accountId, setAccountId] = useState<number | null>(null);
   const [parserId, setParserId] = useState('');
+  const [fromDate, setFromDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -30,6 +69,15 @@ export default function IceAktar() {
   const [openImportId, setOpenImportId] = useState<number | null>(null);
   const [editingLine, setEditingLine] = useState<OcrDraftLine | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+
+  // --- taslak inceleme: filtre, sayfalama, toplu secim ---
+  const [filter, setFilter] = useState<LineFilter>('all');
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkCategoryId, setBulkCategoryId] = useState<number | null>(null);
+  const [unmappedLabels, setUnmappedLabels] = useState<string[]>([]);
+  const [lastUploadParser, setLastUploadParser] = useState('');
+  const [statementBalance, setStatementBalance] = useState<number | null>(null);
 
   const detail = useAsync(
     () =>
@@ -56,12 +104,28 @@ export default function IceAktar() {
     setError(null);
     setNotice(null);
     try {
-      const result = await ocrService.upload(file, accountId, parserId || undefined);
+      const result = await ocrService.upload(
+        file,
+        accountId,
+        parserId || undefined,
+        fromDate || undefined,
+      );
       setNotice(
-        `${result.parserName} olarak okundu · ${result.pageCount} sayfa · ${result.lineCount} satir bulundu` +
-          (result.duplicateCount > 0 ? ` (${result.duplicateCount} mukerrer)` : '') +
+        `${result.parserName} olarak okundu · ${result.pageCount} sayfa · ${result.lineCount} satir alindi` +
+          (result.skippedByDateCount > 0
+            ? ` · ${result.skippedByDateCount} satir tarih kesmesi disinda kaldi`
+            : '') +
+          (result.duplicateCount > 0
+            ? ` · ${result.duplicateCount} satir sisteme daha once aktarilmis`
+            : '') +
           (result.extraction === 'ocr' ? ' · taranmis PDF, OCR kullanildi' : ''),
       );
+      setUnmappedLabels(result.unmappedLabels);
+      setLastUploadParser(result.parserId);
+      setStatementBalance(result.statementBalanceKurus);
+      setFilter('all');
+      setPage(0);
+      setSelected(new Set());
       setOpenImportId(result.importId);
       await imports.reload();
     } catch (err) {
@@ -122,6 +186,42 @@ export default function IceAktar() {
     }
   }
 
+  async function runBulk(
+    action: 'exclude' | 'include' | 'setCategory',
+    categoryId: number | null = null,
+  ) {
+    if (openImportId === null || selected.size === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await ocrService.bulk(openImportId, [...selected], action, categoryId);
+      setNotice(`${res.updated} satir guncellendi.`);
+      setSelected(new Set());
+      await detail.reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Toplu islem basarisiz');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function mapLabel(label: string, categoryId: number | null) {
+    setBusy(true);
+    setError(null);
+    try {
+      await ocrService.saveLabelMap(lastUploadParser, label, categoryId);
+      setUnmappedLabels((prev) => prev.filter((l) => l !== label));
+      setNotice(
+        `"${label}" etiketi eslendi. Bundan sonraki ice aktarimlarda otomatik uygulanacak; ` +
+          'bu taslaktaki satirlar icin asagidan toplu atama yapabilirsiniz.',
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Esleme kaydedilemedi');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function applyImport() {
     if (openImportId === null) return;
     setBusy(true);
@@ -167,6 +267,30 @@ export default function IceAktar() {
   const includedTotal = lines
     .filter((l) => !l.excluded)
     .reduce((sum, l) => sum + (l.type === 'expense' ? -l.amountKurus : l.amountKurus), 0);
+
+  const filtered = useMemo(() => lines.filter((l) => matchesFilter(l, filter)), [lines, filter]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  const allVisibleSelected = visible.length > 0 && visible.every((l) => selected.has(l.id));
+
+  function toggleSelectAllVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visible.forEach((l) => next.delete(l.id));
+      else visible.forEach((l) => next.add(l.id));
+      return next;
+    });
+  }
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <>
@@ -223,6 +347,14 @@ export default function IceAktar() {
             </SelectField>
           </div>
 
+          <TextField
+            label="Su tarihten oncesini alma"
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            hint="Istege bagli. Iki yillik bir ekstrenin tamamini almak istemiyorsaniz kullanin."
+          />
+
           <div>
             <input
               ref={fileInput}
@@ -266,12 +398,105 @@ export default function IceAktar() {
             </>
           }
         >
+          {/* Bakiye zinciri: okunan tutarlarin dogrulugunu KANITLAR */}
+          {current.balanceCheck === 'ok' && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+              <p>
+                <strong>Bakiye zinciri tutuyor.</strong> Ekstredeki bakiye sutunu ile okunan
+                tutarlar bastan sona uyusuyor; hicbir satir atlanmamis.
+              </p>
+            </div>
+          )}
+          {current.balanceCheck === 'gaps' && (
+            <div className="mb-4">
+              <Alert
+                tone="warning"
+                title={`Bakiye zincirinde ${current.balanceGapCount} kopukluk var`}
+              >
+                Ekstrenin bakiye sutunu ile okunan tutarlar toplam{' '}
+                <strong>
+                  <Money kurus={current.balanceGapKurus} />
+                </strong>{' '}
+                tutarinda uyusmuyor. Bu, bir veya daha fazla satirin okunamadigi anlamina gelir.
+                Kopuklugun dustugu satirlari{' '}
+                <button
+                  type="button"
+                  className="font-medium underline"
+                  onClick={() => {
+                    setFilter('chainBreaks');
+                    setPage(0);
+                  }}
+                >
+                  filtreleyip
+                </button>{' '}
+                eksik islemi elle ekleyebilirsiniz.
+              </Alert>
+            </div>
+          )}
+
+          {statementBalance !== null && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+              <p>
+                Ekstredeki guncel bakiye:{' '}
+                <strong>
+                  <Money kurus={statementBalance} signed />
+                </strong>
+                . Islemleri kaydettikten sonra hesap bakiyeniz bundan farkliysa, ekstrenin
+                kapsamadigi eski donem icin hesabin <strong>acilis bakiyesini</strong>{' '}
+                ayarlamaniz gerekir.
+              </p>
+            </div>
+          )}
+
+          {unmappedLabels.length > 0 && (
+            <div className="mb-4 rounded-lg border border-slate-200 p-3">
+              <p className="mb-2 text-sm font-medium text-slate-900">
+                {unmappedLabels.length} banka etiketi bir kategoriye eslenmemis
+              </p>
+              <p className="mb-3 text-sm text-slate-500">
+                Bir kez eslerseniz sonraki tum ice aktarimlarda otomatik uygulanir.
+              </p>
+              <div className="space-y-2">
+                {unmappedLabels.map((label) => (
+                  <div key={label} className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-sm text-slate-700">
+                      {label}
+                    </span>
+                    <select
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                      defaultValue=""
+                      disabled={busy}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') return;
+                        void mapLabel(label, value === 'none' ? null : Number(value));
+                      }}
+                    >
+                      <option value="">Kategori sec…</option>
+                      <option value="none">Kategorisiz kalsin (bir daha sorma)</option>
+                      {(categories.data ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.kind === 'income' ? 'gelir' : 'gider'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {current.duplicateCount > 0 && (
             <div className="mb-4">
-              <Alert tone="warning" title={`${current.duplicateCount} mukerrer satir bulundu`}>
-                Bu satirlarla ayni tarih, tutar ve aciklamaya sahip islemler zaten kayitli.
-                Varsayilan olarak <strong>haric tutuldular</strong>; yine de eklemek isterseniz
-                satirin yanindaki isareti kaldirin.
+              <Alert
+                tone="warning"
+                title={`${current.duplicateCount} satir sisteme daha once aktarilmis`}
+              >
+                Ayni tarih, tutar ve aciklamaya sahip islemler zaten kayitli. Varsayilan olarak{' '}
+                <strong>haric tutuldular</strong>. Ayni belgenin icinde tekrar eden satirlar
+                mukerrer sayilmaz &mdash; ayni gun ayni odemeyi iki kez yapmis olabilirsiniz.
               </Alert>
             </div>
           )}
@@ -284,10 +509,82 @@ export default function IceAktar() {
             />
           ) : (
             <>
+              {/* Filtreler */}
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {FILTERS.map((f) => {
+                  const count = lines.filter((l) => matchesFilter(l, f.id)).length;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        setFilter(f.id);
+                        setPage(0);
+                      }}
+                      disabled={count === 0 && f.id !== 'all'}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors disabled:opacity-40 ${
+                        filter === f.id
+                          ? 'bg-brand-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {f.label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Toplu islem cubugu */}
+              {selected.size > 0 && current.status === 'draft' && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 p-3">
+                  <span className="text-sm font-medium text-brand-900">
+                    {selected.size} satir secili
+                  </span>
+                  <Button size="sm" variant="secondary" onClick={() => void runBulk('exclude')}>
+                    Islemden cikar
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => void runBulk('include')}>
+                    Islemeye dahil et
+                  </Button>
+                  <select
+                    className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                    value={bulkCategoryId ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? Number(e.target.value) : null;
+                      setBulkCategoryId(value);
+                      void runBulk('setCategory', value);
+                    }}
+                  >
+                    <option value="">Kategori ata…</option>
+                    {(categories.data ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="text-sm text-slate-500 underline"
+                    onClick={() => setSelected(new Set())}
+                  >
+                    Secimi temizle
+                  </button>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-slate-500">
+                      <th className="pb-2 font-medium">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={toggleSelectAllVisible}
+                          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                          aria-label="Gorunen satirlarin tumunu sec"
+                        />
+                      </th>
                       <th className="pb-2 font-medium">Islensin</th>
                       <th className="pb-2 font-medium">Tarih</th>
                       <th className="pb-2 font-medium">Aciklama</th>
@@ -296,8 +593,22 @@ export default function IceAktar() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {lines.map((line) => (
-                      <tr key={line.id} className={line.excluded ? 'opacity-50' : ''}>
+                    {visible.map((line) => (
+                      <tr
+                        key={line.id}
+                        className={`${line.excluded ? 'opacity-50' : ''} ${
+                          line.chainBreak ? 'bg-amber-50' : ''
+                        }`}
+                      >
+                        <td className="py-2.5">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(line.id)}
+                            onChange={() => toggleSelect(line.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                            aria-label="Bu satiri toplu islem icin sec"
+                          />
+                        </td>
                         <td className="py-2.5">
                           <input
                             type="checkbox"
@@ -313,9 +624,19 @@ export default function IceAktar() {
                         </td>
                         <td className="py-2.5">
                           <span className="text-slate-900">{line.description}</span>
+                          {line.label && (
+                            <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                              {line.label}
+                            </span>
+                          )}
                           {line.isDuplicate && (
                             <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                              mukerrer
+                              daha once aktarilmis
+                            </span>
+                          )}
+                          {line.chainBreak && (
+                            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                              bakiye kopugu
                             </span>
                           )}
                         </td>
@@ -339,6 +660,36 @@ export default function IceAktar() {
                   </tbody>
                 </table>
               </div>
+
+              {pageCount > 1 && (
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-sm">
+                  <span className="text-slate-500">
+                    {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)}{' '}
+                    / {filtered.length} satir
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={safePage === 0}
+                      onClick={() => setPage(safePage - 1)}
+                    >
+                      Onceki
+                    </Button>
+                    <span className="text-slate-500">
+                      {safePage + 1} / {pageCount}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={safePage >= pageCount - 1}
+                      onClick={() => setPage(safePage + 1)}
+                    >
+                      Sonraki
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 flex justify-end border-t border-slate-100 pt-3 text-sm">
                 <span className="text-slate-500">

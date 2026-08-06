@@ -6,6 +6,17 @@ export type ParsedLine = {
   description: string;
   amountKurus: number; // her zaman POZITIF; yon "type" ile verilir
   type: 'income' | 'expense';
+  /**
+   * Bankanin kendi siniflandirmasi ("Telekomunikasyon", "Kira Odemesi"...).
+   * Kategori tahmini icin kullanilir; ekstrede yoksa null.
+   */
+  label: string | null;
+  /**
+   * Satirdan SONRAKI hesap bakiyesi, isaretli kurus. Ardisik satirlar
+   * arasindaki fark okunan tutarlari dogrulamaya yarar (bkz. balanceChain).
+   * Ekstrede bakiye sutunu yoksa null.
+   */
+  balanceKurus: number | null;
   raw: string;
 };
 
@@ -22,6 +33,14 @@ export type ParserOptions = {
   lastAmountIsBalance: boolean;
   /** Bu ifadeleri iceren satirlar gelir (iade/odeme) sayilir. */
   incomeKeywords: string[];
+  /**
+   * Bankanin kendi etiket sozlugu ("Telekomunikasyon", "Kira Odemesi"...).
+   *
+   * Aciklama bu degerlerden biriyle BITIYORSA ayrilir. Yalnizca TAM eslesme
+   * kesildigi icin aciklamanin sonundan yanlislikla kelime kirpilmaz; sozluk
+   * bos birakilirsa etiket cikarimi hic calismaz.
+   */
+  labels: string[];
 };
 
 /**
@@ -59,7 +78,39 @@ export const DEFAULT_OPTIONS: ParserOptions = {
     'maas',
     'alacak',
   ],
+  labels: [],
 };
+
+/**
+ * Aciklamanin sonundaki banka etiketini ayirir.
+ *
+ * Donen aciklama etiketten arindirilmis, etiket ise ekstredeki ozgun yazimiyla
+ * verilir. Eslesme aksan/buyuk-kucuk harf duyarsizdir (foldTurkish).
+ */
+export function splitLabel(
+  description: string,
+  labels: string[],
+): { description: string; label: string | null } {
+  const folded = foldTurkish(description);
+
+  // Uzun etiketler once denenir: "Kart Odemesi" ile "Odeme" ayni anda
+  // sozlukteyse uzun olani dogru sonucu verir.
+  const ordered = [...labels].sort((a, b) => b.length - a.length);
+
+  for (const label of ordered) {
+    const foldedLabel = foldTurkish(label);
+    if (!folded.endsWith(foldedLabel)) continue;
+
+    const cut = description.slice(0, description.length - label.length).trim();
+    // Aciklamanin TAMAMI etiketten ibaretse kirpmayiz: aciklamasiz bir satir,
+    // etiketi aciklama olarak gostermekten daha az bilgilendirici olurdu.
+    if (cut === '') return { description, label: null };
+
+    return { description: cut, label };
+  }
+
+  return { description, label: null };
+}
 
 /** gg.aa.yyyy · gg/aa/yyyy · gg-aa-yyyy · gg.aa.yy */
 const DATE_RE = /(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/;
@@ -172,20 +223,28 @@ export function parseStatementText(
     const tokens = afterDate.match(MONEY_RE) ?? [];
     if (tokens.length === 0) continue;
 
-    const usable =
-      opts.lastAmountIsBalance && tokens.length > 1 ? tokens.slice(0, -1) : tokens;
+    const hasBalanceColumn = opts.lastAmountIsBalance && tokens.length > 1;
+    const usable = hasBalanceColumn ? tokens.slice(0, -1) : tokens;
+
+    // Son jeton bakiye sutunudur. Onceden okunup ATILIYORDU; artik saklaniyor
+    // cunku ardisik satirlar arasindaki fark, okunan tutarlarin dogrulugunu
+    // aritmetik olarak kanitlar (bkz. balanceChain.ts).
+    const balanceKurus = hasBalanceColumn ? toSignedKurus(tokens[tokens.length - 1]!) : null;
 
     const signed = toSignedKurus(usable[0]!);
     if (signed === null || signed === 0) continue;
 
     // Aciklama: tarih ile ilk tutar arasindaki metin
     const firstTokenIndex = afterDate.indexOf(usable[0]!);
-    const description =
+    const rawDescription =
       afterDate
         .slice(0, firstTokenIndex)
         .replace(/[|;]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim() || 'Aciklama yok';
+
+    // Banka etiketi aciklamanin sonuna yapisik gelir; ayrilir.
+    const { description, label } = splitLabel(rawDescription, opts.labels);
 
     const folded = foldTurkish(line);
     const looksLikeIncome = opts.incomeKeywords.some((keyword) =>
@@ -207,6 +266,8 @@ export function parseStatementText(
       description: description.slice(0, 200),
       amountKurus: Math.abs(signed),
       type,
+      label,
+      balanceKurus,
       raw: line,
     });
   }

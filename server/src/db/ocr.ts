@@ -10,6 +10,9 @@ export type OcrImportRow = {
   extraction: 'text' | 'ocr';
   page_count: number;
   status: 'draft' | 'applied' | 'discarded';
+  balance_check: 'ok' | 'gaps' | 'unavailable' | null;
+  balance_gap_count: number;
+  balance_gap_kurus: number;
   created_at: string;
   applied_at: string | null;
 };
@@ -31,6 +34,9 @@ export type OcrDraftLineRow = {
   amount_kurus: number;
   type: 'income' | 'expense';
   category_id: number | null;
+  label: string | null;
+  balance_kurus: number | null;
+  chain_break: number;
   external_hash: string;
   is_duplicate: number;
   excluded: number;
@@ -128,6 +134,10 @@ export type CreateDraftLineInput = {
   description: string;
   amountKurus: number;
   type: 'income' | 'expense';
+  categoryId: number | null;
+  label: string | null;
+  balanceKurus: number | null;
+  chainBreak: boolean;
   externalHash: string;
   isDuplicate: boolean;
   raw: string;
@@ -138,8 +148,9 @@ export function insertDraftLine(userId: number, input: CreateDraftLineInput): vo
     .prepare(
       `INSERT INTO ocr_draft_lines
          (user_id, import_id, line_no, date, description, amount_kurus, type,
+          category_id, label, balance_kurus, chain_break,
           external_hash, is_duplicate, excluded, raw)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
@@ -149,12 +160,75 @@ export function insertDraftLine(userId: number, input: CreateDraftLineInput): vo
       input.description,
       input.amountKurus,
       input.type,
+      input.categoryId,
+      input.label,
+      input.balanceKurus,
+      input.chainBreak ? 1 : 0,
       input.externalHash,
       input.isDuplicate ? 1 : 0,
       // Mukerrer satirlar varsayilan olarak HARIC baslar; kullanici isterse acar.
       input.isDuplicate ? 1 : 0,
       input.raw,
     );
+}
+
+export type BalanceCheckInput = {
+  status: 'ok' | 'gaps' | 'unavailable';
+  gapCount: number;
+  gapKurus: number;
+};
+
+export function setBalanceCheck(userId: number, importId: number, input: BalanceCheckInput): void {
+  getDb()
+    .prepare(
+      `UPDATE ocr_imports
+       SET balance_check = ?, balance_gap_count = ?, balance_gap_kurus = ?
+       WHERE user_id = ? AND id = ?`,
+    )
+    .run(input.status, input.gapCount, input.gapKurus, userId, importId);
+}
+
+export type BulkLineAction =
+  | { action: 'exclude' }
+  | { action: 'include' }
+  | { action: 'setCategory'; categoryId: number | null };
+
+/**
+ * Secili satirlara toplu islem. 600 satirlik bir taslakta tek tek PATCH
+ * atmak pratikte kullanilamaz.
+ *
+ * Satirlar hem kullaniciya hem ice aktarima gore filtrelenir: baskasinin
+ * satiri veya baska bir ice aktarimin satiri id listesine sizsa bile
+ * guncellenmez.
+ */
+export function bulkUpdateDraftLines(
+  userId: number,
+  importId: number,
+  ids: number[],
+  input: BulkLineAction,
+): number {
+  if (ids.length === 0) return 0;
+
+  const placeholders = ids.map(() => '?').join(', ');
+  const db = getDb();
+
+  if (input.action === 'setCategory') {
+    const result = db
+      .prepare(
+        `UPDATE ocr_draft_lines SET category_id = ?
+         WHERE user_id = ? AND import_id = ? AND id IN (${placeholders})`,
+      )
+      .run(input.categoryId, userId, importId, ...ids);
+    return Number(result.changes);
+  }
+
+  const result = db
+    .prepare(
+      `UPDATE ocr_draft_lines SET excluded = ?
+       WHERE user_id = ? AND import_id = ? AND id IN (${placeholders})`,
+    )
+    .run(input.action === 'exclude' ? 1 : 0, userId, importId, ...ids);
+  return Number(result.changes);
 }
 
 export function listDraftLines(userId: number, importId: number): OcrDraftLineRow[] {

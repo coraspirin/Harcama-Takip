@@ -51,9 +51,34 @@ const CREDIT_CARD_OPTIONS: Partial<ParserOptions> = {
   lastAmountIsBalance: false,
 };
 
+/**
+ * Garanti BBVA hesap hareketlerindeki "Etiket" sutununun degerleri.
+ *
+ * Banka her satiri zaten siniflandiriyor; bu sozluk sayesinde etiket
+ * aciklamadan ayrilip kategori tahminine cevrilir. Sozlukte olmayan bir ifade
+ * ASLA kirpilmaz, bu yuzden liste eksik olsa bile zarar vermez.
+ */
+const GARANTI_LABELS = [
+  'Telekomünikasyon',
+  'Kurum Ödemesi',
+  'Para Transferi',
+  'Kart Ödemesi',
+  'Kira Ödemesi',
+  'Faiz / Komisyon',
+  'Taksitli Avans Hesap',
+  'Nakit Avans',
+  'Para Çekme',
+  'Para Yatırma',
+  'Sigorta',
+  'Vergi',
+  'Kredi',
+  'Maaş',
+  'Diğer',
+];
+
 export const PARSERS: BankParser[] = [
   bankParser('isbank', 'Türkiye İş Bankası', ['is bankasi', 'işbank', 'isbank', 'iş bankası']),
-  bankParser('garanti', 'Garanti BBVA', ['garanti', 'bbva']),
+  bankParser('garanti', 'Garanti BBVA', ['garanti', 'bbva'], { labels: GARANTI_LABELS }),
   bankParser('yapikredi', 'Yapı Kredi', ['yapi kredi', 'yapı kredi', 'yapikredi', 'worldcard']),
   bankParser('akbank', 'Akbank', ['akbank', 'axess']),
   bankParser('ziraat', 'Ziraat Bankası', ['ziraat', 'bankkart']),

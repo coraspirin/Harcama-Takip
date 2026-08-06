@@ -159,6 +159,44 @@ export function findTransferGroup(userId: number, groupId: string): TransactionW
     .all(userId, groupId) as TransactionWithNames[];
 }
 
+export type ContentKey = {
+  accountId: number;
+  date: string;
+  amountKurus: number;
+  type: 'income' | 'expense';
+  /** foldTurkish'ten gecirilmis, bosluklari sadelestirilmis aciklama. */
+  normalizedDescription: string;
+};
+
+/**
+ * Ayni ICERIGE sahip kac islem var?
+ *
+ * Mukerrer tespitinin temeli. Eskiden external_hash uzerinden bakiliyordu; o
+ * yaklasim ELLE GIRILMIS kayitlari tamamen kaciriyordu (onlarda hash NULL).
+ *
+ * Aciklama karsilastirmasi bilerek SQL'de degil JS'te yapilir: SQLite'in
+ * LOWER() fonksiyonu Turkce harfleri katlamaz, dolayisiyla SQL tarafi ile
+ * foldTurkish kullanan JS tarafi sessizce farkli sonuc verirdi. Ucuz ve
+ * indeksli on eleme SQL'de, kesin karsilastirma JS'te.
+ */
+export function countContentMatches(
+  userId: number,
+  key: ContentKey,
+  normalize: (value: string) => string,
+): number {
+  const rows = getDb()
+    .prepare(
+      `SELECT description FROM transactions
+       WHERE user_id = ? AND account_id = ? AND date = ? AND amount_kurus = ? AND type = ?`,
+    )
+    .all(userId, key.accountId, key.date, key.amountKurus, key.type) as {
+    description: string | null;
+  }[];
+
+  return rows.filter((row) => normalize(row.description ?? '') === key.normalizedDescription)
+    .length;
+}
+
 export type CreateTransactionInput = {
   accountId: number;
   categoryId: number | null;

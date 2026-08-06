@@ -10,6 +10,7 @@ import { idParamSchema, isoDateSchema, positiveKurusSchema } from '../lib/valida
 import { accountExists, findAccount } from '../db/accounts.ts';
 import { categoryExists } from '../db/categories.ts';
 import {
+  bulkUpdateDraftLines,
   deleteImport,
   findDraftLine,
   findImport,
@@ -20,7 +21,8 @@ import {
   type OcrDraftLineRow,
   type OcrImportWithCounts,
 } from '../db/ocr.ts';
-import { applyImport, externalHash, importStatement } from '../services/ocr/ocrService.ts';
+import { listLabelMapRows, upsertLabelMap } from '../db/labelMap.ts';
+import { applyImport, importStatement, recomputeLineHash } from '../services/ocr/ocrService.ts';
 import { listParsers } from '../services/ocr/parserRegistry.ts';
 
 export const ocrRouter: Router = Router();
@@ -77,6 +79,9 @@ function serializeImport(row: OcrImportWithCounts) {
     lineCount: row.line_count,
     duplicateCount: row.duplicate_count,
     excludedCount: row.excluded_count,
+    balanceCheck: row.balance_check,
+    balanceGapCount: row.balance_gap_count,
+    balanceGapKurus: row.balance_gap_kurus,
     createdAt: row.created_at,
     appliedAt: row.applied_at,
   };
@@ -91,6 +96,9 @@ function serializeLine(row: OcrDraftLineRow) {
     amountKurus: row.amount_kurus,
     type: row.type,
     categoryId: row.category_id,
+    label: row.label,
+    balanceKurus: row.balance_kurus,
+    chainBreak: row.chain_break === 1,
     isDuplicate: row.is_duplicate === 1,
     excluded: row.excluded === 1,
     raw: row.raw,
@@ -146,13 +154,17 @@ ocrRouter.post(
 
     const parserId = typeof req.body?.parserId === 'string' ? req.body.parserId : undefined;
 
-    const result = await importStatement(
-      user.id,
-      accountId,
-      req.file.originalname,
-      req.file.buffer,
+    // Tarih kesmesi: 2 yillik bir ekstrenin tamami istenmeyebilir (eski donem
+    // elle girilmis olabilir). Ayristirma sonrasi, taslak yazilmadan uygulanir.
+    const fromDate =
+      typeof req.body?.fromDate === 'string' && req.body.fromDate !== ''
+        ? isoDateSchema.parse(req.body.fromDate)
+        : undefined;
+
+    const result = await importStatement(user.id, accountId, req.file.originalname, req.file.buffer, {
       parserId,
-    );
+      fromDate,
+    });
 
     res.status(201).json({ result });
   }),
@@ -188,18 +200,87 @@ ocrRouter.patch(
     // Tutar/tarih/aciklama degistiyse parmak izi de degisir
     updateDraftLine(user.id, id, {
       ...input,
-      externalHash: externalHash(
+      externalHash: recomputeLineHash(
         user.id,
         parent.account_id,
-        input.date,
-        input.amountKurus,
-        input.type,
-        input.description,
+        listDraftLines(user.id, line.import_id),
+        id,
+        input,
       ),
     });
 
     const updated = findDraftLine(user.id, id);
     res.json({ line: updated ? serializeLine(updated) : null });
+  }),
+);
+
+const bulkSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(2000),
+  action: z.enum(['exclude', 'include', 'setCategory']),
+  categoryId: z.number().int().positive().nullable().default(null),
+});
+
+/** Secili satirlara toplu islem: 600 satiri tek tek duzenlemek pratik degil. */
+ocrRouter.post(
+  '/imports/:id/bulk',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const id = idParamSchema.parse(req.params.id);
+    const input = bulkSchema.parse(req.body);
+
+    const found = findImport(user.id, id);
+    if (!found) throw notFound('Ice aktarim bulunamadi');
+    if (found.status !== 'draft') throw badRequest('Islenmis ice aktarim duzenlenemez');
+
+    if (input.action === 'setCategory' && input.categoryId !== null) {
+      if (!categoryExists(user.id, input.categoryId)) throw notFound('Secilen kategori bulunamadi');
+    }
+
+    const updated =
+      input.action === 'setCategory'
+        ? bulkUpdateDraftLines(user.id, id, input.ids, {
+            action: 'setCategory',
+            categoryId: input.categoryId,
+          })
+        : bulkUpdateDraftLines(user.id, id, input.ids, { action: input.action });
+
+    res.json({ updated });
+  }),
+);
+
+/** Banka etiketi -> kategori eslemeleri. Bir kez eslenir, hep hatirlanir. */
+ocrRouter.get(
+  '/label-map',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    res.json({
+      mappings: listLabelMapRows(user.id).map((row) => ({
+        parserId: row.parser_id,
+        label: row.label,
+        categoryId: row.category_id,
+      })),
+    });
+  }),
+);
+
+const labelMapSchema = z.object({
+  parserId: z.string().trim().min(1).max(50),
+  label: z.string().trim().min(1).max(100),
+  categoryId: z.number().int().positive().nullable(),
+});
+
+ocrRouter.put(
+  '/label-map',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const input = labelMapSchema.parse(req.body);
+
+    if (input.categoryId !== null && !categoryExists(user.id, input.categoryId)) {
+      throw notFound('Secilen kategori bulunamadi');
+    }
+
+    upsertLabelMap(user.id, input.parserId, input.label, input.categoryId);
+    res.json({ saved: true });
   }),
 );
 

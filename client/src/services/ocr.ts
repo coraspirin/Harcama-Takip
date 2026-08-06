@@ -12,9 +12,14 @@ export type OcrImport = {
   lineCount: number;
   duplicateCount: number;
   excludedCount: number;
+  balanceCheck: BalanceCheck | null;
+  balanceGapCount: number;
+  balanceGapKurus: number;
   createdAt: string;
   appliedAt: string | null;
 };
+
+export type BalanceCheck = 'ok' | 'gaps' | 'unavailable';
 
 export type OcrDraftLine = {
   id: number;
@@ -24,6 +29,9 @@ export type OcrDraftLine = {
   amountKurus: number;
   type: 'income' | 'expense';
   categoryId: number | null;
+  label: string | null;
+  balanceKurus: number | null;
+  chainBreak: boolean;
   isDuplicate: boolean;
   excluded: boolean;
   raw: string | null;
@@ -36,7 +44,19 @@ export type UploadResult = {
   extraction: 'text' | 'ocr';
   pageCount: number;
   lineCount: number;
+  skippedByDateCount: number;
   duplicateCount: number;
+  balanceCheck: BalanceCheck;
+  balanceGapCount: number;
+  balanceGapKurus: number;
+  statementBalanceKurus: number | null;
+  unmappedLabels: string[];
+};
+
+export type LabelMapping = {
+  parserId: string;
+  label: string;
+  categoryId: number | null;
 };
 
 export const ocrService = {
@@ -52,11 +72,17 @@ export const ocrService = {
    * Dosya yukleme fetch ile dogrudan yapilir: api.send JSON govde varsayar,
    * multipart'ta Content-Type sinirini tarayicinin kendisi yazmalidir.
    */
-  upload: async (file: File, accountId: number, parserId?: string): Promise<UploadResult> => {
+  upload: async (
+    file: File,
+    accountId: number,
+    parserId?: string,
+    fromDate?: string,
+  ): Promise<UploadResult> => {
     const form = new FormData();
     form.set('file', file);
     form.set('accountId', String(accountId));
     if (parserId) form.set('parserId', parserId);
+    if (fromDate) form.set('fromDate', fromDate);
 
     const res = await fetch('/api/ocr/upload', {
       method: 'POST',
@@ -98,4 +124,23 @@ export const ocrService = {
 
   remove: (id: number) =>
     api.delete<{ deleted: boolean; discarded?: boolean }>(`/api/ocr/imports/${id}`),
+
+  /** Secili satirlara toplu islem; 600 satirda tek tek PATCH pratik degil. */
+  bulk: (
+    importId: number,
+    ids: number[],
+    action: 'exclude' | 'include' | 'setCategory',
+    categoryId: number | null = null,
+  ) =>
+    api.post<{ updated: number }>(`/api/ocr/imports/${importId}/bulk`, {
+      ids,
+      action,
+      categoryId,
+    }),
+
+  labelMap: () =>
+    api.get<{ mappings: LabelMapping[] }>('/api/ocr/label-map').then((r) => r.mappings),
+
+  saveLabelMap: (parserId: string, label: string, categoryId: number | null) =>
+    api.put<{ saved: boolean }>('/api/ocr/label-map', { parserId, label, categoryId }),
 };
