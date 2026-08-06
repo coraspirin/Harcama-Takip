@@ -21,6 +21,7 @@ import { notificationsRouter } from './routes/notifications.ts';
 import { adminUsersRouter } from './routes/admin/users.ts';
 import { adminAuditLogRouter } from './routes/admin/auditLog.ts';
 import { ocrRouter } from './routes/ocr.ts';
+import { matchingRouter } from './routes/matching.ts';
 import { homeAssistantRouter } from './routes/homeAssistant.ts';
 import { dashboardRouter } from './routes/dashboard.ts';
 
@@ -91,6 +92,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/ocr', ocrRouter);
+  app.use('/api/matching', matchingRouter);
   app.use('/api/settings/home-assistant', homeAssistantRouter);
 
   // Super admin uclari: yukaridaki veri route'larindan tamamen ayri bir grup.

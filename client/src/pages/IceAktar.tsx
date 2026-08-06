@@ -228,9 +228,16 @@ export default function IceAktar() {
     setError(null);
     try {
       const res = await ocrService.apply(openImportId);
+      const matching = res.matching;
       setNotice(
         `${res.result.created} islem hesabiniza islendi` +
-          (res.result.skipped > 0 ? `, ${res.result.skipped} satir atlandi.` : '.'),
+          (res.result.skipped > 0 ? `, ${res.result.skipped} satir atlandi.` : '.') +
+          (matching && matching.linked > 0
+            ? ` ${matching.linked} cift hesap arasi transfer sayildi.`
+            : '') +
+          (matching && matching.pending > 0
+            ? ` ${matching.pending} olasi transfer onayinizi bekliyor (Transferler sayfasi).`
+            : ''),
       );
       setOpenImportId(null);
       await imports.reload();

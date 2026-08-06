@@ -16,6 +16,7 @@ import Butce from './pages/Butce.tsx';
 import Raporlar from './pages/Raporlar.tsx';
 import ZamanlanmisSayfa from './pages/ZamanlanmisSayfa.tsx';
 import IceAktar from './pages/IceAktar.tsx';
+import Transferler from './pages/Transferler.tsx';
 import Kullanicilar from './pages/admin/Kullanicilar.tsx';
 import IslemGunlugu from './pages/admin/IslemGunlugu.tsx';
 
@@ -83,6 +84,7 @@ function AppRoutes() {
         <Route path="kategoriler" element={<Kategoriler />} />
         <Route path="butce" element={<Butce />} />
         <Route path="ice-aktar" element={<IceAktar />} />
+        <Route path="transferler" element={<Transferler />} />
         <Route path="ayarlar" element={<Ayarlar />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

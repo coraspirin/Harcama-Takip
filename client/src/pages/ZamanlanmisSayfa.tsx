@@ -15,6 +15,8 @@ import { Button } from '../components/ui/Button.tsx';
 import { SelectField, TextField } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { Card, EmptyState, PageHeader } from '../components/ui/Card.tsx';
+import { TekrarOnerileri } from '../components/TekrarOnerileri.tsx';
+import type { RecurrenceSuggestion } from '../services/matching.ts';
 import { ConfirmDialog, Modal } from '../components/ui/Modal.tsx';
 import { MoneyInput } from '../components/MoneyInput.tsx';
 import { Money } from '../components/Money.tsx';
@@ -113,6 +115,21 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
     setPeriod('monthly');
     setError(null);
     setFormOpen(true);
+  }
+
+  /** Tekrar onerisini forma on-doldurur; kayit yine kullanici onayiyla olusur. */
+  function useSuggestion(suggestion: RecurrenceSuggestion) {
+    openCreate();
+    setName(suggestion.name);
+    setAccountId(suggestion.accountId);
+    setCategoryId(suggestion.categoryId);
+    setAmountKurus(suggestion.amountKurus);
+    setPeriod('monthly');
+
+    if (suggestion.installmentTotal !== null) {
+      setInstallmentCount(String(suggestion.installmentTotal));
+      setTotalAmountKurus(suggestion.amountKurus * suggestion.installmentTotal);
+    }
   }
 
   async function handleSave() {
@@ -252,6 +269,8 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
           <Alert tone="info">{notice}</Alert>
         </div>
       )}
+
+      <TekrarOnerileri kind={kind} onUse={useSuggestion} />
 
       {!items.loading && list.length === 0 ? (
         <Card>

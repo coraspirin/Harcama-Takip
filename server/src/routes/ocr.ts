@@ -23,6 +23,7 @@ import {
 } from '../db/ocr.ts';
 import { listLabelMapRows, upsertLabelMap } from '../db/labelMap.ts';
 import { applyImport, importStatement, recomputeLineHash } from '../services/ocr/ocrService.ts';
+import { autoLinkTransfers } from '../services/transferMatcher.ts';
 import { listParsers } from '../services/ocr/parserRegistry.ts';
 
 export const ocrRouter: Router = Router();
@@ -297,7 +298,19 @@ ocrRouter.post(
     const account = findAccount(user.id, found.account_id);
     if (!account) throw notFound('Hesap bulunamadi');
 
-    res.json({ result: applyImport(user.id, id, found.account_id) });
+    const result = applyImport(user.id, id, found.account_id);
+
+    // Yeni islemler yazildi; simdi hesaplar arasi transfer adaylari olusmus
+    // olabilir. Tarama AYRI bir try icinde: eslestirmede cikacak bir hata,
+    // basariyla islenmis ice aktarimi geri aldirmamalidir.
+    let matching: { linked: number; pending: number } | null = null;
+    try {
+      matching = autoLinkTransfers(user.id);
+    } catch {
+      /* eslestirme istege bagli bir iyilestirmedir, ice aktarimi bloklamaz */
+    }
+
+    res.json({ result, matching });
   }),
 );
 
