@@ -83,6 +83,8 @@ function serializeImport(row: OcrImportWithCounts) {
     balanceCheck: row.balance_check,
     balanceGapCount: row.balance_gap_count,
     balanceGapKurus: row.balance_gap_kurus,
+    balanceCheckedPairs: row.balance_checked_pairs,
+    balanceUncheckedPairs: row.balance_unchecked_pairs,
     createdAt: row.created_at,
     appliedAt: row.applied_at,
   };

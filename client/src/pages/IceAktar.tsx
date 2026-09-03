@@ -411,7 +411,17 @@ export default function IceAktar() {
               <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
               <p>
                 <strong>Bakiye zinciri tutuyor.</strong> Ekstredeki bakiye sutunu ile okunan
-                tutarlar bastan sona uyusuyor; hicbir satir atlanmamis.
+                tutarlar uyusuyor: {current.balanceCheckedPairs} satir gecisi dogrulandi.
+                {current.balanceUncheckedPairs > 0 && (
+                  <>
+                    {' '}
+                    <strong>
+                      {current.balanceUncheckedPairs} gecis dogrulanamadi
+                    </strong>{' '}
+                    (o satirlarda bakiye sutunu okunamadi) &mdash; bu kisim icin zincir bir sey
+                    soylemiyor.
+                  </>
+                )}
               </p>
             </div>
           )}

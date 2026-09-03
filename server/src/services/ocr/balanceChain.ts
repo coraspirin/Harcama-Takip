@@ -34,9 +34,27 @@ export type ChainResult = {
    * 'asc': eskiden yeniye. Bakiye yoksa null.
    */
   order: 'asc' | 'desc' | null;
+  /** Gercekten karsilastirilabilen ardisik satir gecisi sayisi. */
+  checkedPairs: number;
+  /**
+   * Bakiyesi okunamadigi icin DOGRULANAMAYAN gecis sayisi.
+   *
+   * Bu deger raporlanmak zorunda: denetim, bakiyesi olmayan satirlari sessizce
+   * atliyor. Kapsam belirtilmezse "zincir tutuyor" ifadesi, aslinda 14 satirin
+   * yalnizca 2'sinin dogrulandigi bir ekstrede de temiz bir rapor gibi
+   * okunurdu.
+   */
+  uncheckedPairs: number;
 };
 
-const EMPTY: ChainResult = { status: 'unavailable', gaps: [], totalGapKurus: 0, order: null };
+const EMPTY: ChainResult = {
+  status: 'unavailable',
+  gaps: [],
+  totalGapKurus: 0,
+  order: null,
+  checkedPairs: 0,
+  uncheckedPairs: 0,
+};
 
 function signedAmount(line: ParsedLine): number {
   return line.type === 'income' ? line.amountKurus : -line.amountKurus;
@@ -48,23 +66,33 @@ function signedAmount(line: ParsedLine): number {
  * 'desc' (yeniden eskiye): bakiye[i] = bakiye[i+1] + tutar[i]
  * 'asc'  (eskiden yeniye): bakiye[i] = bakiye[i-1] + tutar[i]
  */
-function checkOrder(lines: ParsedLine[], order: 'asc' | 'desc'): ChainGap[] {
+function checkOrder(
+  lines: ParsedLine[],
+  order: 'asc' | 'desc',
+): { gaps: ChainGap[]; checked: number; unchecked: number } {
   const gaps: ChainGap[] = [];
+  let checked = 0;
+  let unchecked = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const current = lines[i]!;
     const previous = order === 'desc' ? lines[i + 1] : lines[i - 1];
 
     if (previous === undefined) continue;
-    if (current.balanceKurus === null || previous.balanceKurus === null) continue;
 
+    if (current.balanceKurus === null || previous.balanceKurus === null) {
+      unchecked++;
+      continue;
+    }
+
+    checked++;
     const expected = previous.balanceKurus + signedAmount(current);
     if (expected !== current.balanceKurus) {
       gaps.push({ index: i, differenceKurus: current.balanceKurus - expected });
     }
   }
 
-  return gaps;
+  return { gaps, checked, unchecked };
 }
 
 /**
@@ -85,17 +113,22 @@ export function checkBalanceChain(lines: ParsedLine[]): ChainResult {
   const descending = checkOrder(lines, 'desc');
   const ascending = checkOrder(lines, 'asc');
 
-  const [order, gaps] =
-    descending.length <= ascending.length
+  const [order, result] =
+    descending.gaps.length <= ascending.gaps.length
       ? (['desc', descending] as const)
       : (['asc', ascending] as const);
 
-  const totalGapKurus = gaps.reduce((sum, gap) => sum + Math.abs(gap.differenceKurus), 0);
+  const totalGapKurus = result.gaps.reduce(
+    (sum, gap) => sum + Math.abs(gap.differenceKurus),
+    0,
+  );
 
   return {
-    status: gaps.length === 0 ? 'ok' : 'gaps',
-    gaps,
+    status: result.gaps.length === 0 ? 'ok' : 'gaps',
+    gaps: result.gaps,
     totalGapKurus,
     order,
+    checkedPairs: result.checked,
+    uncheckedPairs: result.unchecked,
   };
 }

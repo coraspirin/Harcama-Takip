@@ -74,6 +74,9 @@ export type ImportResult = {
   balanceCheck: 'ok' | 'gaps' | 'unavailable';
   balanceGapCount: number;
   balanceGapKurus: number;
+  /** Zincirin gercekten dogrulanabildigi / dogrulanamadigi gecis sayisi. */
+  balanceCheckedPairs: number;
+  balanceUncheckedPairs: number;
   /** Ekstredeki en yeni satirin bakiyesi; hesap mutabakati icin. */
   statementBalanceKurus: number | null;
   /** Kategoriye eslenememis banka etiketleri. */
@@ -200,6 +203,8 @@ export async function importStatement(
       status: chain.status,
       gapCount: chain.gaps.length,
       gapKurus: chain.totalGapKurus,
+      checkedPairs: chain.checkedPairs,
+      uncheckedPairs: chain.uncheckedPairs,
     });
 
     db.exec('COMMIT');
@@ -216,6 +221,8 @@ export async function importStatement(
       balanceCheck: chain.status,
       balanceGapCount: chain.gaps.length,
       balanceGapKurus: chain.totalGapKurus,
+      balanceCheckedPairs: chain.checkedPairs,
+      balanceUncheckedPairs: chain.uncheckedPairs,
       statementBalanceKurus,
       unmappedLabels: [...unmappedLabels],
     };

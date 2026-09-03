@@ -76,13 +76,22 @@ const GARANTI_LABELS = [
   'Diğer',
 ];
 
+/**
+ * Enpara'nin "Hareket tipi" sutunu. Garanti'den farkli olarak aciklamanin
+ * BASINDA gelir; bu yuzden labelPosition 'prefix'.
+ */
+const ENPARA_LABELS = ['Giden Transfer', 'Gelen Transfer', 'Ödeme', 'Faiz', 'Masraf', 'Vergi'];
+
 export const PARSERS: BankParser[] = [
   bankParser('isbank', 'Türkiye İş Bankası', ['is bankasi', 'işbank', 'isbank', 'iş bankası']),
   bankParser('garanti', 'Garanti BBVA', ['garanti', 'bbva'], { labels: GARANTI_LABELS }),
   bankParser('yapikredi', 'Yapı Kredi', ['yapi kredi', 'yapı kredi', 'yapikredi', 'worldcard']),
   bankParser('akbank', 'Akbank', ['akbank', 'axess']),
   bankParser('ziraat', 'Ziraat Bankası', ['ziraat', 'bankkart']),
-  bankParser('enpara', 'Enpara', ['enpara', 'qnb']),
+  bankParser('enpara', 'Enpara', ['enpara', 'qnb'], {
+    labels: ENPARA_LABELS,
+    labelPosition: 'prefix',
+  }),
 
   // Kredi karti ekstreleri: isaretsiz tutar = harcama
   bankParser(

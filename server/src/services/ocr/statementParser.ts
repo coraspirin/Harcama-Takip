@@ -41,6 +41,13 @@ export type ParserOptions = {
    * bos birakilirsa etiket cikarimi hic calismaz.
    */
   labels: string[];
+  /**
+   * Etiket sutununun aciklamaya gore konumu.
+   *
+   * Garanti etiketi aciklamanin SONUNA, Enpara ("Hareket tipi") BASINA yazar.
+   * Yanlis uctan kirpmak etiketi bulamaz ve aciklamayi kirli birakir.
+   */
+  labelPosition: 'prefix' | 'suffix';
 };
 
 /**
@@ -79,10 +86,11 @@ export const DEFAULT_OPTIONS: ParserOptions = {
     'alacak',
   ],
   labels: [],
+  labelPosition: 'suffix',
 };
 
 /**
- * Aciklamanin sonundaki banka etiketini ayirir.
+ * Aciklamaya bitisik gelen banka etiketini ayirir.
  *
  * Donen aciklama etiketten arindirilmis, etiket ise ekstredeki ozgun yazimiyla
  * verilir. Eslesme aksan/buyuk-kucuk harf duyarsizdir (foldTurkish).
@@ -90,18 +98,26 @@ export const DEFAULT_OPTIONS: ParserOptions = {
 export function splitLabel(
   description: string,
   labels: string[],
+  position: 'prefix' | 'suffix' = 'suffix',
 ): { description: string; label: string | null } {
   const folded = foldTurkish(description);
 
-  // Uzun etiketler once denenir: "Kart Odemesi" ile "Odeme" ayni anda
+  // Uzun etiketler once denenir: "Gelen Transfer" ile "Transfer" ayni anda
   // sozlukteyse uzun olani dogru sonucu verir.
   const ordered = [...labels].sort((a, b) => b.length - a.length);
 
   for (const label of ordered) {
     const foldedLabel = foldTurkish(label);
-    if (!folded.endsWith(foldedLabel)) continue;
+    const hit = position === 'prefix'
+      ? folded.startsWith(foldedLabel)
+      : folded.endsWith(foldedLabel);
+    if (!hit) continue;
 
-    const cut = description.slice(0, description.length - label.length).trim();
+    const cut = (position === 'prefix'
+      ? description.slice(label.length)
+      : description.slice(0, description.length - label.length)
+    ).trim();
+
     // Aciklamanin TAMAMI etiketten ibaretse kirpmayiz: aciklamasiz bir satir,
     // etiketi aciklama olarak gostermekten daha az bilgilendirici olurdu.
     if (cut === '') return { description, label: null };
@@ -122,31 +138,69 @@ const MONEY_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}-?|-?\d+,\d{2}-?/g;
 const HAS_MONEY_RE = new RegExp(MONEY_RE.source);
 
 /**
- * Aciklamasi iki satira tasan kayitlari tek satirda birlestirir.
+ * Bir kaydin sarilan satirlarini tek satirda birlestirir.
  *
- * Ekstrelerde uzun aciklama sarildiginda tarih ilk satirda, tutar ise ikinci
- * satirda kalir. Satir satir bakildiginda ilk satirda tutar, ikinci satirda
- * tarih bulunmadigi icin kayit IKI KEZ elenir ve tamamen kaybolur. Ornek:
+ * Ekstrede uzun bir aciklama sutuna sigmadiginda kayit birden fazla goruntu
+ * satirina boluner: tarih ilk satirda kalir, tutar en sondaki satira duser,
+ * arada tutarsiz ve tarihsiz devam satirlari olur. Satir satir bakildiginda
+ * bu parcalarin HICBIRI gecerli sayilmaz (ilkinde tutar yok, digerlerinde
+ * tarih yok) ve kayit tamamen kaybolur.
  *
- *   03.08.2026 abdullah mucahid erdogan-KENDIME -FAST-CEP
- *   SUBE-7125000222 Para Transferi -57.200,00 TL -249.146,27 TL
+ * Onceki surum yalnizca IKI satirlik sarmayi birlestiriyordu; Enpara gibi
+ * aciklama sutunu dar olan ekstrelerde uc satira tasan kayitlar sessizce
+ * dusuyordu. Artik tutar bulunana kadar devam satirlari toplanir.
+ *
+ *   26.08.2026 Giden Transfer Ferhat Alec, Borc odeme,
+ *   EFT (FAST) sorgu
+ *   no: 4773565098 -50.000,00 TL -96.350,00 TL
+ *
+ * MAX_CONTINUATION siniri bilerek dar: sinir olmasaydi, tarih iceren ama
+ * kayit olmayan bir baslik satiri (or. "01.08.2026 - 31.08.2026 donemi")
+ * sayfanin tamamini yutup ilgisiz metni tek satira yapistirabilirdi.
  */
+const MAX_CONTINUATION = 3;
+
 function mergeWrappedRows(lines: string[]): string[] {
   const merged: string[] = [];
+  let i = 0;
 
-  for (let i = 0; i < lines.length; i++) {
+  while (i < lines.length) {
     const line = lines[i]!;
-    const next = lines[i + 1];
 
-    const isOrphanHead = DATE_RE.test(line) && !HAS_MONEY_RE.test(line);
-    const isOrphanTail =
-      next !== undefined && !DATE_RE.test(next) && HAS_MONEY_RE.test(next);
-
-    if (isOrphanHead && isOrphanTail) {
-      merged.push(`${line} ${next}`);
-      i++; // ikinci satir tuketildi
-    } else {
+    // Tarihi olan ama tutari olmayan satir, sarilmis bir kaydin BASI olabilir.
+    if (!DATE_RE.test(line) || HAS_MONEY_RE.test(line)) {
       merged.push(line);
+      i++;
+      continue;
+    }
+
+    const parts = [line];
+    let j = i + 1;
+    let completed = false;
+
+    while (j < lines.length && parts.length <= MAX_CONTINUATION) {
+      const candidate = lines[j]!;
+
+      // Yeni bir tarih goruldu: bu, sarma degil siradaki kayittir.
+      if (DATE_RE.test(candidate)) break;
+
+      parts.push(candidate);
+      j++;
+
+      if (HAS_MONEY_RE.test(candidate)) {
+        completed = true;
+        break;
+      }
+    }
+
+    if (completed) {
+      merged.push(parts.join(' '));
+      i = j;
+    } else {
+      // Tutar bulunamadi: satirlari BIRLESTIRMEDEN birak. Alakasiz metni
+      // yapistirmak, kaydi kaybetmekten daha zararlidir.
+      merged.push(line);
+      i++;
     }
   }
 
@@ -244,7 +298,7 @@ export function parseStatementText(
         .trim() || 'Aciklama yok';
 
     // Banka etiketi aciklamanin sonuna yapisik gelir; ayrilir.
-    const { description, label } = splitLabel(rawDescription, opts.labels);
+    const { description, label } = splitLabel(rawDescription, opts.labels, opts.labelPosition);
 
     const folded = foldTurkish(line);
     const looksLikeIncome = opts.incomeKeywords.some((keyword) =>

@@ -15,6 +15,8 @@ export type OcrImport = {
   balanceCheck: BalanceCheck | null;
   balanceGapCount: number;
   balanceGapKurus: number;
+  balanceCheckedPairs: number;
+  balanceUncheckedPairs: number;
   createdAt: string;
   appliedAt: string | null;
 };
@@ -49,6 +51,8 @@ export type UploadResult = {
   balanceCheck: BalanceCheck;
   balanceGapCount: number;
   balanceGapKurus: number;
+  balanceCheckedPairs: number;
+  balanceUncheckedPairs: number;
   statementBalanceKurus: number | null;
   unmappedLabels: string[];
 };

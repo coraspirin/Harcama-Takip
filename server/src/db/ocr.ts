@@ -13,6 +13,8 @@ export type OcrImportRow = {
   balance_check: 'ok' | 'gaps' | 'unavailable' | null;
   balance_gap_count: number;
   balance_gap_kurus: number;
+  balance_checked_pairs: number;
+  balance_unchecked_pairs: number;
   created_at: string;
   applied_at: string | null;
 };
@@ -176,16 +178,27 @@ export type BalanceCheckInput = {
   status: 'ok' | 'gaps' | 'unavailable';
   gapCount: number;
   gapKurus: number;
+  checkedPairs: number;
+  uncheckedPairs: number;
 };
 
 export function setBalanceCheck(userId: number, importId: number, input: BalanceCheckInput): void {
   getDb()
     .prepare(
       `UPDATE ocr_imports
-       SET balance_check = ?, balance_gap_count = ?, balance_gap_kurus = ?
+       SET balance_check = ?, balance_gap_count = ?, balance_gap_kurus = ?,
+           balance_checked_pairs = ?, balance_unchecked_pairs = ?
        WHERE user_id = ? AND id = ?`,
     )
-    .run(input.status, input.gapCount, input.gapKurus, userId, importId);
+    .run(
+      input.status,
+      input.gapCount,
+      input.gapKurus,
+      input.checkedPairs,
+      input.uncheckedPairs,
+      userId,
+      importId,
+    );
 }
 
 export type BulkLineAction =
