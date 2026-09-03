@@ -105,17 +105,18 @@ describe('birlestirmenin SINIRLARI', () => {
   });
 
   test('sinirdan uzun bosluk kaydi yutmaz', () => {
-    // 4 devam satiri MAX_CONTINUATION'i asar; birlestirme yapilmaz.
-    const lines = parseStatementText(
-      [
-        '01.08.2026 TARIHLI AMA TUTARSIZ',
-        'devam bir',
-        'devam iki',
-        'devam uc',
-        'devam dort',
-        'cok sonra gelen -99,00 100,00',
-      ].join('\n'),
-    );
+    // MAX_CONTINUATION'i asan bir bosluk; uzaktaki tutar bu kayda
+    // baglanmamali.
+    const lines = parseStatementText(`01.08.2026 TARIHLI AMA TUTARSIZ
+devam bir
+devam iki
+devam uc
+devam dort
+devam bes
+devam alti
+devam yedi
+cok sonra gelen -99,00 100,00`);
+
     assert.equal(lines.length, 0, 'uzak tutar bu kayda baglanmamali');
   });
 
@@ -159,5 +160,72 @@ describe('zincir denetiminin KAPSAMI', () => {
       2,
       'her gecis ya dogrulanmis ya dogrulanmamis sayilmali',
     );
+  });
+});
+
+describe('Garanti: cok parcaya bolunen kayitlar', () => {
+  /** Gercek ekstrede bir kayit BES parcaya bolunmus halde geliyor. */
+  const BES_PARCA = [
+    'T. Garanti Bankası A.Ş.',
+    'Tarih Açıklama Etiket Tutar Bakiye',
+    '01.04.2026 FAIZ TAHSILATI. Faiz / Komisyon -561,36 TL -45.076,47 TL',
+    '31.03.2026',
+    'ORNEK TIBBI CIHAZLAR GIDA INSAAT MADENCILIK',
+    'KUYUMCULUK VE SANAYI DIS TICARE-altını elden aldım-HVL-CEP',
+    'ŞUBE',
+    'Para Transferi',
+    ' -22.000,00 TL -44.515,11 TL',
+    '30.03.2026 ORNEK KISI-HVL-CEP ŞUBE Para Transferi -500,00 TL -22.515,11 TL',
+  ].join('\n');
+
+  test('bes parcaya bolunen kayit okunur', () => {
+    const parser = findParserById('garanti');
+    assert.ok(parser);
+    const lines = parser.parse(BES_PARCA);
+
+    assert.equal(lines.length, 3, 'orta kayit kaybolmamali');
+    assert.equal(lines[1]?.date, '2026-03-31');
+    assert.equal(lines[1]?.amountKurus, 2_200_000);
+    assert.equal(lines[1]?.label, 'Para Transferi');
+  });
+
+  test('bolunmus kayitla zincir tutar', () => {
+    const parser = findParserById('garanti')!;
+    assert.equal(checkBalanceChain(parser.parse(BES_PARCA)).status, 'ok');
+  });
+
+  test('ARTI isaretli tutar ve etiket birlikte okunur', () => {
+    // "+400,00" deseni artiyi da yakalamazsa aciklamanin sonunda sarkan bir
+    // "+" kalir ve etiket sozlugu eslesmesi sessizce bozulur.
+    const parser = findParserById('garanti')!;
+    const lines = parser.parse(
+      [
+        'T. Garanti Bankası A.Ş.',
+        '03.08.2026 ORNEK KISI-ORNEK KISI tarafından',
+        'aktarılan-FAST-3617577465 Para Transferi +400,00 TL 400,00 TL',
+      ].join('\n'),
+    );
+
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0]?.type, 'income');
+    assert.equal(lines[0]?.amountKurus, 40_000);
+    assert.equal(lines[0]?.label, 'Para Transferi', 'etiket bulunmali');
+    assert.ok(!lines[0]?.description.endsWith('+'), 'aciklamada sarkan + kalmamali');
+  });
+
+  test('ORTASINDA tarih gecen baslik satiri UYDURMA kayit uretmez', () => {
+    // Bu blok birlestirme baslatirsa "Bakiye : -222.673,26 TL" satirini yutup
+    // 222.673,26 TL'lik olmayan bir islem uretir.
+    const lines = parseStatementText(
+      [
+        'Sayın ORNEK KISI, 03 Eylül 2026 tarihi saat 23:21 itibarıyla 01/01/2026 - 03/09/2026 tarihleri arasındaki',
+        'aşağıdaki gibidir.',
+        'Ad Soyad / Unvan : ORNEK KISI',
+        'Bakiye : -222.673,26 TL',
+        'Kullanılabilir Bakiye : 27.326,74 TL',
+      ].join('\n'),
+    );
+
+    assert.equal(lines.length, 0, 'baslik blogundan islem uretilmemeli');
   });
 });

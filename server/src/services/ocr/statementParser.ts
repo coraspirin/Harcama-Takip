@@ -131,8 +131,15 @@ export function splitLabel(
 /** gg.aa.yyyy · gg/aa/yyyy · gg-aa-yyyy · gg.aa.yy */
 const DATE_RE = /(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/;
 
-/** 1.234,56 · 1234,56 · -1.234,56 · 1.234,56- (sonda eksi) */
-const MONEY_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}-?|-?\d+,\d{2}-?/g;
+/**
+ * 1.234,56 · 1234,56 · -1.234,56 · +1.234,56 · 1.234,56- (sonda eksi)
+ *
+ * ARTI isareti de desene DAHIL: Garanti gelirleri "+400,00 TL" diye yaziyor.
+ * Desen yalnizca "400,00" kismini yakalasaydi, aciklama tutarin baslangicina
+ * kadar kesilir ve sonunda sarkan bir "+" kalirdi; bu da etiket sozlugu
+ * eslesmesini ("... Para Transferi") sessizce bozardi.
+ */
+const MONEY_RE = /[-+]?\d{1,3}(?:\.\d{3})*,\d{2}-?|[-+]?\d+,\d{2}-?/g;
 
 /** MONEY_RE'nin durumsuz (global olmayan) esi; test() icin gerekli. */
 const HAS_MONEY_RE = new RegExp(MONEY_RE.source);
@@ -158,7 +165,18 @@ const HAS_MONEY_RE = new RegExp(MONEY_RE.source);
  * kayit olmayan bir baslik satiri (or. "01.08.2026 - 31.08.2026 donemi")
  * sayfanin tamamini yutup ilgisiz metni tek satira yapistirabilirdi.
  */
-const MAX_CONTINUATION = 3;
+const MAX_CONTINUATION = 6;
+
+/**
+ * Birlestirmeyi yalnizca TARIHLE BASLAYAN satirlar baslatabilir.
+ *
+ * Ekstre basliklarinda ortasinda tarih gecen ama kayit olmayan satirlar var
+ * ("Sayin ... 01/01/2026 - 03/09/2026 tarihleri arasindaki..."). Bunlarin
+ * birlestirme baslatmasina izin verilseydi, devaminda gelen
+ * "Bakiye : -222.673,26 TL" satirini yutup UYDURMA bir islem uretirlerdi.
+ * Gercek kayit satirlari daima tarihle baslar.
+ */
+const STARTS_WITH_DATE_RE = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/;
 
 function mergeWrappedRows(lines: string[]): string[] {
   const merged: string[] = [];
@@ -167,8 +185,8 @@ function mergeWrappedRows(lines: string[]): string[] {
   while (i < lines.length) {
     const line = lines[i]!;
 
-    // Tarihi olan ama tutari olmayan satir, sarilmis bir kaydin BASI olabilir.
-    if (!DATE_RE.test(line) || HAS_MONEY_RE.test(line)) {
+    // Tarihle BASLAYAN ama tutari olmayan satir, sarilmis bir kaydin basidir.
+    if (!STARTS_WITH_DATE_RE.test(line) || HAS_MONEY_RE.test(line)) {
       merged.push(line);
       i++;
       continue;
