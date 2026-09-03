@@ -16,12 +16,13 @@ import {
   findImport,
   listDraftLines,
   listImports,
-  setImportStatus,
   updateDraftLine,
   type OcrDraftLineRow,
   type OcrImportWithCounts,
 } from '../db/ocr.ts';
 import { listLabelMapRows, upsertLabelMap } from '../db/labelMap.ts';
+import { countTransactionsByImport, deleteTransactionsByImport } from '../db/transactions.ts';
+import { getDb } from '../db/connection.ts';
 import { applyImport, importStatement, recomputeLineHash } from '../services/ocr/ocrService.ts';
 import { autoLinkTransfers } from '../services/transferMatcher.ts';
 import { listParsers } from '../services/ocr/parserRegistry.ts';
@@ -205,6 +206,7 @@ ocrRouter.patch(
       ...input,
       externalHash: recomputeLineHash(
         user.id,
+        line.import_id,
         parent.account_id,
         listDraftLines(user.id, line.import_id),
         id,
@@ -316,7 +318,14 @@ ocrRouter.post(
   }),
 );
 
-/** Taslagi iptal eder. Islenmis kayitlarda yalnizca gecmis kaydi kaldirilir. */
+/**
+ * Ice aktarimi ve OLUSTURDUGU ISLEMLERI siler.
+ *
+ * Onceden islenmis bir ice aktarim yalnizca 'discarded' isaretleniyor, olusan
+ * islemler yerinde kaliyordu; kullanici "kaldir" dedigi halde veri duruyordu.
+ * Mukerrer bastirma da kaldirildigi icin yanlis aktarilmis bir ekstreyi geri
+ * almanin tek yolu budur.
+ */
 ocrRouter.delete(
   '/imports/:id',
   asyncHandler(async (req, res) => {
@@ -326,15 +335,31 @@ ocrRouter.delete(
     const found = findImport(user.id, id);
     if (!found) throw notFound('Ice aktarim bulunamadi');
 
-    if (found.status === 'draft') {
+    const db = getDb();
+    db.exec('BEGIN');
+    try {
+      const removedTransactions = deleteTransactionsByImport(user.id, id);
       deleteImport(user.id, id);
-      res.json({ deleted: true });
-      return;
-    }
+      db.exec('COMMIT');
 
-    // Islenmis ice aktarim silinirse olusan ISLEMLER KALIR: gecmis kayit
-    // gerceklesmis harcamalari temsil eder.
-    setImportStatus(user.id, id, 'discarded');
-    res.json({ deleted: false, discarded: true });
+      res.json({ deleted: true, removedTransactions });
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  }),
+);
+
+/** Silmeden once kullaniciya kac islemin gidecegini gosterebilmek icin. */
+ocrRouter.get(
+  '/imports/:id/impact',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const id = idParamSchema.parse(req.params.id);
+
+    const found = findImport(user.id, id);
+    if (!found) throw notFound('Ice aktarim bulunamadi');
+
+    res.json({ transactionCount: countTransactionsByImport(user.id, id) });
   }),
 );

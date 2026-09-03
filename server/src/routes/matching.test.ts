@@ -316,3 +316,62 @@ describe('izolasyon', () => {
     assert.equal(res.status, 404);
   });
 });
+
+describe('toplu islem silme', () => {
+  test('secilen islemler topluca silinir', async () => {
+    const hesap = await createAccount(user, 'Toplu Silme Hesabi', 'cash');
+    const ids = [
+      await addTransaction(user, hesap, 'expense', 1_000, '2027-06-01', 'BIR'),
+      await addTransaction(user, hesap, 'expense', 2_000, '2027-06-02', 'IKI'),
+      await addTransaction(user, hesap, 'expense', 3_000, '2027-06-03', 'UC'),
+    ];
+
+    const res = await user.post<{ removedRows: number }>('/api/transactions/bulk-delete', {
+      ids: [ids[0], ids[1]],
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.removedRows, 2);
+
+    const kalan = await user.get<{ transactions: { id: number }[] }>(
+      '/api/transactions?from=2027-06-01&to=2027-06-30',
+    );
+    assert.equal(kalan.body.transactions.length, 1);
+    assert.equal(kalan.body.transactions[0]?.id, ids[2], 'secilmeyen kayit durmali');
+  });
+
+  test('transferin tek bacagi secilse bile CIFT silinir', async () => {
+    // Tek bacak silinseydi hesap bakiyeleri tutarsiz kalirdi.
+    const a = await createAccount(user, 'Toplu A', 'bank');
+    const b = await createAccount(user, 'Toplu B', 'bank');
+    const gider = await addTransaction(user, a, 'expense', 9_900, '2027-07-01', 'KENDIME');
+    const gelir = await addTransaction(user, b, 'income', 9_900, '2027-07-01', 'KENDIME');
+
+    await user.post('/api/matching/link', { expenseId: gider, incomeId: gelir });
+
+    const res = await user.post<{ removedRows: number }>('/api/transactions/bulk-delete', {
+      ids: [gider],
+    });
+    assert.equal(res.body.removedRows, 2, 'iki bacak da silinmeli');
+
+    const kalan = await user.get<{ transactions: unknown[] }>(
+      '/api/transactions?from=2027-07-01&to=2027-07-31',
+    );
+    assert.equal(kalan.body.transactions.length, 0);
+  });
+
+  test('baskasinin islemi toplu silmeyle silinemez', async () => {
+    const benim = await createAccount(user, 'Korunacak Hesap', 'cash');
+    const id = await addTransaction(user, benim, 'expense', 4_242, '2027-08-01', 'KORUNSUN');
+
+    const res = await other.post<{ removedRows: number }>('/api/transactions/bulk-delete', {
+      ids: [id],
+    });
+    assert.equal(res.body.removedRows, 0, 'baskasinin kaydina dokunulmamali');
+
+    const kalan = await user.get<{ transactions: unknown[] }>(
+      '/api/transactions?from=2027-08-01&to=2027-08-31',
+    );
+    assert.equal(kalan.body.transactions.length, 1, 'kayit yerinde durmali');
+  });
+});

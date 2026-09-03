@@ -15,7 +15,6 @@ type UploadResult = {
     parserId: string;
     extraction: string;
     lineCount: number;
-    duplicateCount: number;
     skippedByDateCount: number;
     balanceCheck: 'ok' | 'gaps' | 'unavailable';
     balanceGapCount: number;
@@ -35,7 +34,6 @@ type DraftLine = {
   label: string | null;
   balanceKurus: number | null;
   chainBreak: boolean;
-  isDuplicate: boolean;
   excluded: boolean;
 };
 
@@ -102,7 +100,6 @@ describe('ekstre yukleme', () => {
     );
     assert.equal(res.body.result.parserId, 'isbank');
     assert.equal(res.body.result.lineCount, 3);
-    assert.equal(res.body.result.duplicateCount, 0);
 
     importId = res.body.result.importId;
   });
@@ -262,109 +259,56 @@ describe('taslak duzenleme ve isleme', () => {
   });
 });
 
-describe('mukerrer satir tespiti', () => {
-  test('donemleri ust uste binen ikinci ekstrede ayni satir MUKERRER isaretlenir', async () => {
-    // Eylul ekstresinin bir satirini iceren yeni bir dosya
-    const res = await uploadPdf(user, 'isbank-ekim.pdf', [
-      'Turkiye Is Bankasi',
-      '01.09.2026 KIRA ODEMESI -15.000,00 50.000,00',
-      '05.10.2026 YENI HARCAMA -300,00 49.700,00',
-    ]);
+describe('mukerrer bastirma YAPILMAZ', () => {
+  test('ayni dosya icindeki tekrarlarin ikisi de yazilir', () => {
+    // Hesap hareketlerinde ayni gun, ayni tutarda, ayni aciklamayla birden
+    // fazla islem olagandir; otomatik elemek gercek harcamayi kaybettirir.
+    return (async () => {
+      const res = await uploadPdf(user, 'tekrarli.pdf', [
+        'Turkiye Is Bankasi',
+        '10.10.2026 AYNI ISLEM -99,00 1.000,00',
+        '10.10.2026 AYNI ISLEM -99,00 901,00',
+      ]);
 
-    assert.equal(res.status, 201);
-    // Kira satiri zaten islenmisti (aciklamasi degistirilmemis satir)
-    const lines = await linesOf(user, res.body.result.importId);
+      assert.equal(res.body.result.lineCount, 2);
 
-    const yeni = lines.find((l) => l.description.includes('YENI HARCAMA'));
-    assert.ok(yeni);
-    assert.equal(yeni.isDuplicate, false);
-    assert.equal(yeni.excluded, false);
+      const lines = await linesOf(user, res.body.result.importId);
+      assert.ok(
+        lines.every((l) => !l.excluded),
+        'hicbir satir kendiliginden haric tutulmamali',
+      );
 
-    // Islenirken mukerrer satir atlanir
-    const applied = await user.post<{ result: { created: number; skipped: number } }>(
-      `/api/ocr/imports/${res.body.result.importId}/apply`,
-    );
-    assert.equal(applied.body.result.created + applied.body.result.skipped, lines.length);
+      const applied = await user.post<{ result: { created: number; skipped: number } }>(
+        `/api/ocr/imports/${res.body.result.importId}/apply`,
+      );
+      assert.equal(applied.body.result.created, 2);
+      assert.equal(applied.body.result.skipped, 0);
+    })();
   });
 
-  test('ayni dosya icindeki tekrar eden satirlar mukerrer SAYILMAZ', async () => {
-    // Ayni gun, ayni tutarda, ayni aciklamayla gercekten iki kez yapilmis bir
-    // islem olagandir. Bir belgenin kendi icindeki tekrar mukerrer degildir;
-    // yalnizca SISTEME DAHA ONCE girmis bir kayitla cakisma mukerrerdir.
-    const res = await uploadPdf(user, 'tekrarli.pdf', [
+  test('ortusen donemli ikinci ekstre de tam yazilir', async () => {
+    // Ayni satirlar ikinci kez gelirse ELENMEZ. Yanlislikla iki kez aktarilan
+    // bir ekstre, ice aktarim gecmisinden silinerek geri alinir.
+    const res = await uploadPdf(user, 'ortusen.pdf', [
       'Turkiye Is Bankasi',
-      '10.10.2026 AYNI ISLEM -99,00 1.000,00',
-      '10.10.2026 AYNI ISLEM -99,00 901,00',
+      '11.10.2026 ORTUSEN ISLEM -55,00 500,00',
     ]);
+    await user.post(`/api/ocr/imports/${res.body.result.importId}/apply`);
 
-    assert.equal(res.status, 201);
-    assert.equal(res.body.result.lineCount, 2);
-    assert.equal(res.body.result.duplicateCount, 0, 'belge ici tekrar mukerrer olmamali');
-
-    const lines = await linesOf(user, res.body.result.importId);
-    assert.equal(lines[0]?.isDuplicate, false);
-    assert.equal(lines[1]?.isDuplicate, false);
-    assert.equal(lines[1]?.excluded, false, 'mesru tekrar haric baslamamali');
-
-    // Ikisi de gercekten yazilabilmeli: parmak izi "kacinci tekrar" bilgisini
-    // tasidigi icin UNIQUE indekse takilmazlar.
-    const applied = await user.post<{ result: { created: number; skipped: number } }>(
-      `/api/ocr/imports/${res.body.result.importId}/apply`,
-    );
-    assert.equal(applied.body.result.created, 2, 'ozdes iki satirin ikisi de yazilmali');
-    assert.equal(applied.body.result.skipped, 0);
-  });
-
-  test('sistemde zaten varsa tekrar mukerrer sayilir', async () => {
-    // Ayni icerikten sistemde 2 kopya var (onceki test). Yeni belgede 3 kopya
-    // gelirse ilk ikisi mukerrer, ucuncusu yenidir.
-    const res = await uploadPdf(user, 'tekrarli-ikinci-kez.pdf', [
-      'Turkiye Is Bankasi',
-      '10.10.2026 AYNI ISLEM -99,00 1.000,00',
-      '10.10.2026 AYNI ISLEM -99,00 901,00',
-      '10.10.2026 AYNI ISLEM -99,00 802,00',
+    const ikinci = await uploadPdf(user, 'ortusen-2.pdf', [
+      'Turkiye Is Bankasi - ikinci kopya',
+      '11.10.2026 ORTUSEN ISLEM -55,00 500,00',
     ]);
-
-    assert.equal(res.body.result.duplicateCount, 2, 'sistemdeki iki kopya kadari mukerrer');
-
-    const lines = await linesOf(user, res.body.result.importId);
-    assert.equal(lines[0]?.isDuplicate, true);
-    assert.equal(lines[1]?.isDuplicate, true);
-    assert.equal(lines[2]?.isDuplicate, false, 'ucuncu tekrar yeni sayilmali');
-  });
-
-  test('ELLE girilmis ozdes kayit da mukerrer olarak yakalanir', async () => {
-    // Eski tasarim mukerrer kontrolunu external_hash uzerinden yapiyordu;
-    // elle girilen kayitlarda o alan NULL oldugu icin bu durum tamamen
-    // kaciyordu.
-    const account = await user.post<{ account: { id: number } }>('/api/accounts', {
-      name: 'Elle Giris Hesabi',
-      type: 'cash',
-      openingBalanceKurus: 0,
-    });
-
-    await user.post('/api/transactions', {
-      accountId: account.body.account.id,
-      categoryId: null,
-      type: 'expense',
-      amountKurus: 12_345,
-      date: '2026-12-01',
-      description: 'ELLE GIRILEN ISLEM',
-    });
-
-    const res = await uploadPdf(
-      user,
-      'elle-girilenle-cakisan.pdf',
-      ['Turkiye Is Bankasi', '01.12.2026 ELLE GIRILEN ISLEM -123,45 500,00'],
-      account.body.account.id,
+    const applied = await user.post<{ result: { created: number } }>(
+      `/api/ocr/imports/${ikinci.body.result.importId}/apply`,
     );
 
-    assert.equal(res.body.result.duplicateCount, 1, 'elle girilen kayit yakalanmali');
+    assert.equal(applied.body.result.created, 1, 'UNIQUE indekse takilmadan yazilmali');
   });
 });
 
 describe('ice aktarim gecmisi', () => {
-  test('taslak silinir, islenmis kayit yalnizca gecmisten kaldirilir', async () => {
+  test('taslak silinir', async () => {
     const draft = await uploadPdf(user, 'silinecek-taslak.pdf', [
       'Turkiye Is Bankasi',
       '20.11.2026 SILINECEK -50,00 100,00',
@@ -372,13 +316,52 @@ describe('ice aktarim gecmisi', () => {
     ]);
     const draftId = draft.body.result.importId;
 
-    const removed = await user.delete<{ deleted: boolean }>(`/api/ocr/imports/${draftId}`);
+    const removed = await user.delete<{ deleted: boolean; removedTransactions: number }>(
+      `/api/ocr/imports/${draftId}`,
+    );
     assert.equal(removed.body.deleted, true);
+    assert.equal(removed.body.removedTransactions, 0, 'taslakta islem olusmamisti');
     assert.equal((await user.get(`/api/ocr/imports/${draftId}`)).status, 404);
+  });
 
-    // Islenmis olan kayitlar listede kalir
-    const list = await user.get<{ imports: { status: string }[] }>('/api/ocr/imports');
-    assert.ok(list.body.imports.some((i) => i.status === 'applied'));
+  test('ISLENMIS ice aktarim silinince islemleri de kalkar', async () => {
+    // Eskiden yalnizca 'discarded' isaretleniyor, islemler yerinde kaliyordu;
+    // kullanici "kaldir" dedigi halde veri duruyordu.
+    const res = await uploadPdf(user, 'islenmis-silinecek.pdf', [
+      'Turkiye Is Bankasi',
+      '22.11.2026 GERI ALINACAK -70,00 30,00',
+    ]);
+    const importId = res.body.result.importId;
+
+    await user.post(`/api/ocr/imports/${importId}/apply`);
+
+    const before = await user.get<{ pagination: { total: number } }>('/api/transactions');
+    const impact = await user.get<{ transactionCount: number }>(
+      `/api/ocr/imports/${importId}/impact`,
+    );
+    assert.equal(impact.body.transactionCount, 1, 'silmeden once etki gosterilebilmeli');
+
+    const removed = await user.delete<{ deleted: boolean; removedTransactions: number }>(
+      `/api/ocr/imports/${importId}`,
+    );
+    assert.equal(removed.body.removedTransactions, 1);
+
+    const after = await user.get<{ pagination: { total: number } }>('/api/transactions');
+    assert.equal(
+      before.body.pagination.total - after.body.pagination.total,
+      1,
+      'olusan islem gercekten silinmeli',
+    );
+    assert.equal((await user.get(`/api/ocr/imports/${importId}`)).status, 404);
+  });
+
+  test('baskasinin ice aktarimi silinemez', async () => {
+    const mine = await uploadPdf(user, 'benim-silinmez.pdf', [
+      'Turkiye Is Bankasi',
+      '23.11.2026 BENIM -10,00 20,00',
+    ]);
+    const res = await other.delete(`/api/ocr/imports/${mine.body.result.importId}`);
+    assert.equal(res.status, 404);
   });
 });
 

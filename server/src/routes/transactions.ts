@@ -12,6 +12,7 @@ import {
   countTransactions,
   deleteTransaction,
   deleteTransferGroup,
+  bulkDeleteTransactions,
   findTransaction,
   findTransferGroup,
   insertTransaction,
@@ -160,6 +161,27 @@ transactionsRouter.delete(
 
     deleteTransaction(user.id, id);
     res.json({ deleted: true, removedRows: 1 });
+  }),
+);
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(1000),
+});
+
+/**
+ * Secili islemleri topluca siler.
+ *
+ * Bir transferin tek bacagini silmek hesaplari tutarsiz birakir; tekil silme
+ * ucunda oldugu gibi grubun tamami silinir. Bu yuzden silinen satir sayisi
+ * gonderilen id sayisindan FAZLA olabilir ve yanit bunu bildirir.
+ */
+transactionsRouter.post(
+  '/bulk-delete',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const input = bulkDeleteSchema.parse(req.body);
+
+    res.json({ removedRows: bulkDeleteTransactions(user.id, input.ids) });
   }),
 );
 

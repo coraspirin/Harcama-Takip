@@ -23,12 +23,10 @@ import { MoneyInput } from '../components/MoneyInput.tsx';
 import { Money } from '../components/Money.tsx';
 import { formatDate, formatDateTime } from '../lib/format.ts';
 
-type LineFilter = 'all' | 'duplicates' | 'unique' | 'uncategorized' | 'chainBreaks';
+type LineFilter = 'all' | 'uncategorized' | 'chainBreaks';
 
 const FILTERS: { id: LineFilter; label: string }[] = [
   { id: 'all', label: 'Tumu' },
-  { id: 'duplicates', label: 'Yalnizca mukerrer' },
-  { id: 'unique', label: 'Mukerrer olmayan' },
   { id: 'uncategorized', label: 'Kategorisiz' },
   { id: 'chainBreaks', label: 'Bakiye kopugu' },
 ];
@@ -38,10 +36,6 @@ const PAGE_SIZE = 50;
 
 function matchesFilter(line: OcrDraftLine, filter: LineFilter): boolean {
   switch (filter) {
-    case 'duplicates':
-      return line.isDuplicate;
-    case 'unique':
-      return !line.isDuplicate;
     case 'uncategorized':
       return line.categoryId === null;
     case 'chainBreaks':
@@ -114,9 +108,6 @@ export default function IceAktar() {
         `${result.parserName} olarak okundu · ${result.pageCount} sayfa · ${result.lineCount} satir alindi` +
           (result.skippedByDateCount > 0
             ? ` · ${result.skippedByDateCount} satir tarih kesmesi disinda kaldi`
-            : '') +
-          (result.duplicateCount > 0
-            ? ` · ${result.duplicateCount} satir sisteme daha once aktarilmis`
             : '') +
           (result.extraction === 'ocr' ? ' · taranmis PDF, OCR kullanildi' : ''),
       );
@@ -254,9 +245,9 @@ export default function IceAktar() {
     try {
       const res = await ocrService.remove(deleting);
       setNotice(
-        res.discarded
-          ? 'Ice aktarim gecmisten kaldirildi. Daha once islenen islemler hesabinizda kaldi.'
-          : 'Taslak silindi.',
+        res.removedTransactions > 0
+          ? `Ice aktarim ve olusturdugu ${res.removedTransactions} islem silindi.`
+          : 'Ice aktarim silindi.',
       );
       if (openImportId === deleting) setOpenImportId(null);
       setDeleting(null);
@@ -505,19 +496,6 @@ export default function IceAktar() {
             </div>
           )}
 
-          {current.duplicateCount > 0 && (
-            <div className="mb-4">
-              <Alert
-                tone="warning"
-                title={`${current.duplicateCount} satir sisteme daha once aktarilmis`}
-              >
-                Ayni tarih, tutar ve aciklamaya sahip islemler zaten kayitli. Varsayilan olarak{' '}
-                <strong>haric tutuldular</strong>. Ayni belgenin icinde tekrar eden satirlar
-                mukerrer sayilmaz &mdash; ayni gun ayni odemeyi iki kez yapmis olabilirsiniz.
-              </Alert>
-            </div>
-          )}
-
           {lines.length === 0 ? (
             <EmptyState
               icon={ScanLine}
@@ -644,11 +622,6 @@ export default function IceAktar() {
                           {line.label && (
                             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                               {line.label}
-                            </span>
-                          )}
-                          {line.isDuplicate && (
-                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                              daha once aktarilmis
                             </span>
                           )}
                           {line.chainBreak && (
@@ -864,12 +837,12 @@ export default function IceAktar() {
         loading={busy}
         onClose={() => setDeleting(null)}
         onConfirm={() => void handleDelete()}
-        message="Taslak ise satirlariyla birlikte silinir. Daha once islenmis bir ice aktarim ise yalnizca gecmisten kaldirilir; olusan islemler hesabinizda kalir."
+        message="Ice aktarim, satirlari VE daha once islenmisse olusturdugu islemler birlikte silinir. Bu islem geri alinamaz; ekstreyi yeniden yukleyerek tekrar aktarabilirsiniz."
       />
 
       <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
         <Upload className="h-3.5 w-3.5" aria-hidden />
-        Ayni dosya iki kez yuklenemez; mukerrer islem olusmasi engellenir.
+        Ayni dosya iki kez yuklenemez. Yanlislikla aktarilan bir ekstreyi gecmisten silerek geri alabilirsiniz.
       </div>
     </>
   );

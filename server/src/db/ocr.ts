@@ -141,7 +141,6 @@ export type CreateDraftLineInput = {
   balanceKurus: number | null;
   chainBreak: boolean;
   externalHash: string;
-  isDuplicate: boolean;
   raw: string;
 };
 
@@ -151,8 +150,8 @@ export function insertDraftLine(userId: number, input: CreateDraftLineInput): vo
       `INSERT INTO ocr_draft_lines
          (user_id, import_id, line_no, date, description, amount_kurus, type,
           category_id, label, balance_kurus, chain_break,
-          external_hash, is_duplicate, excluded, raw)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          external_hash, raw)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
@@ -167,9 +166,6 @@ export function insertDraftLine(userId: number, input: CreateDraftLineInput): vo
       input.balanceKurus,
       input.chainBreak ? 1 : 0,
       input.externalHash,
-      input.isDuplicate ? 1 : 0,
-      // Mukerrer satirlar varsayilan olarak HARIC baslar; kullanici isterse acar.
-      input.isDuplicate ? 1 : 0,
       input.raw,
     );
 }

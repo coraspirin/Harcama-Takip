@@ -33,8 +33,11 @@ export default function Islemler() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [accountId, setAccountId] = useState<number | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -95,6 +98,37 @@ export default function Islemler() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleBulkDelete() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await transactionService.bulkDelete([...selected]);
+      // Silinen satir sayisi secimden FAZLA olabilir: transferin tek bacagi
+      // secilse bile cift birlikte gider.
+      const extra = res.removedRows - selected.size;
+      setNotice(
+        `${res.removedRows} islem silindi` +
+          (extra > 0 ? ` (${extra} tanesi secilen transferlerin karsi bacagi).` : '.'),
+      );
+      setSelected(new Set());
+      setBulkDeleting(false);
+      await list.reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Silinemedi');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function handleDelete() {
@@ -255,6 +289,31 @@ export default function Islemler() {
         </div>
       )}
 
+      {notice && (
+        <div className="mb-4">
+          <Alert tone="success">{notice}</Alert>
+        </div>
+      )}
+
+      {selected.size > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 p-3">
+          <span className="text-sm font-medium text-brand-900">
+            {selected.size} islem secili
+          </span>
+          <Button size="sm" variant="danger" onClick={() => setBulkDeleting(true)}>
+            <Trash2 className="h-4 w-4" aria-hidden />
+            Secilenleri sil
+          </Button>
+          <button
+            type="button"
+            className="text-sm text-slate-500 underline"
+            onClick={() => setSelected(new Set())}
+          >
+            Secimi temizle
+          </button>
+        </div>
+      )}
+
       <Card className="overflow-hidden">
         {!list.loading && transactions.length === 0 ? (
           <EmptyState
@@ -280,6 +339,13 @@ export default function Islemler() {
               const isTransfer = tx.transferGroupId !== null;
               return (
                 <li key={tx.id} className="flex items-center gap-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(tx.id)}
+                    onChange={() => toggleSelect(tx.id)}
+                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                    aria-label="Bu islemi sec"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">
                       {tx.description || tx.categoryName || (isTransfer ? 'Transfer' : 'Islem')}
@@ -444,6 +510,15 @@ export default function Islemler() {
           {error && <Alert tone="error">{error}</Alert>}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={bulkDeleting}
+        title={`${selected.size} islem silinsin mi?`}
+        loading={busy}
+        onClose={() => setBulkDeleting(false)}
+        onConfirm={() => void handleBulkDelete()}
+        message="Secilen islemler kalici olarak silinir. Secim bir transferin bacagini iceriyorsa, hesaplar tutarsiz kalmasin diye transferin diger bacagi da silinir."
+      />
 
       <ConfirmDialog
         open={deleting !== null}

@@ -402,12 +402,13 @@ export function linkAsTransfer(
  * deleteTransferGroup BU IS ICIN KULLANILMAZ - o iki satiri siler ve gercek
  * islemleri yok ederdi.
  */
-export function unlinkTransfer(userId: number, groupId: string): number {
+export function unlinkTransfer(userId: number, groupId: string, onlyMatched = true): number {
   const db = getDb();
   const rows = db
     .prepare(
       `SELECT id, type FROM transactions
-       WHERE user_id = ? AND transfer_group_id = ? AND transfer_matched IS NOT NULL`,
+       WHERE user_id = ? AND transfer_group_id = ?
+         ${onlyMatched ? 'AND transfer_matched IS NOT NULL' : ''}`,
     )
     .all(userId, groupId) as { id: number; type: TransactionType }[];
 
@@ -454,6 +455,82 @@ export function rejectTransferCandidate(
        ON CONFLICT(user_id, expense_id, income_id) DO NOTHING`,
     )
     .run(userId, expenseId, incomeId);
+}
+
+/**
+ * Secili islemleri topluca siler.
+ *
+ * Bir transferin TEK bacagini silmek hesaplari tutarsiz birakir; bu yuzden
+ * secilen bir bacagin grubundaki diger bacak da silinir. Tekil silme ucu da
+ * ayni kurali uyguluyor.
+ */
+export function bulkDeleteTransactions(userId: number, ids: number[]): number {
+  if (ids.length === 0) return 0;
+
+  const db = getDb();
+  const placeholders = ids.map(() => '?').join(', ');
+
+  const groups = db
+    .prepare(
+      `SELECT DISTINCT transfer_group_id FROM transactions
+       WHERE user_id = ? AND id IN (${placeholders}) AND transfer_group_id IS NOT NULL`,
+    )
+    .all(userId, ...ids) as { transfer_group_id: string }[];
+
+  let removed = 0;
+  for (const group of groups) {
+    removed += deleteTransferGroup(userId, group.transfer_group_id);
+  }
+
+  const rest = db
+    .prepare(
+      `DELETE FROM transactions
+       WHERE user_id = ? AND id IN (${placeholders}) AND transfer_group_id IS NULL`,
+    )
+    .run(userId, ...ids);
+
+  return removed + Number(rest.changes);
+}
+
+/**
+ * Bir ice aktarimin olusturdugu islemleri siler.
+ *
+ * Transfer bacaklari ONCE cozulur: karsi bacak BASKA bir ice aktarima ait
+ * olabilir ve onu da silmek, kullanicinin silmedigi bir ekstrenin verisini
+ * yok ederdi. Cozuldukten sonra karsi bacak normal bir gelir/gider olarak
+ * yerinde kalir.
+ */
+export function countTransactionsByImport(userId: number, importId: number): number {
+  const row = getDb()
+    .prepare(
+      "SELECT COUNT(*) AS n FROM transactions WHERE user_id = ? AND source = 'ocr' AND source_ref_id = ?",
+    )
+    .get(userId, importId) as { n: number };
+  return Number(row.n);
+}
+
+export function deleteTransactionsByImport(userId: number, importId: number): number {
+  const db = getDb();
+
+  const groups = db
+    .prepare(
+      `SELECT DISTINCT transfer_group_id FROM transactions
+       WHERE user_id = ? AND source = 'ocr' AND source_ref_id = ?
+         AND transfer_group_id IS NOT NULL`,
+    )
+    .all(userId, importId) as { transfer_group_id: string }[];
+
+  for (const group of groups) {
+    unlinkTransfer(userId, group.transfer_group_id, false);
+  }
+
+  const result = db
+    .prepare(
+      "DELETE FROM transactions WHERE user_id = ? AND source = 'ocr' AND source_ref_id = ?",
+    )
+    .run(userId, importId);
+
+  return Number(result.changes);
 }
 
 export function deleteTransferGroup(userId: number, groupId: string): number {

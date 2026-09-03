@@ -158,7 +158,12 @@ export const transactionService = {
     api
       .patch<{ transaction: Transaction }>(`/api/transactions/${id}`, input)
       .then((r) => r.transaction),
-  remove: (id: number) => api.delete<{ deleted: boolean; removedRows: number }>(`/api/transactions/${id}`),
+  remove: (id: number) =>
+    api.delete<{ deleted: boolean; removedRows: number }>(`/api/transactions/${id}`),
+
+  /** Secilenleri topluca siler. Transfer secilirse cift bacak birlikte gider. */
+  bulkDelete: (ids: number[]) =>
+    api.post<{ removedRows: number }>('/api/transactions/bulk-delete', { ids }),
   transfer: (input: TransferInput) =>
     api.post<{ transferGroupId: string; transactions: Transaction[] }>(
       '/api/transactions/transfer',

@@ -10,7 +10,7 @@ import {
   setImportStatus,
 } from '../../db/ocr.ts';
 import { listLabelMap } from '../../db/labelMap.ts';
-import { countContentMatches, insertTransaction, type ContentKey } from '../../db/transactions.ts';
+import { insertTransaction, type ContentKey } from '../../db/transactions.ts';
 import { detectParser, findParserById } from './parserRegistry.ts';
 import { extractPdfText } from './textExtraction.ts';
 import { checkBalanceChain } from './balanceChain.ts';
@@ -45,19 +45,23 @@ function contentKeyString(key: ContentKey): string {
 }
 
 /**
- * Bir islem satirinin PARMAK IZI.
+ * Bir taslak satirinin izlenebilirlik parmak izi.
  *
- * `occurrence`, ayni icerigin bu belgedeki KACINCI tekrari oldugudur ve
- * zorunludur: transactions tablosunda (user_id, external_hash) uzerinde UNIQUE
- * bir indeks var. Parmak izi yalnizca icerikten uretilseydi, ayni gun ayni
- * tutarda gercekten iki kez yapilmis bir islem veritabaninda BIR ARADA
- * DURAMAZDI - ikinci satir ya sessizce atlanir ya da tum ice aktarimi geri
- * alirdi.
+ * ICE AKTARIM KIMLIGINI de icerir. Icermeseydi, ayni donemi kapsayan ikinci
+ * bir ekstre yuklendiginde ayni satir ayni parmak izini uretir ve
+ * (user_id, external_hash) uzerindeki UNIQUE indekse takilarak TUM ice
+ * aktarimi geri alirdi. Mukerrer bastirma artik yapilmadigi icin bu deger
+ * yalnizca "hangi ice aktarimin hangi satiri" bilgisini tasir.
  */
-export function externalHash(userId: number, key: ContentKey, occurrence: number): string {
+export function externalHash(
+  userId: number,
+  importId: number,
+  key: ContentKey,
+  occurrence: number,
+): string {
   return crypto
     .createHash('sha256')
-    .update(`${userId}|${contentKeyString(key)}#${occurrence}`)
+    .update(`${userId}|${importId}|${contentKeyString(key)}#${occurrence}`)
     .digest('hex');
 }
 
@@ -70,7 +74,6 @@ export type ImportResult = {
   lineCount: number;
   /** Ayristirildi ama tarih kesmesi yuzunden alinmadi. */
   skippedByDateCount: number;
-  duplicateCount: number;
   balanceCheck: 'ok' | 'gaps' | 'unavailable';
   balanceGapCount: number;
   balanceGapKurus: number;
@@ -149,12 +152,9 @@ export async function importStatement(
       pageCount: extracted.pageCount,
     });
 
-    let duplicateCount = 0;
-
-    // Ayni icerigin bu BELGEDEKI kacinci tekrari oldugunu tutar.
+    // Ayni icerigin bu belgedeki kacinci tekrari oldugu, yalnizca parmak
+    // izlerinin birbirine esit olmamasi icin tutulur.
     const occurrences = new Map<string, number>();
-    // Sistemdeki mevcut adet icerik anahtari basina BIR KEZ sorgulanir.
-    const existingCounts = new Map<string, number>();
 
     for (const [index, line] of lines.entries()) {
       const key = contentKeyOf(accountId, line);
@@ -162,18 +162,6 @@ export async function importStatement(
 
       const occurrence = occurrences.get(keyString) ?? 0;
       occurrences.set(keyString, occurrence + 1);
-
-      let existingCount = existingCounts.get(keyString);
-      if (existingCount === undefined) {
-        existingCount = countContentMatches(userId, key, normalizeDescription);
-        existingCounts.set(keyString, existingCount);
-      }
-
-      // Belgenin KENDI ICINDEKI tekrarlar mukerrer DEGILDIR: ayni gun ayni
-      // tutarda ayni islemi iki kez yapmak olagandir. Yalnizca sistemde zaten
-      // o kadar kopya varsa mukerrerdir.
-      const isDuplicate = occurrence < existingCount;
-      if (isDuplicate) duplicateCount++;
 
       let categoryId: number | null = null;
       if (line.label !== null) {
@@ -193,8 +181,7 @@ export async function importStatement(
         label: line.label,
         balanceKurus: line.balanceKurus,
         chainBreak: brokenLines.has(line),
-        externalHash: externalHash(userId, key, occurrence),
-        isDuplicate,
+        externalHash: externalHash(userId, importId, key, occurrence),
         raw: line.raw,
       });
     }
@@ -217,7 +204,6 @@ export async function importStatement(
       pageCount: extracted.pageCount,
       lineCount: lines.length,
       skippedByDateCount,
-      duplicateCount,
       balanceCheck: chain.status,
       balanceGapCount: chain.gaps.length,
       balanceGapKurus: chain.totalGapKurus,
@@ -242,6 +228,7 @@ export async function importStatement(
  */
 export function recomputeLineHash(
   userId: number,
+  importId: number,
   accountId: number,
   lines: { id: number; line_no: number; date: string; description: string; amount_kurus: number; type: 'income' | 'expense' }[],
   editedId: number,
@@ -270,7 +257,7 @@ export function recomputeLineHash(
     );
   }).length;
 
-  return externalHash(userId, key, occurrence);
+  return externalHash(userId, importId, key, occurrence);
 }
 
 export type ApplyResult = {
@@ -279,11 +266,12 @@ export type ApplyResult = {
 };
 
 /**
- * Taslagi hesaba isler. Haric tutulan satirlar atlanir.
+ * Taslagi hesaba isler. Yalnizca kullanicinin HARIC TUTTUGU satirlar atlanir.
  *
- * Mukerrer kontrolu ice aktarim anindakiyle AYNI mantiktir (icerik + sira):
- * boylece belge icindeki mesru tekrarlar korunur, sistemde zaten olanlar
- * yazilmaz.
+ * Mukerrer bastirma BILEREK yapilmaz: hesap hareketlerinde ayni gun, ayni
+ * tutarda, ayni aciklamayla birden fazla islem olagandir ve bunlari otomatik
+ * elemek gercek harcamalari kaybettirir. Yanlislikla iki kez aktarilan bir
+ * ekstre, ice aktarim gecmisinden silinerek geri alinir.
  */
 export function applyImport(userId: number, importId: number, accountId: number): ApplyResult {
   const lines = listDraftLines(userId, importId);
@@ -294,36 +282,9 @@ export function applyImport(userId: number, importId: number, accountId: number)
     let created = 0;
     let skipped = 0;
 
-    const occurrences = new Map<string, number>();
-    const existingCounts = new Map<string, number>();
-
     for (const line of lines) {
-      const key: ContentKey = {
-        accountId,
-        date: line.date,
-        amountKurus: line.amount_kurus,
-        type: line.type,
-        normalizedDescription: normalizeDescription(line.description),
-      };
-      const keyString = contentKeyString(key);
-
       if (line.excluded === 1) {
         skipped++;
-        continue;
-      }
-
-      const occurrence = occurrences.get(keyString) ?? 0;
-
-      let existingCount = existingCounts.get(keyString);
-      if (existingCount === undefined) {
-        existingCount = countContentMatches(userId, key, normalizeDescription);
-        existingCounts.set(keyString, existingCount);
-      }
-
-      // Sistemde bu icerikten zaten yeterince varsa yazma.
-      if (occurrence < existingCount) {
-        skipped++;
-        occurrences.set(keyString, occurrence + 1);
         continue;
       }
 
@@ -339,7 +300,6 @@ export function applyImport(userId: number, importId: number, accountId: number)
         externalHash: line.external_hash,
       });
       created++;
-      occurrences.set(keyString, occurrence + 1);
     }
 
     setImportStatus(userId, importId, 'applied');

@@ -10,7 +10,6 @@ export type OcrImport = {
   pageCount: number;
   status: 'draft' | 'applied' | 'discarded';
   lineCount: number;
-  duplicateCount: number;
   excludedCount: number;
   balanceCheck: BalanceCheck | null;
   balanceGapCount: number;
@@ -34,7 +33,6 @@ export type OcrDraftLine = {
   label: string | null;
   balanceKurus: number | null;
   chainBreak: boolean;
-  isDuplicate: boolean;
   excluded: boolean;
   raw: string | null;
 };
@@ -47,7 +45,6 @@ export type UploadResult = {
   pageCount: number;
   lineCount: number;
   skippedByDateCount: number;
-  duplicateCount: number;
   balanceCheck: BalanceCheck;
   balanceGapCount: number;
   balanceGapKurus: number;
@@ -130,7 +127,11 @@ export const ocrService = {
     }>(`/api/ocr/imports/${id}/apply`),
 
   remove: (id: number) =>
-    api.delete<{ deleted: boolean; discarded?: boolean }>(`/api/ocr/imports/${id}`),
+    api.delete<{ deleted: boolean; removedTransactions: number }>(`/api/ocr/imports/${id}`),
+
+  /** Silmeden once kac islemin kalkacagini gosterebilmek icin. */
+  impact: (id: number) =>
+    api.get<{ transactionCount: number }>(`/api/ocr/imports/${id}/impact`),
 
   /** Secili satirlara toplu islem; 600 satirda tek tek PATCH pratik degil. */
   bulk: (
