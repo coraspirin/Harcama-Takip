@@ -93,7 +93,7 @@ describe('bolunmus tutar -> ayristirici (uctan uca)', () => {
     const text = assembleRows(fragments).join('\n');
     assert.match(text, /-820,00 TL/, 'kurus kismi tam kisma bitisik olmali');
 
-    const lines = parseStatementText(text);
+    const { lines } = parseStatementText(text);
     assert.equal(lines.length, 1);
     assert.equal(lines[0]?.date, '2026-08-05');
     assert.equal(lines[0]?.amountKurus, 82_000, 'bakiye degil tutar alinmali');

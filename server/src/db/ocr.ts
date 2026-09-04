@@ -291,3 +291,38 @@ export function transactionExistsWithHash(userId: number, externalHash: string):
     .get(userId, externalHash) as { id: number } | undefined;
   return row !== undefined;
 }
+
+export type UnreadLineRow = { seq: number; reason: string; raw: string };
+
+/**
+ * Ayristiricinin okuyamadigi satirlari saklar.
+ *
+ * user_id tutulmaz: sahiplik ocr_imports uzerinden gelir ve satirlar
+ * ON DELETE CASCADE ile ice aktarimla birlikte kalkar.
+ */
+export function insertUnreadLines(
+  importId: number,
+  lines: { reason: string; raw: string }[],
+): void {
+  if (lines.length === 0) return;
+
+  const statement = getDb().prepare(
+    `INSERT INTO ocr_unread_lines (import_id, seq, reason, raw) VALUES (?, ?, ?, ?)`,
+  );
+
+  for (const [index, line] of lines.entries()) {
+    statement.run(importId, index + 1, line.reason, line.raw);
+  }
+}
+
+export function listUnreadLines(userId: number, importId: number): UnreadLineRow[] {
+  return getDb()
+    .prepare(
+      `SELECT u.seq, u.reason, u.raw
+       FROM ocr_unread_lines u
+       JOIN ocr_imports i ON i.id = u.import_id
+       WHERE u.import_id = ? AND i.user_id = ?
+       ORDER BY u.seq`,
+    )
+    .all(importId, userId) as UnreadLineRow[];
+}

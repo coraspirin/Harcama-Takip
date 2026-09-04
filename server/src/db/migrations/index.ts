@@ -10,6 +10,7 @@ import { migration008ImportQuality } from './008_import_quality.ts';
 import { migration009PostImport } from './009_post_import.ts';
 import { migration010ChainCoverage } from './010_chain_coverage.ts';
 import { migration011DropTransferSplit } from './011_drop_transfer_split.ts';
+import { migration012UnreadLines } from './012_unread_lines.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
@@ -30,4 +31,5 @@ export const migrations: Migration[] = [
   migration009PostImport,
   migration010ChainCoverage,
   migration011DropTransferSplit,
+  migration012UnreadLines,
 ];

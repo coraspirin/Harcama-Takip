@@ -22,7 +22,7 @@ const GARANTI = [
 function parseGaranti(text: string) {
   const parser = findParserById('garanti');
   assert.ok(parser, 'garanti ayristiricisi tanimli olmali');
-  return parser.parse(text);
+  return parser.parse(text).lines;
 }
 
 describe('etiket sutununun ayrilmasi', () => {
@@ -108,7 +108,7 @@ describe('bakiye zinciri denetimi', () => {
       '03.09.2026 UCUNCU +50,00 750,00',
     ].join('\n');
 
-    const result = checkBalanceChain(parseStatementText(artan));
+    const result = checkBalanceChain(parseStatementText(artan).lines);
 
     assert.equal(result.order, 'asc');
     assert.equal(result.status, 'ok');
@@ -121,7 +121,7 @@ describe('bakiye zinciri denetimi', () => {
       '02.09.2026 BENZIN -200,00',
     ].join('\n');
 
-    const result = checkBalanceChain(parseStatementText(bakiyesiz, { lastAmountIsBalance: false }));
+    const result = checkBalanceChain(parseStatementText(bakiyesiz, { lastAmountIsBalance: false }).lines);
 
     assert.equal(result.status, 'unavailable');
     assert.equal(result.order, null);

@@ -517,3 +517,60 @@ describe('tarih kesme ve toplu islemler', () => {
     assert.equal(unchanged[0]?.excluded, false);
   });
 });
+
+/**
+ * Okunamayan satirlar, kaybolan kayitlarin TEK kaniti.
+ *
+ * Bakiye zinciri "31 kopukluk var" dediginde eskiden hangi metnin
+ * okunamadigini gorecek hicbir yol yoktu; sebep ancak canli veritabani
+ * kazilarak daraltilabiliyordu.
+ */
+describe('okunamayan satirlar ice aktarimla birlikte saklanir', () => {
+  test('cozulemeyen satir ham haliyle ve sebebiyle doner', async () => {
+    const res = await uploadPdf(user, 'okunamayan.pdf', [
+      'Turkiye Is Bankasi - okunamayan satir ornegi',
+      'Tarih Aciklama Tutar Bakiye',
+      '05.08.2026 MARKET -100,00 900,00',
+      'DEVAM SATIRI TARIHSIZ -250,00 TL',
+      '06.08.2026 TUTARSIZ SATIR ORNEGI',
+    ]);
+
+    assert.equal(res.body.result.unreadLineCount, 2);
+
+    const detail = await user.get<{
+      unreadLines: { seq: number; reason: string; raw: string }[];
+    }>(`/api/ocr/imports/${res.body.result.importId}`);
+
+    assert.equal(detail.status, 200);
+    const sebepler = detail.body.unreadLines.map((line) => line.reason);
+    assert.deepEqual(sebepler, ['tarih-yok', 'tutar-yok']);
+    assert.match(detail.body.unreadLines[0]?.raw ?? '', /DEVAM SATIRI/);
+  });
+
+  test('temiz ekstrede okunamayan satir bildirilmez', async () => {
+    const res = await uploadPdf(user, 'temiz-ekstre.pdf', [
+      'Turkiye Is Bankasi - temiz ekstre ornegi',
+      'Tarih Aciklama Tutar Bakiye',
+      '05.08.2026 MARKET -100,00 900,00',
+      '04.08.2026 BENZIN -200,00 1.000,00',
+    ]);
+
+    assert.equal(res.body.result.unreadLineCount, 0);
+  });
+
+  test('ice aktarim silinince okunamayan satirlar da kalkar', async () => {
+    const res = await uploadPdf(user, 'silinecek-okunamayan.pdf', [
+      'Turkiye Is Bankasi - silinecek ornek',
+      'Tarih Aciklama Tutar Bakiye',
+      '05.08.2026 MARKET -100,00 900,00',
+      'TARIHSIZ ARTIK SATIR -50,00 TL',
+    ]);
+    assert.equal(res.body.result.unreadLineCount, 1);
+
+    const silme = await user.delete(`/api/ocr/imports/${res.body.result.importId}`);
+    assert.equal(silme.status, 200);
+
+    const detail = await user.get(`/api/ocr/imports/${res.body.result.importId}`);
+    assert.equal(detail.status, 404, 'ice aktarim ve bagli satirlari kalkmali');
+  });
+});

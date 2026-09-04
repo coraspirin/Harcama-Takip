@@ -20,6 +20,29 @@ export type ParsedLine = {
   raw: string;
 };
 
+/** Bir satirin neden okunamadigi. Arayuzde oldugu gibi gosterilir. */
+export type RejectReason =
+  | 'baslik'
+  | 'tarih-yok'
+  | 'gecersiz-tarih'
+  | 'tutar-yok'
+  | 'tutar-sifir';
+
+export type RejectedLine = { reason: RejectReason; raw: string };
+
+export type ParseResult = {
+  lines: ParsedLine[];
+  /**
+   * Okunamadigi icin ATILAN, ama kayit gorunumundeki satirlar.
+   *
+   * Ayristirici eskiden cozemedigi satiri sessizce atiyordu. Garanti
+   * ekstrelerinde bakiye zinciri 47 kopukluk bildirdiginde hangi satirlarin
+   * kaybolduguna dair elde HICBIR kanit yoktu; sebep ancak canli veritabani
+   * kazilarak daraltilabildi. Atilanlar artik sebebiyle birlikte saklanir.
+   */
+  rejected: RejectedLine[];
+};
+
 export type ParserOptions = {
   /**
    * Kredi karti ekstrelerinde tutarlar genelde ISARETSIZ yazilir ve harcamayi
@@ -265,6 +288,17 @@ function shouldSkip(line: string): boolean {
 }
 
 /**
+ * Atilan satirin RAPORLANMAYA deger olup olmadigi.
+ *
+ * Bir ekstrenin buyuk kismi baslik, sayfa numarasi ve sutun adidir; hepsini
+ * "okunamadi" diye listelemek gercek kaybi gurultuye bogar. Kaybolan bir islem
+ * satirinda ise daima ya tarih ya da parasal bir deger bulunur.
+ */
+function looksLikeRecord(line: string): boolean {
+  return DATE_RE.test(line) || HAS_MONEY_RE.test(line);
+}
+
+/**
  * Turk bankalarinin ekstre/hesap hareketi metinlerini satir satir ayristirir.
  *
  * Bilincli olarak TOLERANSLI: cozulemeyen satirlar hata firlatmaz, sessizce
@@ -274,43 +308,90 @@ function shouldSkip(line: string): boolean {
 export function parseStatementText(
   text: string,
   options: Partial<ParserOptions> = {},
-): ParsedLine[] {
+): ParseResult {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const normalized = text.split(/\r?\n/).map((raw) => raw.replace(/\s+/g, ' ').trim());
   const lines = mergeWrappedRows(normalized);
   const result: ParsedLine[] = [];
+  const rejected: RejectedLine[] = [];
+
+  const reject = (reason: RejectReason, raw: string) => {
+    if (looksLikeRecord(raw)) rejected.push({ reason, raw });
+  };
 
   for (const line of lines) {
-    if (shouldSkip(line)) continue;
+    if (shouldSkip(line)) {
+      reject('baslik', line);
+      continue;
+    }
 
     const dateMatch = DATE_RE.exec(line);
-    if (!dateMatch) continue;
+    if (!dateMatch) {
+      reject('tarih-yok', line);
+      continue;
+    }
 
     const date = normalizeDate(dateMatch[1]!, dateMatch[2]!, dateMatch[3]!);
-    if (date === null) continue;
+    if (date === null) {
+      reject('gecersiz-tarih', line);
+      continue;
+    }
 
     // Tutarlar tarihten SONRAKI kisimda aranir: tarihin kendi rakamlari
     // parasal deger sanilmasin.
     const afterDate = line.slice(dateMatch.index + dateMatch[0].length);
-    const tokens = afterDate.match(MONEY_RE) ?? [];
-    if (tokens.length === 0) continue;
+    // Jetonun KONUMU da gerekiyor: ayni sayi hem aciklamada hem tutar
+    // sutununda gecebilir ve indexOf yanlis yeri bulur.
+    const tokens = [...afterDate.matchAll(MONEY_RE)];
+    if (tokens.length === 0) {
+      reject('tutar-yok', line);
+      continue;
+    }
 
     const hasBalanceColumn = opts.lastAmountIsBalance && tokens.length > 1;
-    const usable = hasBalanceColumn ? tokens.slice(0, -1) : tokens;
 
     // Son jeton bakiye sutunudur. Onceden okunup ATILIYORDU; artik saklaniyor
     // cunku ardisik satirlar arasindaki fark, okunan tutarlarin dogrulugunu
     // aritmetik olarak kanitlar (bkz. balanceChain.ts).
-    const balanceKurus = hasBalanceColumn ? toSignedKurus(tokens[tokens.length - 1]!) : null;
+    const balanceKurus = hasBalanceColumn
+      ? toSignedKurus(tokens[tokens.length - 1]![0])
+      : null;
 
-    const signed = toSignedKurus(usable[0]!);
-    if (signed === null || signed === 0) continue;
+    /*
+     * TUTAR, BAKIYENIN HEMEN SOLUNDAKI JETONDUR.
+     *
+     * Onceden "tarihten sonraki ILK parasal deger tutardir" varsayiliyordu.
+     * Enpara aciklamanin ICINE de tutar yaziyor:
+     *
+     *   03.04.2026 Vergi Kesintisi 100.000,00 TL 12 ay vadeli ihtiyac
+     *   kredinizin ... KKDF -50,85 TL 9.000,02 TL
+     *
+     * Ilk jeton kredinin anaparasi; gercek tutar -50,85. Eski kural bu satiri
+     * "100.000,00 TL gelir" diye kaydediyor, tek bir ekstrede 47 satiri
+     * bozuyordu. Tutar ile bakiye tablonun en sagdaki iki sutunudur;
+     * aciklamada gecen tutarlar daima sollarinda kalir.
+     *
+     * Bakiye sutunu YOKSA (kredi karti ekstresi) eski davranis korunur: o
+     * bicimlerde tutardan sonra baska sutunlar gelebiliyor ve sagdan saymanin
+     * dogrulugu gercek bir ekstreyle sinanmis degil.
+     */
+    const amountToken = hasBalanceColumn ? tokens[tokens.length - 2]! : tokens[0]!;
 
-    // Aciklama: tarih ile ilk tutar arasindaki metin
-    const firstTokenIndex = afterDate.indexOf(usable[0]!);
+    const signed = toSignedKurus(amountToken[0]);
+    if (signed === null) {
+      reject('tutar-yok', line);
+      continue;
+    }
+    if (signed === 0) {
+      reject('tutar-sifir', line);
+      continue;
+    }
+
+    // Aciklama: tarih ile TUTAR SUTUNU arasindaki metin. Aciklamanin kendi
+    // icindeki tutarlar (kredi anaparasi gibi) boylece aciklamada kalir.
     const rawDescription =
       afterDate
-        .slice(0, firstTokenIndex)
+        .slice(0, amountToken.index ?? 0)
         .replace(/[|;]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim() || 'Aciklama yok';
@@ -344,5 +425,5 @@ export function parseStatementText(
     });
   }
 
-  return result;
+  return { lines: result, rejected };
 }

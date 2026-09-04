@@ -5,6 +5,7 @@ import {
   createImport,
   findImportByHash,
   insertDraftLine,
+  insertUnreadLines,
   listDraftLines,
   setBalanceCheck,
   setImportStatus,
@@ -84,6 +85,8 @@ export type ImportResult = {
   statementBalanceKurus: number | null;
   /** Kategoriye eslenememis banka etiketleri. */
   unmappedLabels: string[];
+  /** Ayristiricinin OKUYAMADIGI, kayit gorunumundeki satir sayisi. */
+  unreadLineCount: number;
 };
 
 export type ImportOptions = {
@@ -119,7 +122,7 @@ export async function importStatement(
     (options.parserId ? findParserById(options.parserId) : null) ??
     detectParser(extracted.text, filename);
 
-  const parsed = parser.parse(extracted.text);
+  const { lines: parsed, rejected } = parser.parse(extracted.text);
 
   // Bakiye zinciri TUM satirlar uzerinde denetlenir. Tarih kesmesinden once
   // yapilmasi sart: kesilmis bir listede zincir dogal olarak kopuk gorunurdu.
@@ -186,6 +189,10 @@ export async function importStatement(
       });
     }
 
+    // Okunamayan satirlar da saklanir: bakiye zinciri bir kopukluk
+    // bildirdiginde "hangi metin kayboldu" sorusu tahmine birakilmamali.
+    insertUnreadLines(importId, rejected);
+
     setBalanceCheck(userId, importId, {
       status: chain.status,
       gapCount: chain.gaps.length,
@@ -211,6 +218,7 @@ export async function importStatement(
       balanceUncheckedPairs: chain.uncheckedPairs,
       statementBalanceKurus,
       unmappedLabels: [...unmappedLabels],
+      unreadLineCount: rejected.length,
     };
   } catch (err) {
     db.exec('ROLLBACK');

@@ -15,6 +15,7 @@ import {
   findDraftLine,
   findImport,
   listDraftLines,
+  listUnreadLines,
   listImports,
   updateDraftLine,
   type OcrDraftLineRow,
@@ -133,6 +134,9 @@ ocrRouter.get(
     res.json({
       import: serializeImport(found),
       lines: listDraftLines(user.id, id).map(serializeLine),
+      // Okunamayan satirlar: bakiye kopuklugunun sebebi cogu zaman burada
+      // gorunur hale gelir.
+      unreadLines: listUnreadLines(user.id, id),
     });
   }),
 );

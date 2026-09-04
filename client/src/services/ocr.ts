@@ -37,6 +37,12 @@ export type OcrDraftLine = {
   raw: string | null;
 };
 
+/**
+ * Ayristiricinin okuyamadigi satir. Bakiye kopuklugunun sebebi cogu zaman
+ * burada gorunur hale gelir.
+ */
+export type UnreadLine = { seq: number; reason: string; raw: string };
+
 export type UploadResult = {
   importId: number;
   parserId: string;
@@ -52,6 +58,7 @@ export type UploadResult = {
   balanceUncheckedPairs: number;
   statementBalanceKurus: number | null;
   unmappedLabels: string[];
+  unreadLineCount: number;
 };
 
 export type LabelMapping = {
@@ -67,7 +74,9 @@ export const ocrService = {
   imports: () => api.get<{ imports: OcrImport[] }>('/api/ocr/imports').then((r) => r.imports),
 
   detail: (id: number) =>
-    api.get<{ import: OcrImport; lines: OcrDraftLine[] }>(`/api/ocr/imports/${id}`),
+    api.get<{ import: OcrImport; lines: OcrDraftLine[]; unreadLines: UnreadLine[] }>(
+      `/api/ocr/imports/${id}`,
+    ),
 
   /**
    * Dosya yukleme fetch ile dogrudan yapilir: api.send JSON govde varsayar,

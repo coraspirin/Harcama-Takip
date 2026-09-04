@@ -1,7 +1,7 @@
 import {
   foldTurkish,
   parseStatementText,
-  type ParsedLine,
+  type ParseResult,
   type ParserOptions,
 } from './statementParser.ts';
 
@@ -13,7 +13,7 @@ export type BankParser = {
    * hicbiri eslesmezse "generic" kullanilir.
    */
   matches: (text: string, filename: string) => boolean;
-  parse: (text: string) => ParsedLine[];
+  parse: (text: string) => ParseResult;
 };
 
 function includesAny(haystack: string, needles: string[]): boolean {
@@ -80,7 +80,20 @@ const GARANTI_LABELS = [
  * Enpara'nin "Hareket tipi" sutunu. Garanti'den farkli olarak aciklamanin
  * BASINDA gelir; bu yuzden labelPosition 'prefix'.
  */
-const ENPARA_LABELS = ['Giden Transfer', 'Gelen Transfer', 'Ödeme', 'Faiz', 'Masraf', 'Vergi'];
+const ENPARA_LABELS = [
+  'Giden Transfer',
+  'Gelen Transfer',
+  // "Vergi Kesintisi" sozlukte yokken yalnizca "Vergi" eslesiyor ve aciklama
+  // "Kesintisi ..." diye kirpik kaliyordu. splitLabel uzun etiketi once
+  // denedigi icin ikisi bir arada durabilir.
+  'Vergi Kesintisi',
+  'Kredi Kartı Ödemesi',
+  'Ödeme',
+  'Faiz',
+  'Masraf',
+  'Vergi',
+  'Diğer',
+];
 
 export const PARSERS: BankParser[] = [
   bankParser('isbank', 'Türkiye İş Bankası', ['is bankasi', 'işbank', 'isbank', 'iş bankası']),

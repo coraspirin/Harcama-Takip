@@ -1,6 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseStatementText } from './statementParser.ts';
+import { checkBalanceChain } from './balanceChain.ts';
 import { detectParser, findParserById } from './parserRegistry.ts';
 
 /**
@@ -35,7 +36,7 @@ Son Ödeme Tarihi: 25.08.2026
 `;
 
 describe('hesap hareketi ayristirma', () => {
-  const lines = parseStatementText(HESAP_HAREKETI);
+  const { lines } = parseStatementText(HESAP_HAREKETI);
 
   test('yalnizca islem satirlari ayristirilir', () => {
     assert.equal(lines.length, 4, 'baslik ve devreden bakiye satirlari atlanmali');
@@ -73,7 +74,7 @@ describe('hesap hareketi ayristirma', () => {
 describe('kredi karti ekstresi ayristirma', () => {
   const parser = findParserById('kredi-karti');
   assert.ok(parser);
-  const lines = parser.parse(KREDI_KARTI_EKSTRESI);
+  const { lines } = parser.parse(KREDI_KARTI_EKSTRESI);
 
   test('isaretsiz tutarlar HARCAMA sayilir', () => {
     const trendyol = lines.find((l) => l.description.includes('TRENDYOL') && !l.description.includes('IADE'));
@@ -118,37 +119,37 @@ describe('banka tespiti', () => {
 
 describe('bozuk/eksik girdiye dayaniklilik', () => {
   test('bos metin bos sonuc doner, hata firlatmaz', () => {
-    assert.deepEqual(parseStatementText(''), []);
-    assert.deepEqual(parseStatementText('   \n\n  '), []);
+    assert.deepEqual(parseStatementText('').lines, []);
+    assert.deepEqual(parseStatementText('   \n\n  ').lines, []);
   });
 
   test('gecersiz tarih iceren satir atlanir', () => {
-    const lines = parseStatementText('32.13.2026  GECERSIZ TARIH  -100,00');
+    const { lines } = parseStatementText('32.13.2026  GECERSIZ TARIH  -100,00');
     assert.equal(lines.length, 0);
   });
 
   test('tutarsiz satir atlanir', () => {
-    const lines = parseStatementText('05.08.2026  TUTARSIZ ACIKLAMA SATIRI');
+    const { lines } = parseStatementText('05.08.2026  TUTARSIZ ACIKLAMA SATIRI');
     assert.equal(lines.length, 0);
   });
 
   test('sifir tutarli satir atlanir', () => {
-    const lines = parseStatementText('05.08.2026  SIFIR ISLEM  0,00  100,00');
+    const { lines } = parseStatementText('05.08.2026  SIFIR ISLEM  0,00  100,00');
     assert.equal(lines.length, 0);
   });
 
   test('iki haneli yil dogru yuzyila cevrilir', () => {
-    const lines = parseStatementText('05.08.26  ESKI BICIM  -100,00');
+    const { lines } = parseStatementText('05.08.26  ESKI BICIM  -100,00');
     assert.equal(lines[0]?.date, '2026-08-05');
   });
 
   test('farkli tarih ayraclari desteklenir', () => {
-    assert.equal(parseStatementText('05/08/2026 EGIK CIZGI -100,00')[0]?.date, '2026-08-05');
-    assert.equal(parseStatementText('05-08-2026 TIRE -100,00')[0]?.date, '2026-08-05');
+    assert.equal(parseStatementText('05/08/2026 EGIK CIZGI -100,00').lines[0]?.date, '2026-08-05');
+    assert.equal(parseStatementText('05-08-2026 TIRE -100,00').lines[0]?.date, '2026-08-05');
   });
 
   test('sonda eksi isareti (muhasebe bicimi) tanininir', () => {
-    const lines = parseStatementText('05.08.2026  SONDA EKSI  1.500,00-');
+    const { lines } = parseStatementText('05.08.2026  SONDA EKSI  1.500,00-');
     assert.equal(lines[0]?.type, 'expense');
     assert.equal(lines[0]?.amountKurus, 150_000);
   });
@@ -162,7 +163,7 @@ describe('bozuk/eksik girdiye dayaniklilik', () => {
       'SUBE-7125000222 Para Transferi -57.200,00 TL -249.146,27 TL',
     ].join('\n');
 
-    const lines = parseStatementText(wrapped);
+    const { lines } = parseStatementText(wrapped);
     assert.equal(lines.length, 1);
     assert.equal(lines[0]?.date, '2026-08-03');
     assert.equal(lines[0]?.amountKurus, 5_720_000);
@@ -173,7 +174,7 @@ describe('bozuk/eksik girdiye dayaniklilik', () => {
   test('birlestirme bagimsiz satirlari birbirine yapistirmaz', () => {
     // Iki tam kayit arka arkaya: her ikisinde de tarih VE tutar var,
     // dolayisiyla birlestirilmemeliler.
-    const lines = parseStatementText(
+    const { lines } = parseStatementText(
       ['05.08.2026 BIRINCI -100,00 TL 900,00 TL', '06.08.2026 IKINCI -200,00 TL 700,00 TL'].join(
         '\n',
       ),
@@ -190,7 +191,121 @@ describe('bozuk/eksik girdiye dayaniklilik', () => {
       ### unreadable ###
       06.08.2026  BENZIN  -850,00  11.495,67
     `;
-    const lines = parseStatementText(noisy);
+    const { lines } = parseStatementText(noisy);
     assert.equal(lines.length, 2, 'okunamayan satirlar atlanmali, gecerliler kalmali');
+  });
+});
+
+/**
+ * TUTAR SUTUNU: aciklamanin ICINDE gecen tutarlar.
+ *
+ * Gercek bir Enpara ekstresinde bulundu; metin anonimlestirildi, bicim
+ * korundu. Eski kural ("tarihten sonraki ilk parasal deger tutardir") bu
+ * satirlari 100.000,00 TL'lik hayali GELIR diye kaydediyor, tek bir belgede
+ * 47 satiri bozuyordu. Bakiye zinciri her birinde tam -100.050,85 kopukluk
+ * bildirdigi icin hata gorulebildi.
+ */
+describe('tutar, bakiyenin hemen solundaki sutundur', () => {
+  const KREDI_SATIRI =
+    '03.04.2026 Vergi Kesintisi 100.000,00 TL 12 ay vadeli ihtiyaç kredinizin ' +
+    'erken kapaması - KKDF -50,85 TL 9.000,02 TL';
+
+  test('aciklamadaki tutar, islem tutari SANILMAZ', () => {
+    const { lines } = parseStatementText(KREDI_SATIRI);
+
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0]?.amountKurus, 5_085, 'tutar -50,85 olmali');
+    assert.equal(lines[0]?.type, 'expense');
+    assert.equal(lines[0]?.balanceKurus, 900_002);
+  });
+
+  test('aciklama, icindeki tutari KORUR', () => {
+    const { lines } = parseStatementText(KREDI_SATIRI);
+
+    assert.match(lines[0]?.description ?? '', /100\.000,00 TL/);
+    assert.match(lines[0]?.description ?? '', /KKDF/);
+  });
+
+  test('iki sutunlu klasik satirda davranis degismez', () => {
+    const { lines } = parseStatementText('05.08.2026 MARKET -1.234,56 TL 12.345,67 TL');
+
+    assert.equal(lines[0]?.amountKurus, 123_456);
+    assert.equal(lines[0]?.balanceKurus, 1_234_567);
+    assert.equal(lines[0]?.description, 'MARKET');
+  });
+
+  test('ayni sayi hem aciklamada hem tutar sutununda gecebilir', () => {
+    // indexOf ile arandiginda aciklamadaki ilk "500,00" bulunur ve aciklama
+    // yanlis yerden kesilirdi.
+    const { lines } = parseStatementText('05.08.2026 FATURA 500,00 TL TAKSIT -500,00 TL 250,00 TL');
+
+    assert.equal(lines[0]?.amountKurus, 50_000);
+    assert.equal(lines[0]?.type, 'expense');
+    assert.match(lines[0]?.description ?? '', /FATURA 500,00 TL TAKSIT/);
+  });
+
+  test('bakiye sutunu olmayan ekstrede (kredi karti) ilk tutar alinir', () => {
+    const { lines } = parseStatementText('02.08.2026 MAGAZA 3 TAKSIT 1.299,90', {
+      lastAmountIsBalance: false,
+    });
+
+    assert.equal(lines[0]?.amountKurus, 129_990);
+    assert.equal(lines[0]?.balanceKurus, null);
+  });
+
+  test('bakiye zinciri artik tutuyor', () => {
+    const enparaKredi = [
+      '03.04.2026 Vergi Kesintisi 100.000,00 TL 12 ay vadeli kredi - BSMV -50,85 TL 9.050,87 TL',
+      '03.04.2026 Vergi Kesintisi 100.000,00 TL 12 ay vadeli kredi - KKDF -50,85 TL 9.101,72 TL',
+      '03.04.2026 Ödeme Referanslı Kredi Kapama -11.508,28 TL 9.152,57 TL',
+    ].join('\n');
+
+    const chain = checkBalanceChain(parseStatementText(enparaKredi).lines);
+    assert.equal(chain.status, 'ok');
+    assert.equal(chain.checkedPairs, 2);
+  });
+});
+
+describe('okunamayan satirlarin raporlanmasi', () => {
+  test('tarihi olmayan ama tutari olan satir sebebiyle bildirilir', () => {
+    const { lines, rejected } = parseStatementText('TARIHSIZ DEVAM SATIRI -1.500,00 TL');
+
+    assert.equal(lines.length, 0);
+    assert.equal(rejected.length, 1);
+    assert.equal(rejected[0]?.reason, 'tarih-yok');
+    assert.match(rejected[0]?.raw ?? '', /TARIHSIZ/);
+  });
+
+  test('tarihi olup tutari olmayan satir bildirilir', () => {
+    const { rejected } = parseStatementText('05.08.2026 TUTARSIZ ACIKLAMA SATIRI');
+
+    assert.equal(rejected.length, 1);
+    assert.equal(rejected[0]?.reason, 'tutar-yok');
+  });
+
+  test('gecersiz tarih ayirt edilir', () => {
+    const { rejected } = parseStatementText('32.13.2026 GECERSIZ TARIH -100,00');
+
+    assert.equal(rejected[0]?.reason, 'gecersiz-tarih');
+  });
+
+  test('sifir tutarli satir ayirt edilir', () => {
+    const { rejected } = parseStatementText('05.08.2026 SIFIR ISLEM 0,00 100,00');
+
+    assert.equal(rejected[0]?.reason, 'tutar-sifir');
+  });
+
+  test('duz baslik metni RAPORLANMAZ: kayit gorunumu yok', () => {
+    // Ekstrenin yarisi basliktir; hepsini listelemek gercek kaybi bogar.
+    const { rejected } = parseStatementText('Hesap Hareketleri Dokumu\nAciklama Tutar Bakiye');
+
+    assert.equal(rejected.length, 0);
+  });
+
+  test('gecerli satirlar rapora girmez', () => {
+    const { lines, rejected } = parseStatementText('05.08.2026 MARKET -100,00 TL 900,00 TL');
+
+    assert.equal(lines.length, 1);
+    assert.equal(rejected.length, 0);
   });
 });

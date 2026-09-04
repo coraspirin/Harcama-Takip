@@ -30,7 +30,7 @@ const DUZ = [
 
 describe('Enpara: hareket tipi aciklamanin BASINDA', () => {
   test('onek etiket ayrilir, aciklama temizlenir', () => {
-    const lines = enpara().parse(DUZ);
+    const { lines } = enpara().parse(DUZ);
 
     assert.equal(lines.length, 3);
     assert.equal(lines[0]?.label, 'Giden Transfer');
@@ -38,7 +38,7 @@ describe('Enpara: hareket tipi aciklamanin BASINDA', () => {
   });
 
   test('gelen transfer isaretsiz tutarla GELIR sayilir', () => {
-    const lines = enpara().parse(DUZ);
+    const { lines } = enpara().parse(DUZ);
     const gelen = lines.find((l) => l.label === 'Gelen Transfer');
 
     assert.equal(gelen?.type, 'income');
@@ -75,7 +75,7 @@ describe('Enpara: uc satira sarilan kayit', () => {
   test('kayit KAYBOLMAZ', () => {
     // Onceki surum yalnizca iki satirlik sarmayi birlestiriyordu; bu kayit
     // tamamen dusuyordu (ilk satirda tutar yok, digerlerinde tarih yok).
-    const lines = enpara().parse(SARILMIS);
+    const { lines } = enpara().parse(SARILMIS);
 
     assert.equal(lines.length, 2, 'sarilan kayit da okunmali');
     assert.equal(lines[0]?.date, '2026-08-26');
@@ -84,13 +84,13 @@ describe('Enpara: uc satira sarilan kayit', () => {
   });
 
   test('parcalar dogru sirayla birlesir', () => {
-    const lines = enpara().parse(SARILMIS);
+    const { lines } = enpara().parse(SARILMIS);
     assert.match(lines[0]?.description ?? '', /Ali Veli/);
     assert.match(lines[0]?.description ?? '', /4773565098/);
   });
 
   test('sarilmis kayitla zincir yine tutar', () => {
-    const chain = checkBalanceChain(enpara().parse(SARILMIS));
+    const chain = checkBalanceChain(enpara().parse(SARILMIS).lines);
     assert.equal(chain.status, 'ok');
   });
 });
@@ -98,7 +98,7 @@ describe('Enpara: uc satira sarilan kayit', () => {
 describe('birlestirmenin SINIRLARI', () => {
   test('tutar bulunamazsa satirlar yapistirilmaz', () => {
     // Tarihli ama tutarsiz bir baslik satiri, ardindan ilgisiz metin.
-    const lines = parseStatementText(
+    const { lines } = parseStatementText(
       ['01.08.2026 - 31.08.2026 donemi', 'Ad soyad', 'IBAN TR78 0015', 'Sayfa 1'].join('\n'),
     );
     assert.equal(lines.length, 0, 'ilgisiz metin kayda donusturulmemeli');
@@ -107,7 +107,7 @@ describe('birlestirmenin SINIRLARI', () => {
   test('sinirdan uzun bosluk kaydi yutmaz', () => {
     // MAX_CONTINUATION'i asan bir bosluk; uzaktaki tutar bu kayda
     // baglanmamali.
-    const lines = parseStatementText(`01.08.2026 TARIHLI AMA TUTARSIZ
+    const { lines } = parseStatementText(`01.08.2026 TARIHLI AMA TUTARSIZ
 devam bir
 devam iki
 devam uc
@@ -121,7 +121,7 @@ cok sonra gelen -99,00 100,00`);
   });
 
   test('araya yeni tarih girerse birlestirme durur', () => {
-    const lines = parseStatementText(
+    const { lines } = parseStatementText(
       [
         '01.08.2026 TUTARSIZ SATIR',
         '02.08.2026 GECERLI KAYIT -10,00 990,00',
@@ -135,7 +135,7 @@ cok sonra gelen -99,00 100,00`);
 
 describe('zincir denetiminin KAPSAMI', () => {
   test('dogrulanan ve dogrulanamayan gecis sayisi bildirilir', () => {
-    const lines = enpara().parse(DUZ);
+    const { lines } = enpara().parse(DUZ);
     const chain = checkBalanceChain(lines);
 
     assert.equal(chain.status, 'ok');
@@ -152,7 +152,7 @@ describe('zincir denetiminin KAPSAMI', () => {
       '07.08.2026 Gelen Transfer Ayse Yilmaz 2.150,00 TL 5.650,00 TL',
     ].join('\n');
 
-    const chain = checkBalanceChain(enpara().parse(eksikBakiye));
+    const chain = checkBalanceChain(enpara().parse(eksikBakiye).lines);
 
     assert.equal(chain.uncheckedPairs > 0, true, 'kapsam eksigi raporlanmali');
     assert.equal(
@@ -181,7 +181,7 @@ describe('Garanti: cok parcaya bolunen kayitlar', () => {
   test('bes parcaya bolunen kayit okunur', () => {
     const parser = findParserById('garanti');
     assert.ok(parser);
-    const lines = parser.parse(BES_PARCA);
+    const { lines } = parser.parse(BES_PARCA);
 
     assert.equal(lines.length, 3, 'orta kayit kaybolmamali');
     assert.equal(lines[1]?.date, '2026-03-31');
@@ -191,14 +191,14 @@ describe('Garanti: cok parcaya bolunen kayitlar', () => {
 
   test('bolunmus kayitla zincir tutar', () => {
     const parser = findParserById('garanti')!;
-    assert.equal(checkBalanceChain(parser.parse(BES_PARCA)).status, 'ok');
+    assert.equal(checkBalanceChain(parser.parse(BES_PARCA).lines).status, 'ok');
   });
 
   test('ARTI isaretli tutar ve etiket birlikte okunur', () => {
     // "+400,00" deseni artiyi da yakalamazsa aciklamanin sonunda sarkan bir
     // "+" kalir ve etiket sozlugu eslesmesi sessizce bozulur.
     const parser = findParserById('garanti')!;
-    const lines = parser.parse(
+    const { lines } = parser.parse(
       [
         'T. Garanti Bankası A.Ş.',
         '03.08.2026 ORNEK KISI-ORNEK KISI tarafından',
@@ -216,7 +216,7 @@ describe('Garanti: cok parcaya bolunen kayitlar', () => {
   test('ORTASINDA tarih gecen baslik satiri UYDURMA kayit uretmez', () => {
     // Bu blok birlestirme baslatirsa "Bakiye : -222.673,26 TL" satirini yutup
     // 222.673,26 TL'lik olmayan bir islem uretir.
-    const lines = parseStatementText(
+    const { lines } = parseStatementText(
       [
         'Sayın ORNEK KISI, 03 Eylül 2026 tarihi saat 23:21 itibarıyla 01/01/2026 - 03/09/2026 tarihleri arasındaki',
         'aşağıdaki gibidir.',

@@ -45,6 +45,18 @@ function matchesFilter(line: OcrDraftLine, filter: LineFilter): boolean {
   }
 }
 
+/**
+ * Ayristiricinin bir satiri neden atladigi. Sunucudaki RejectReason ile
+ * birebir; bilinmeyen bir deger gelirse ham haliyle gosterilir.
+ */
+const RET_SEBEBI: Record<string, string> = {
+  baslik: 'baslik/ozet satiri sayildi',
+  'tarih-yok': 'satirda tarih bulunamadi',
+  'gecersiz-tarih': 'tarih gecersiz',
+  'tutar-yok': 'tutar sutunu okunamadi',
+  'tutar-sifir': 'tutar sifir',
+};
+
 export default function IceAktar() {
   const accounts = useAsync(() => accountService.list(), []);
   const categories = useAsync(() => categoryService.list(), []);
@@ -72,6 +84,7 @@ export default function IceAktar() {
   const [unmappedLabels, setUnmappedLabels] = useState<string[]>([]);
   const [lastUploadParser, setLastUploadParser] = useState('');
   const [statementBalance, setStatementBalance] = useState<number | null>(null);
+  const [unreadOpen, setUnreadOpen] = useState(false);
 
   const detail = useAsync(
     () =>
@@ -108,6 +121,9 @@ export default function IceAktar() {
         `${result.parserName} olarak okundu · ${result.pageCount} sayfa · ${result.lineCount} satir alindi` +
           (result.skippedByDateCount > 0
             ? ` · ${result.skippedByDateCount} satir tarih kesmesi disinda kaldi`
+            : '') +
+          (result.unreadLineCount > 0
+            ? ` · ${result.unreadLineCount} satir okunamadi`
             : '') +
           (result.extraction === 'ocr' ? ' · taranmis PDF, OCR kullanildi' : ''),
       );
@@ -253,6 +269,7 @@ export default function IceAktar() {
   }
 
   const lines = detail.data?.lines ?? [];
+  const unreadLines = detail.data?.unreadLines ?? [];
   const current = detail.data?.import;
   const includedCount = lines.filter((l) => !l.excluded).length;
   const includedTotal = lines
@@ -432,7 +449,56 @@ export default function IceAktar() {
                   filtreleyip
                 </button>{' '}
                 eksik islemi elle ekleyebilirsiniz.
+                {unreadLines.length > 0 && (
+                  <>
+                    {' '}
+                    Asagidaki <strong>okunamayan satirlar</strong> listesi sebebi gosterebilir.
+                  </>
+                )}
               </Alert>
+            </div>
+          )}
+
+          {/*
+            Ayristiricinin atladigi satirlar. Eskiden sessizce dusuyorlardi:
+            bakiye zinciri kopukluk bildirdiginde HANGI metnin kayboldugunu
+            gosterecek hicbir kayit yoktu.
+          */}
+          {unreadLines.length > 0 && (
+            <div className="mb-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setUnreadOpen((open) => !open)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <CircleAlert className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                {unreadLines.length} satir okunamadi
+                <span className="ml-auto text-xs font-normal text-slate-500">
+                  {unreadOpen ? 'gizle' : 'goster'}
+                </span>
+              </button>
+
+              {unreadOpen && (
+                <div className="border-t border-slate-200 px-3 py-2">
+                  <p className="mb-2 text-xs text-slate-500">
+                    Bu satirlar cozulemedigi icin taslaga alinmadi. Cogu baslik/ozet
+                    metnidir; arada gercek bir islem varsa bakiye kopuklugunun sebebi
+                    budur ve kaydi elle ekleyebilirsiniz.
+                  </p>
+                  <ul className="max-h-64 space-y-1 overflow-y-auto">
+                    {unreadLines.map((line) => (
+                      <li key={line.seq} className="rounded bg-slate-50 px-2 py-1.5">
+                        <span className="block break-all font-mono text-xs text-slate-700">
+                          {line.raw}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {RET_SEBEBI[line.reason] ?? line.reason}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
