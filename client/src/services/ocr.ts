@@ -121,10 +121,9 @@ export const ocrService = {
   ) => api.patch<{ line: OcrDraftLine }>(`/api/ocr/lines/${id}`, input),
 
   apply: (id: number) =>
-    api.post<{
-      result: { created: number; skipped: number };
-      matching: { linked: number; pending: number } | null;
-    }>(`/api/ocr/imports/${id}/apply`),
+    api.post<{ result: { created: number; skipped: number } }>(
+      `/api/ocr/imports/${id}/apply`,
+    ),
 
   remove: (id: number) =>
     api.delete<{ deleted: boolean; removedTransactions: number }>(`/api/ocr/imports/${id}`),

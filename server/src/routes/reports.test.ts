@@ -64,12 +64,13 @@ before(async () => {
   // Kategorisiz gider
   await addTransaction({ type: 'expense', categoryId: null, amountKurus: 50_000, date: '2026-07-20' });
 
-  // Transfer: raporlarda GORUNMEMELI
+  // Hesaplar arasi hareket AYRI BIR AYDA sinanir: artik siradan gelir/gider
+  // oldugu icin ayni aya konsaydi o ayin tum toplamlarini degistirirdi.
   await user.post('/api/transactions/transfer', {
     fromAccountId: accountId,
     toAccountId: secondAccountId,
     amountKurus: 999_999,
-    date: '2026-07-15',
+    date: '2026-09-15',
   });
 });
 
@@ -90,18 +91,22 @@ describe('aylik rapor', () => {
     assert.equal(res.body.totals.netKurus, 150_000);
   });
 
-  test('TRANSFERLER raporlara girmez', async () => {
+  test('hesaplar arasi hareket RAPORLARA GIRER', async () => {
+    // Ayri bir "transfer" turu yok: cikan bacak gider, giren bacak gelir olarak
+    // raporlanir. Kullanici bu ayrimin kaldirilmasina karar verdi.
     const res = await user.get<{
-      totals: { incomeKurus: number; expenseKurus: number };
+      totals: { incomeKurus: number; expenseKurus: number; netKurus: number };
       byAccount: { accountName: string; expenseKurus: number }[];
-    }>('/api/reports/monthly?month=2026-07');
+    }>('/api/reports/monthly?month=2026-09');
 
-    // 999.999'luk transfer hicbir toplamda gorunmemeli
-    assert.equal(res.body.totals.incomeKurus, 600_000);
-    assert.equal(res.body.totals.expenseKurus, 450_000);
+    assert.equal(res.body.totals.incomeKurus, 999_999, 'giren bacak gelir sayilmali');
+    assert.equal(res.body.totals.expenseKurus, 999_999, 'cikan bacak gider sayilmali');
+    assert.equal(res.body.totals.netKurus, 0, 'net etki sifir');
 
-    const nakit = res.body.byAccount.find((a) => a.accountName === 'Nakit');
-    assert.equal(nakit, undefined, 'yalnizca transfer alan hesap raporda olmamali');
+    assert.ok(
+      res.body.byAccount.some((a) => a.accountName === 'Nakit'),
+      'para giren hesap raporda gorunmeli',
+    );
   });
 
   test('onceki aya gore degisim yuzdesi hesaplanir', async () => {

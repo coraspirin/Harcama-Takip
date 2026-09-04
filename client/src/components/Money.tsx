@@ -19,10 +19,9 @@ export function Money({
 
 /** Gelir/gider isaretini one cikaran gosterim (islem listeleri icin). */
 export function SignedAmount({ kurus, type }: { kurus: number; type: string }) {
-  const isIncome = type === 'income' || type === 'transfer_in';
-  const isTransfer = type === 'transfer_in' || type === 'transfer_out';
+  const isIncome = type === 'income';
 
-  const tone = isTransfer ? 'text-slate-600' : isIncome ? 'text-emerald-600' : 'text-red-600';
+  const tone = isIncome ? 'text-emerald-600' : 'text-red-600';
   const sign = isIncome ? '+' : '−';
 
   return (

@@ -4,10 +4,9 @@ import { bootstrap, createUserAndLogin } from '../test/fixtures.ts';
 import type { TestClient, TestServer } from '../test/harness.ts';
 
 /**
- * Hesap arasi transfer eslestirmesi.
- *
- * En kritik davranis OTOMATIK birlestirmenin NE ZAMAN CALISMADIGIdir: yanlis
- * bir otomatik eslesme, gercek bir gideri raporlardan sessizce siler.
+ * Hesap arasi transfer AYRIMI KALDIRILDI: her hareket siradan bir gelir veya
+ * giderdir ve toplamlara katilir. Bu dosya artik o kararin korunmasini ve
+ * toplu silmeyi dogrular.
  */
 
 let server: TestServer;
@@ -17,15 +16,6 @@ let other: TestClient;
 let bankId: number;
 let cardId: number;
 let ikinciBankId: number;
-
-type Candidate = {
-  expenseId: number;
-  incomeId: number;
-  amountKurus: number;
-  certain: boolean;
-  reason: string | null;
-  dayDifference: number;
-};
 
 async function createAccount(client: TestClient, name: string, type: string): Promise<number> {
   const res = await client.post<{ account: { id: number } }>('/api/accounts', {
@@ -57,12 +47,6 @@ async function addTransaction(
   return res.body.transaction.id;
 }
 
-async function candidates(client: TestClient): Promise<Candidate[]> {
-  const res = await client.get<{ candidates: Candidate[] }>('/api/matching/transfer-candidates');
-  assert.equal(res.status, 200);
-  return res.body.candidates;
-}
-
 async function monthlyTotals(client: TestClient, month: string) {
   const res = await client.get<{
     totals: { incomeKurus: number; expenseKurus: number };
@@ -85,235 +69,77 @@ after(async () => {
   await server.close();
 });
 
-describe('otomatik transfer eslestirme', () => {
-  test('kart odemesi cifti KESIN sayilir', async () => {
-    await addTransaction(
-      user,
-      bankId,
-      'expense',
-      4_576_200,
-      '2027-01-03',
-      'K.Karti Odeme 5342 **** 5015',
+describe('hesap arasi hareketler siradan gelir/gider sayilir', () => {
+  test('transfer formu IKI SIRADAN islem yazar', async () => {
+    const res = await user.post<{ transactions: { id: number; transferGroupId: string | null }[] }>(
+      '/api/transactions/transfer',
+      {
+        fromAccountId: bankId,
+        toAccountId: ikinciBankId,
+        amountKurus: 500_000,
+        date: '2027-01-15',
+        description: 'Kendime aktarim',
+      },
     );
-    await addTransaction(user, cardId, 'income', 4_576_200, '2027-01-03', 'Kart odemesi alacak');
 
-    const list = await candidates(user);
-    const pair = list.find((c) => c.amountKurus === 4_576_200);
-
-    assert.ok(pair, 'aday bulunmali');
-    assert.equal(pair.certain, true);
-    assert.match(pair.reason ?? '', /kart/i);
-  });
-
-  test('tarama kesin cifti birlestirir ve raporlardan cikarir', async () => {
-    const before = await monthlyTotals(user, '2027-01');
-
-    const scan = await user.post<{ result: { linked: number; pending: number } }>(
-      '/api/matching/scan',
-    );
-    assert.equal(scan.body.result.linked, 1);
-
-    const after = await monthlyTotals(user, '2027-01');
-    assert.equal(
-      before.expenseKurus - after.expenseKurus,
-      4_576_200,
-      'gider toplami transfer kadar dusmeli',
-    );
-    assert.equal(
-      before.incomeKurus - after.incomeKurus,
-      4_576_200,
-      'gelir toplami da transfer kadar dusmeli',
+    assert.equal(res.status, 201);
+    assert.equal(res.body.transactions.length, 2);
+    assert.ok(
+      res.body.transactions.every((t) => t.transferGroupId === null),
+      'satirlar birbirine BAGLANMAMALI',
     );
   });
 
-  test('birlestirme hesap bakiyelerini DEGISTIRMEZ', async () => {
+  test('bu satirlar gelir ve gider toplamlarina GIRER', async () => {
+    const totals = await monthlyTotals(user, '2027-01');
+    assert.equal(totals.expenseKurus, 500_000, 'cikan bacak gider sayilmali');
+    assert.equal(totals.incomeKurus, 500_000, 'giren bacak gelir sayilmali');
+  });
+
+  test('hesap bakiyeleri dogru: cikan eksi, giren arti', async () => {
     const accounts = await user.get<{ accounts: { id: number; balanceKurus: number }[] }>(
       '/api/accounts',
     );
-    const bank = accounts.body.accounts.find((a) => a.id === bankId);
-    const card = accounts.body.accounts.find((a) => a.id === cardId);
-
-    // Transfer bacaklari bakiyeye dahildir: cikan eksi, giren arti.
-    assert.equal(bank?.balanceKurus, -4_576_200);
-    assert.equal(card?.balanceKurus, 4_576_200);
+    assert.equal(accounts.body.accounts.find((a) => a.id === bankId)?.balanceKurus, -500_000);
+    assert.equal(accounts.body.accounts.find((a) => a.id === ikinciBankId)?.balanceKurus, 500_000);
   });
 
-  test('otomatik eslesme auto olarak isaretlenir ve geri alinabilir', async () => {
-    const res = await user.get<{
-      matched: { transferGroupId: string; matched: string; amountKurus: number }[];
-    }>('/api/matching/transfer-candidates');
-
-    const auto = res.body.matched.find((m) => m.amountKurus === 4_576_200);
-    assert.ok(auto);
-    assert.equal(auto.matched, 'auto');
-
-    const undone = await user.post<{ restored: number }>('/api/matching/unlink', {
-      transferGroupId: auto.transferGroupId,
-    });
-    assert.equal(undone.body.restored, 2, 'iki bacak da geri alinmali');
-
-    // Raporlara geri gelmeli
-    const totals = await monthlyTotals(user, '2027-01');
-    assert.equal(totals.expenseKurus, 4_576_200);
-
-    // Satirlar SILINMEMELI
-    const list = await user.get<{ transactions: { id: number }[] }>(
-      '/api/transactions?from=2027-01-01&to=2027-01-31',
+  test('olusan satirlar tek tek duzenlenebilir', async () => {
+    // Eskiden transfer kayitlari duzenlenemiyordu; artik siradan islemler.
+    const list = await user.get<{ transactions: { id: number; date: string }[] }>(
+      '/api/transactions?from=2027-01-15&to=2027-01-15',
     );
-    assert.equal(list.body.transactions.length, 2, 'geri alma islemleri silmemeli');
-  });
-});
+    const first = list.body.transactions[0];
+    assert.ok(first);
 
-describe('otomatik birlestirmenin YAPILMADIGI durumlar', () => {
-  test('ucuncu sahis aciklamali cift otomatik birlesmez', async () => {
-    await addTransaction(user, bankId, 'expense', 4_500_000, '2027-02-01', 'Casim Aslan-KIRA');
-    await addTransaction(user, ikinciBankId, 'income', 4_500_000, '2027-02-01', 'Gelen havale');
-
-    const list = await candidates(user);
-    const pair = list.find((c) => c.amountKurus === 4_500_000);
-
-    assert.ok(pair, 'aday olarak onerilmeli');
-    assert.equal(pair.certain, false, 'kendine transfer sinyali yok, otomatik birlesmemeli');
-    assert.equal(pair.reason, null);
-
-    // Tarama baska ciftleri birlestirebilir; onemli olan BU ciftin
-    // birlestirilmemis olmasi.
-    await user.post('/api/matching/scan');
-
-    const after = await candidates(user);
-    assert.ok(
-      after.some((c) => c.amountKurus === 4_500_000),
-      'supheli cift hala onay kuyrugunda olmali',
-    );
-  });
-
-  test('BELIRSIZ eslesme (iki aday) otomatik birlesmez', async () => {
-    // Ayni gun, ayni tutar, acik "kendime" ifadesi -- ama iki olasi karsi bacak.
-    await addTransaction(user, bankId, 'expense', 1_111_100, '2027-03-05', 'KENDIME gonderim');
-    await addTransaction(user, ikinciBankId, 'income', 1_111_100, '2027-03-05', 'KENDIME gelen 1');
-    await addTransaction(user, cardId, 'income', 1_111_100, '2027-03-05', 'KENDIME gelen 2');
-
-    const list = await candidates(user);
-    const pairs = list.filter((c) => c.amountKurus === 1_111_100);
-
-    assert.equal(pairs.length, 2, 'iki aday da onerilmeli');
-    assert.ok(
-      pairs.every((p) => !p.certain),
-      'belirsizken hicbiri otomatik birlestirilmemeli',
-    );
-
-    await user.post('/api/matching/scan');
-
-    const stillPending = await candidates(user);
-    assert.equal(
-      stillPending.filter((c) => c.amountKurus === 1_111_100).length,
-      2,
-      'belirsiz ciftlerin ikisi de kuyrukta kalmali',
-    );
-  });
-
-  test('farkli gunler varsayilan ayarda (0 gun) aday bile degil', async () => {
-    await addTransaction(user, bankId, 'expense', 777_700, '2027-04-01', 'KENDIME gecikmeli');
-    await addTransaction(user, ikinciBankId, 'income', 777_700, '2027-04-03', 'KENDIME iki gun sonra');
-
-    const list = await candidates(user);
-    assert.equal(
-      list.filter((c) => c.amountKurus === 777_700).length,
-      0,
-      'varsayilan gun payi 0: farkli gun aday olmamali',
-    );
-  });
-
-  test('gun payi genisletilince aday olur ama KESIN olmaz', async () => {
-    await user.put('/api/matching/settings', {
-      dayWindow: 3,
-      autoLink: true,
-      selfAliases: '',
-    });
-
-    const list = await candidates(user);
-    const pair = list.find((c) => c.amountKurus === 777_700);
-
-    assert.ok(pair, 'gun payi 3 iken aday olmali');
-    assert.equal(pair.dayDifference, 2);
-    assert.equal(pair.certain, false, 'farkli gun otomatik birlestirilemez');
-
-    await user.put('/api/matching/settings', { dayWindow: 0, autoLink: true, selfAliases: '' });
-  });
-});
-
-describe('elle onay ve reddetme', () => {
-  test('kullanici onaylayinca confirmed olarak birlesir', async () => {
-    const list = await candidates(user);
-    const pair = list.find((c) => c.amountKurus === 4_500_000);
-    assert.ok(pair);
-
-    const res = await user.post<{ transferGroupId: string }>('/api/matching/link', {
-      expenseId: pair.expenseId,
-      incomeId: pair.incomeId,
+    const res = await user.patch(`/api/transactions/${first.id}`, {
+      accountId: bankId,
+      categoryId: null,
+      type: 'expense',
+      amountKurus: 500_000,
+      date: '2027-01-15',
+      description: 'Duzenlendi',
     });
     assert.equal(res.status, 200);
-
-    const after = await user.get<{ matched: { transferGroupId: string; matched: string }[] }>(
-      '/api/matching/transfer-candidates',
-    );
-    const found = after.body.matched.find((m) => m.transferGroupId === res.body.transferGroupId);
-    assert.equal(found?.matched, 'confirmed');
   });
 
-  test('reddedilen cift bir daha onerilmez', async () => {
-    const list = await candidates(user);
-    const pair = list.find((c) => c.amountKurus === 1_111_100);
-    assert.ok(pair);
+  test('ice aktarim sonrasi hicbir satir kendiliginden tur degistirmez', async () => {
+    // Ayni gun, ayni tutar, "kendime" aciklamali bir cift: eskiden otomatik
+    // transfer sayilirdi.
+    const a = await addTransaction(user, bankId, 'expense', 7_700, '2027-02-10', 'KENDIME gonderim');
+    const b = await addTransaction(user, cardId, 'income', 7_700, '2027-02-10', 'KENDIME gelen');
 
-    await user.post('/api/matching/reject', {
-      expenseId: pair.expenseId,
-      incomeId: pair.incomeId,
-    });
-
-    const after = await candidates(user);
-    assert.ok(
-      !after.some((c) => c.expenseId === pair.expenseId && c.incomeId === pair.incomeId),
-      'reddedilen cift listede kalmamali',
+    const list = await user.get<{ transactions: { id: number; type: string }[] }>(
+      '/api/transactions?from=2027-02-10&to=2027-02-10',
     );
-  });
+    const types = new Map(list.body.transactions.map((t) => [t.id, t.type]));
 
-  test('zaten transfer olan islem tekrar birlestirilemez', async () => {
-    const matched = await user.get<{ matched: { transferGroupId: string }[] }>(
-      '/api/matching/transfer-candidates',
-    );
-    assert.ok(matched.body.matched.length > 0);
+    assert.equal(types.get(a), 'expense');
+    assert.equal(types.get(b), 'income');
 
-    // Bir transferin bacagini yeni bir ciftte kullanmaya calismak reddedilmeli.
-    const res = await user.post('/api/matching/link', { expenseId: 999_999, incomeId: 999_998 });
-    assert.equal(res.status, 400);
-  });
-});
-
-describe('izolasyon', () => {
-  test('baskasinin islemleri aday olarak gorunmez', async () => {
-    const foreignAccount = await createAccount(other, 'Yabanci Hesap', 'bank');
-    await addTransaction(other, foreignAccount, 'expense', 4_576_200, '2027-01-03', 'K.Karti Odeme');
-
-    const mine = await candidates(user);
-    assert.ok(
-      !mine.some((c) => c.amountKurus === 4_576_200 && c.expenseId > 0 && c.certain),
-      'baskasinin islemi benim adayim olmamali',
-    );
-
-    const theirs = await candidates(other);
-    assert.equal(theirs.length, 0, 'karsi bacak kendi hesaplarinda yok');
-  });
-
-  test('baskasinin transferi cozulemez', async () => {
-    const matched = await user.get<{ matched: { transferGroupId: string }[] }>(
-      '/api/matching/transfer-candidates',
-    );
-    const groupId = matched.body.matched[0]?.transferGroupId;
-    assert.ok(groupId);
-
-    const res = await other.post('/api/matching/unlink', { transferGroupId: groupId });
-    assert.equal(res.status, 404);
+    const totals = await monthlyTotals(user, '2027-02');
+    assert.equal(totals.expenseKurus, 7_700, 'gider toplamina girmeli');
+    assert.equal(totals.incomeKurus, 7_700, 'gelir toplamina girmeli');
   });
 });
 
@@ -340,24 +166,21 @@ describe('toplu islem silme', () => {
     assert.equal(kalan.body.transactions[0]?.id, ids[2], 'secilmeyen kayit durmali');
   });
 
-  test('transferin tek bacagi secilse bile CIFT silinir', async () => {
-    // Tek bacak silinseydi hesap bakiyeleri tutarsiz kalirdi.
+  test('yalnizca secilen satir silinir, esi durur', async () => {
     const a = await createAccount(user, 'Toplu A', 'bank');
     const b = await createAccount(user, 'Toplu B', 'bank');
     const gider = await addTransaction(user, a, 'expense', 9_900, '2027-07-01', 'KENDIME');
-    const gelir = await addTransaction(user, b, 'income', 9_900, '2027-07-01', 'KENDIME');
-
-    await user.post('/api/matching/link', { expenseId: gider, incomeId: gelir });
+    await addTransaction(user, b, 'income', 9_900, '2027-07-01', 'KENDIME');
 
     const res = await user.post<{ removedRows: number }>('/api/transactions/bulk-delete', {
       ids: [gider],
     });
-    assert.equal(res.body.removedRows, 2, 'iki bacak da silinmeli');
+    assert.equal(res.body.removedRows, 1, 'yalnizca secilen silinmeli');
 
     const kalan = await user.get<{ transactions: unknown[] }>(
       '/api/transactions?from=2027-07-01&to=2027-07-31',
     );
-    assert.equal(kalan.body.transactions.length, 0);
+    assert.equal(kalan.body.transactions.length, 1, 'esi yerinde durmali');
   });
 
   test('baskasinin islemi toplu silmeyle silinemez', async () => {

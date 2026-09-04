@@ -11,10 +11,8 @@ import { categoryExists } from '../db/categories.ts';
 import {
   countTransactions,
   deleteTransaction,
-  deleteTransferGroup,
   bulkDeleteTransactions,
   findTransaction,
-  findTransferGroup,
   insertTransaction,
   listTransactions,
   sumTransactions,
@@ -129,10 +127,6 @@ transactionsRouter.patch(
 
     const existing = findTransaction(user.id, id);
     if (!existing) throw notFound('Islem bulunamadi');
-    if (existing.transfer_group_id !== null) {
-      throw badRequest('Transfer kayitlari duzenlenemez; silip yeniden olusturun');
-    }
-
     if (!isIsoDate(input.date)) throw badRequest('Gecersiz tarih');
     assertOwnedRefs(user.id, input.accountId, input.categoryId);
 
@@ -151,13 +145,6 @@ transactionsRouter.delete(
 
     const existing = findTransaction(user.id, id);
     if (!existing) throw notFound('Islem bulunamadi');
-
-    // Transferin tek bacagini silmek hesaplari tutarsiz birakir: cift silinir.
-    if (existing.transfer_group_id !== null) {
-      const removed = deleteTransferGroup(user.id, existing.transfer_group_id);
-      res.json({ deleted: true, removedRows: removed });
-      return;
-    }
 
     deleteTransaction(user.id, id);
     res.json({ deleted: true, removedRows: 1 });
@@ -194,9 +181,15 @@ const transferSchema = z.object({
 });
 
 /**
- * Hesaplar arasi transfer. Iki satir olarak yazilir (cikan + giren) ve ortak
- * bir transfer_group_id tasir. Rapor ve butce sorgulari bu satirlari disladigi
- * icin transfer, gelir/gider toplamlarini sismez.
+ * Hesaptan hesaba para gonderme kisayolu.
+ *
+ * Artik "transfer" diye AYRI BIR TUR yazmaz; kaynakta bir gider, hedefte bir
+ * gelir olmak uzere IKI SIRADAN islem olusturur. Kullanici hesaplar arasi
+ * hareketlerin de gelir/gider toplamlarina katilmasina karar verdi; ayri tur
+ * bu satirlari raporlardan disliyordu.
+ *
+ * Bu formun tek faydasi iki kaydi tek seferde girmektir; olusan satirlar
+ * birbirine bagli DEGILDIR, ayri ayri duzenlenip silinebilirler.
  */
 transactionsRouter.post(
   '/transfer',
@@ -211,29 +204,31 @@ transactionsRouter.post(
     if (!accountExists(user.id, input.fromAccountId)) throw notFound('Kaynak hesap bulunamadi');
     if (!accountExists(user.id, input.toAccountId)) throw notFound('Hedef hesap bulunamadi');
 
-    const groupId = crypto.randomUUID();
     const db = getDb();
+    const created: number[] = [];
 
     db.exec('BEGIN');
     try {
-      insertTransaction(user.id, {
-        accountId: input.fromAccountId,
-        categoryId: null,
-        type: 'transfer_out',
-        amountKurus: input.amountKurus,
-        date: input.date,
-        description: input.description,
-        transferGroupId: groupId,
-      });
-      insertTransaction(user.id, {
-        accountId: input.toAccountId,
-        categoryId: null,
-        type: 'transfer_in',
-        amountKurus: input.amountKurus,
-        date: input.date,
-        description: input.description,
-        transferGroupId: groupId,
-      });
+      created.push(
+        insertTransaction(user.id, {
+          accountId: input.fromAccountId,
+          categoryId: null,
+          type: 'expense',
+          amountKurus: input.amountKurus,
+          date: input.date,
+          description: input.description,
+        }),
+      );
+      created.push(
+        insertTransaction(user.id, {
+          accountId: input.toAccountId,
+          categoryId: null,
+          type: 'income',
+          amountKurus: input.amountKurus,
+          date: input.date,
+          description: input.description,
+        }),
+      );
       db.exec('COMMIT');
     } catch (err) {
       db.exec('ROLLBACK');
@@ -241,8 +236,10 @@ transactionsRouter.post(
     }
 
     res.status(201).json({
-      transferGroupId: groupId,
-      transactions: findTransferGroup(user.id, groupId).map(serializeTransaction),
+      transactions: created
+        .map((id) => findTransaction(user.id, id))
+        .filter((row): row is NonNullable<typeof row> => row !== null)
+        .map(serializeTransaction),
     });
   }),
 );

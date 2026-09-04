@@ -256,7 +256,7 @@ describe('transfer', () => {
       openingBalanceKurus: 0,
     });
 
-    const res = await ayse.post<{ transferGroupId: string; transactions: Transaction[] }>(
+    const res = await ayse.post<{ transactions: Transaction[] }>(
       '/api/transactions/transfer',
       {
         fromAccountId: from.id,
@@ -276,18 +276,20 @@ describe('transfer', () => {
     assert.equal(toAfter.body.account.balanceKurus, 75_000);
   });
 
-  test('TRANSFER GELIR/GIDER TOPLAMLARINA GIRMEZ', async () => {
+  test('hesaplar arasi hareket TOPLAMLARA GIRER', async () => {
+    // Ayri bir "transfer" turu yok: cikan bacak gider, giren bacak gelirdir ve
+    // ikisi de toplamlara katilir (kullanici karari).
     const list = await ayse.get<{
       transactions: Transaction[];
       totals: { incomeKurus: number; expenseKurus: number };
     }>('/api/transactions?from=2026-08-05&to=2026-08-05');
 
-    const transfers = list.body.transactions.filter((t) => t.transferGroupId !== null);
-    assert.ok(transfers.length >= 2, 'transfer kayitlari listede gorunmeli');
-
-    // Listede gorunurler ama toplamlara dahil edilmezler
-    assert.equal(list.body.totals.incomeKurus, 0);
-    assert.equal(list.body.totals.expenseKurus, 0);
+    assert.ok(
+      list.body.transactions.every((t) => t.transferGroupId === null),
+      'transfer grubu kalmamali',
+    );
+    assert.equal(list.body.totals.incomeKurus, 75_000);
+    assert.equal(list.body.totals.expenseKurus, 75_000);
   });
 
   test('ayni hesaba transfer reddedilir', async () => {
@@ -314,7 +316,7 @@ describe('transfer', () => {
     assert.equal(res.status, 404);
   });
 
-  test('transferin bir bacagi silinince digeri de silinir', async () => {
+  test('bir bacagi silmek digerini ETKILEMEZ', async () => {
     const from = await createAccount(mehmet, {
       name: 'Silme Kaynak',
       type: 'bank',
@@ -331,13 +333,16 @@ describe('transfer', () => {
     assert.ok(leg);
 
     const removed = await mehmet.delete<{ removedRows: number }>(`/api/transactions/${leg.id}`);
-    assert.equal(removed.body.removedRows, 2, 'iki bacak birlikte silinmeli');
+    assert.equal(removed.body.removedRows, 1, 'yalnizca secilen satir silinmeli');
 
     const fromAfter = await mehmet.get<{ account: Account }>(`/api/accounts/${from.id}`);
-    assert.equal(fromAfter.body.account.balanceKurus, 50_000, 'bakiye eski haline donmeli');
+    assert.equal(fromAfter.body.account.balanceKurus, 50_000, 'silinen bacagin etkisi kalkmali');
+
+    const toAfter = await mehmet.get<{ account: Account }>(`/api/accounts/${to.id}`);
+    assert.equal(toAfter.body.account.balanceKurus, 10_000, 'diger bacak yerinde durmali');
   });
 
-  test('transfer kaydi duzenlenemez', async () => {
+  test('olusan satirlar DUZENLENEBILIR', async () => {
     const from = await createAccount(mehmet, {
       name: 'Duzenleme Kaynak',
       type: 'bank',
@@ -354,11 +359,13 @@ describe('transfer', () => {
 
     const res = await mehmet.patch(`/api/transactions/${leg.id}`, {
       accountId: from.id,
+      categoryId: null,
       type: 'expense',
       amountKurus: 999,
       date: '2026-08-06',
+      description: 'Duzenlendi',
     });
-    assert.equal(res.status, 400);
+    assert.equal(res.status, 200, 'artik siradan bir islem');
   });
 });
 

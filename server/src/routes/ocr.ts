@@ -24,7 +24,6 @@ import { listLabelMapRows, upsertLabelMap } from '../db/labelMap.ts';
 import { countTransactionsByImport, deleteTransactionsByImport } from '../db/transactions.ts';
 import { getDb } from '../db/connection.ts';
 import { applyImport, importStatement, recomputeLineHash } from '../services/ocr/ocrService.ts';
-import { autoLinkTransfers } from '../services/transferMatcher.ts';
 import { listParsers } from '../services/ocr/parserRegistry.ts';
 
 export const ocrRouter: Router = Router();
@@ -79,7 +78,6 @@ function serializeImport(row: OcrImportWithCounts) {
     pageCount: row.page_count,
     status: row.status,
     lineCount: row.line_count,
-    duplicateCount: row.duplicate_count,
     excludedCount: row.excluded_count,
     balanceCheck: row.balance_check,
     balanceGapCount: row.balance_gap_count,
@@ -103,7 +101,6 @@ function serializeLine(row: OcrDraftLineRow) {
     label: row.label,
     balanceKurus: row.balance_kurus,
     chainBreak: row.chain_break === 1,
-    isDuplicate: row.is_duplicate === 1,
     excluded: row.excluded === 1,
     raw: row.raw,
   };
@@ -302,19 +299,7 @@ ocrRouter.post(
     const account = findAccount(user.id, found.account_id);
     if (!account) throw notFound('Hesap bulunamadi');
 
-    const result = applyImport(user.id, id, found.account_id);
-
-    // Yeni islemler yazildi; simdi hesaplar arasi transfer adaylari olusmus
-    // olabilir. Tarama AYRI bir try icinde: eslestirmede cikacak bir hata,
-    // basariyla islenmis ice aktarimi geri aldirmamalidir.
-    let matching: { linked: number; pending: number } | null = null;
-    try {
-      matching = autoLinkTransfers(user.id);
-    } catch {
-      /* eslestirme istege bagli bir iyilestirmedir, ice aktarimi bloklamaz */
-    }
-
-    res.json({ result, matching });
+    res.json({ result: applyImport(user.id, id, found.account_id) });
   }),
 );
 

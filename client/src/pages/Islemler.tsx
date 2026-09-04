@@ -105,13 +105,7 @@ export default function Islemler() {
     setError(null);
     try {
       const res = await transactionService.bulkDelete([...selected]);
-      // Silinen satir sayisi secimden FAZLA olabilir: transferin tek bacagi
-      // secilse bile cift birlikte gider.
-      const extra = res.removedRows - selected.size;
-      setNotice(
-        `${res.removedRows} islem silindi` +
-          (extra > 0 ? ` (${extra} tanesi secilen transferlerin karsi bacagi).` : '.'),
-      );
+      setNotice(`${res.removedRows} islem silindi.`);
       setSelected(new Set());
       setBulkDeleting(false);
       await list.reload();
@@ -207,7 +201,6 @@ export default function Islemler() {
               <option value="">Tumu</option>
               <option value="income">Gelir</option>
               <option value="expense">Gider</option>
-              <option value="transfer">Transfer</option>
             </SelectField>
             <SelectField
               label="Hesap"
@@ -336,7 +329,6 @@ export default function Islemler() {
         ) : (
           <ul className="-my-2 divide-y divide-slate-100">
             {transactions.map((tx) => {
-              const isTransfer = tx.transferGroupId !== null;
               return (
                 <li key={tx.id} className="flex items-center gap-3 py-3">
                   <input
@@ -348,26 +340,20 @@ export default function Islemler() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">
-                      {tx.description || tx.categoryName || (isTransfer ? 'Transfer' : 'Islem')}
+                      {tx.description || tx.categoryName || 'Islem'}
                     </p>
                     <p className="truncate text-sm text-slate-500">
                       {formatDate(tx.date)} · {tx.accountName}
-                      {isTransfer
-                        ? ` → ${tx.counterpartyAccountName ?? '?'}`
-                        : tx.categoryName
-                          ? ` · ${tx.categoryName}`
-                          : ''}
+                      {tx.categoryName ? ` · ${tx.categoryName}` : ''}
                     </p>
                   </div>
 
                   <SignedAmount kurus={tx.amountKurus} type={tx.type} />
 
                   <div className="flex shrink-0 gap-0.5">
-                    {!isTransfer && (
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(tx)} aria-label="Duzenle">
-                        <Pencil className="h-4 w-4" aria-hidden />
-                      </Button>
-                    )}
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(tx)} aria-label="Duzenle">
+                      <Pencil className="h-4 w-4" aria-hidden />
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -517,7 +503,7 @@ export default function Islemler() {
         loading={busy}
         onClose={() => setBulkDeleting(false)}
         onConfirm={() => void handleBulkDelete()}
-        message="Secilen islemler kalici olarak silinir. Secim bir transferin bacagini iceriyorsa, hesaplar tutarsiz kalmasin diye transferin diger bacagi da silinir."
+        message="Secilen islemler kalici olarak silinir ve hesap bakiyeleri guncellenir."
       />
 
       <ConfirmDialog
@@ -526,16 +512,7 @@ export default function Islemler() {
         loading={busy}
         onClose={() => setDeleting(null)}
         onConfirm={() => void handleDelete()}
-        message={
-          deleting?.transferGroupId ? (
-            <>
-              Bu bir transfer kaydi. Silinirse transferin <strong>her iki bacagi</strong> da
-              kaldirilir ve iki hesabin bakiyesi eski haline doner.
-            </>
-          ) : (
-            <>Bu islem kalici olarak silinecek ve hesap bakiyesi guncellenecek.</>
-          )
-        }
+        message="Bu islem kalici olarak silinecek ve hesap bakiyesi guncellenecek."
       />
     </>
   );

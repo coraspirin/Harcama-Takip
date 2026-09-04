@@ -280,216 +280,17 @@ export function deleteTransaction(userId: number, id: number): boolean {
 }
 
 /** Transferin iki bacagi birlikte silinir; tek bacak birakilmaz. */
-export type TransferCandidateRow = {
-  expense_id: number;
-  expense_account_id: number;
-  expense_account_name: string;
-  expense_account_type: 'cash' | 'bank' | 'credit_card';
-  expense_date: string;
-  expense_description: string | null;
-  income_id: number;
-  income_account_id: number;
-  income_account_name: string;
-  income_account_type: 'cash' | 'bank' | 'credit_card';
-  income_date: string;
-  income_description: string | null;
-  amount_kurus: number;
-};
-
-/**
- * Ayni tutarli gider/gelir ciftlerini bulur: kullanicinin KENDI hesaplari
- * arasindaki bir transfer, iki ekstrede ayri ayri gider ve gelir olarak
- * gorunur ve raporlarda hem geliri hem gideri sisirir.
- *
- * Yalnizca ADAY dondurur. Hangisinin gercekten transfer oldugu ayri bir karar
- * (bkz. transferMatcher): tutar ve tarih eslesmesi tek basina kanit degildir.
- */
-export function findTransferCandidates(
-  userId: number,
-  dayWindow: number,
-): TransferCandidateRow[] {
-  return getDb()
-    .prepare(
-      `SELECT
-         e.id AS expense_id, e.account_id AS expense_account_id,
-         ea.name AS expense_account_name, ea.type AS expense_account_type,
-         e.date AS expense_date, e.description AS expense_description,
-         i.id AS income_id, i.account_id AS income_account_id,
-         ia.name AS income_account_name, ia.type AS income_account_type,
-         i.date AS income_date, i.description AS income_description,
-         e.amount_kurus AS amount_kurus
-       FROM transactions e
-       JOIN transactions i
-         ON i.user_id = e.user_id
-        AND i.type = 'income'
-        AND i.amount_kurus = e.amount_kurus
-        AND i.account_id <> e.account_id
-        AND i.transfer_group_id IS NULL
-        AND ABS(julianday(i.date) - julianday(e.date)) <= ?
-       JOIN accounts ea ON ea.id = e.account_id AND ea.user_id = e.user_id
-       JOIN accounts ia ON ia.id = i.account_id AND ia.user_id = i.user_id
-       WHERE e.user_id = ?
-         AND e.type = 'expense'
-         AND e.transfer_group_id IS NULL
-         AND NOT EXISTS (
-           SELECT 1 FROM transfer_match_rejections r
-           WHERE r.user_id = e.user_id AND r.expense_id = e.id AND r.income_id = i.id
-         )
-       ORDER BY ABS(julianday(i.date) - julianday(e.date)), e.date DESC, e.id`,
-    )
-    .all(dayWindow, userId) as TransferCandidateRow[];
-}
-
-/**
- * Iki mevcut islemi transfer cifti haline getirir.
- *
- * Satirlar SILINMEZ, turleri degistirilir: kayitlar gercek para hareketleridir,
- * yalnizca gelir/gider sayilmamalari gerekir. Rapor sorgulari zaten
- * transfer_in/out'u disliyor, bakiye sorgusu ise sayiyor; bu yuzden dogru
- * sonuc rapor kodunda tek satir degisiklik olmadan elde edilir.
- *
- * Sema `CHECK ((type IN ('transfer_in','transfer_out')) = (transfer_group_id
- * IS NOT NULL))` tasidigi icin tur ve grup BIRLIKTE guncellenmek zorundadir.
- *
- * `transfer_group_id IS NULL` sarti yarista ikinci kez baglanmayi engeller.
- */
-export function linkAsTransfer(
-  userId: number,
-  expenseId: number,
-  incomeId: number,
-  matched: 'auto' | 'confirmed',
-): string | null {
-  const db = getDb();
-  const groupId = crypto.randomUUID();
-
-  const out = db
-    .prepare(
-      `UPDATE transactions
-       SET type = 'transfer_out', transfer_group_id = ?, transfer_matched = ?,
-           category_id = NULL, updated_at = datetime('now')
-       WHERE user_id = ? AND id = ? AND type = 'expense' AND transfer_group_id IS NULL`,
-    )
-    .run(groupId, matched, userId, expenseId);
-
-  if (Number(out.changes) === 0) return null;
-
-  const income = db
-    .prepare(
-      `UPDATE transactions
-       SET type = 'transfer_in', transfer_group_id = ?, transfer_matched = ?,
-           category_id = NULL, updated_at = datetime('now')
-       WHERE user_id = ? AND id = ? AND type = 'income' AND transfer_group_id IS NULL`,
-    )
-    .run(groupId, matched, userId, incomeId);
-
-  if (Number(income.changes) === 0) {
-    // Gider bacagi guncellendi ama gelir bacagi guncellenemedi: tek bacakli
-    // bir transfer sema kisitini ihlal etmese de anlamsizdir, geri alinir.
-    db.prepare(
-      `UPDATE transactions
-       SET type = 'expense', transfer_group_id = NULL, transfer_matched = NULL
-       WHERE user_id = ? AND id = ?`,
-    ).run(userId, expenseId);
-    return null;
-  }
-
-  return groupId;
-}
-
-/**
- * Transfer eslestirmesini geri alir: satirlar tekrar gider/gelir olur.
- *
- * deleteTransferGroup BU IS ICIN KULLANILMAZ - o iki satiri siler ve gercek
- * islemleri yok ederdi.
- */
-export function unlinkTransfer(userId: number, groupId: string, onlyMatched = true): number {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT id, type FROM transactions
-       WHERE user_id = ? AND transfer_group_id = ?
-         ${onlyMatched ? 'AND transfer_matched IS NOT NULL' : ''}`,
-    )
-    .all(userId, groupId) as { id: number; type: TransactionType }[];
-
-  if (rows.length === 0) return 0;
-
-  let changed = 0;
-  for (const row of rows) {
-    const restored = row.type === 'transfer_out' ? 'expense' : 'income';
-    const result = db
-      .prepare(
-        `UPDATE transactions
-         SET type = ?, transfer_group_id = NULL, transfer_matched = NULL,
-             updated_at = datetime('now')
-         WHERE user_id = ? AND id = ?`,
-      )
-      .run(restored, userId, row.id);
-    changed += Number(result.changes);
-  }
-
-  return changed;
-}
-
-/** Eslestirici tarafindan kurulmus transferler (elle olusturulanlar haric). */
-export function listMatchedTransfers(userId: number): TransactionWithNames[] {
-  return getDb()
-    .prepare(
-      `${SELECT_WITH_NAMES}
-       WHERE t.user_id = ? AND t.transfer_matched IS NOT NULL AND t.type = 'transfer_out'
-       ORDER BY t.date DESC, t.id DESC
-       LIMIT 200`,
-    )
-    .all(userId) as TransactionWithNames[];
-}
-
-export function rejectTransferCandidate(
-  userId: number,
-  expenseId: number,
-  incomeId: number,
-): void {
-  getDb()
-    .prepare(
-      `INSERT INTO transfer_match_rejections (user_id, expense_id, income_id)
-       VALUES (?, ?, ?)
-       ON CONFLICT(user_id, expense_id, income_id) DO NOTHING`,
-    )
-    .run(userId, expenseId, incomeId);
-}
-
-/**
- * Secili islemleri topluca siler.
- *
- * Bir transferin TEK bacagini silmek hesaplari tutarsiz birakir; bu yuzden
- * secilen bir bacagin grubundaki diger bacak da silinir. Tekil silme ucu da
- * ayni kurali uyguluyor.
- */
+/** Secili islemleri topluca siler. */
 export function bulkDeleteTransactions(userId: number, ids: number[]): number {
   if (ids.length === 0) return 0;
 
-  const db = getDb();
   const placeholders = ids.map(() => '?').join(', ');
 
-  const groups = db
-    .prepare(
-      `SELECT DISTINCT transfer_group_id FROM transactions
-       WHERE user_id = ? AND id IN (${placeholders}) AND transfer_group_id IS NOT NULL`,
-    )
-    .all(userId, ...ids) as { transfer_group_id: string }[];
-
-  let removed = 0;
-  for (const group of groups) {
-    removed += deleteTransferGroup(userId, group.transfer_group_id);
-  }
-
-  const rest = db
-    .prepare(
-      `DELETE FROM transactions
-       WHERE user_id = ? AND id IN (${placeholders}) AND transfer_group_id IS NULL`,
-    )
+  const result = getDb()
+    .prepare(`DELETE FROM transactions WHERE user_id = ? AND id IN (${placeholders})`)
     .run(userId, ...ids);
 
-  return removed + Number(rest.changes);
+  return Number(result.changes);
 }
 
 /**
@@ -510,21 +311,7 @@ export function countTransactionsByImport(userId: number, importId: number): num
 }
 
 export function deleteTransactionsByImport(userId: number, importId: number): number {
-  const db = getDb();
-
-  const groups = db
-    .prepare(
-      `SELECT DISTINCT transfer_group_id FROM transactions
-       WHERE user_id = ? AND source = 'ocr' AND source_ref_id = ?
-         AND transfer_group_id IS NOT NULL`,
-    )
-    .all(userId, importId) as { transfer_group_id: string }[];
-
-  for (const group of groups) {
-    unlinkTransfer(userId, group.transfer_group_id, false);
-  }
-
-  const result = db
+  const result = getDb()
     .prepare(
       "DELETE FROM transactions WHERE user_id = ? AND source = 'ocr' AND source_ref_id = ?",
     )
