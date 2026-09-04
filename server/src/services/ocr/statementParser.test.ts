@@ -309,3 +309,84 @@ describe('okunamayan satirlarin raporlanmasi', () => {
     assert.equal(rejected.length, 0);
   });
 });
+
+/**
+ * TERS DIZILMIS SARMA (Garanti).
+ *
+ * Bicim gercek ekstreden alindi, isimler ve referanslar degistirildi.
+ * Aciklamasi iki satira tasan kayitlarda tarih ve etiket ALT satira duser;
+ * ileri yonlu birlestirme bu sirayi goremedigi icin iki Garanti ekstresinde
+ * 47 kayit tumuyle kaybolmustu.
+ */
+describe('tarihi ALTTA kalan sarilmis kayit', () => {
+  const garanti = () => findParserById('garanti')!;
+
+  const TERS = [
+    'AYSE YILMAZ-AYSE YILMAZ tarafından +400,00 TL 400,00 TL',
+    '03.08.2026 Para Transferi',
+  ].join('\n');
+
+  test('kayit kaybolmaz', () => {
+    const { lines } = garanti().parse(TERS);
+
+    assert.equal(lines.length, 1, 'iki parca tek kayda birlesmeli');
+    assert.equal(lines[0]?.date, '2026-08-03');
+    assert.equal(lines[0]?.amountKurus, 40_000);
+    assert.equal(lines[0]?.type, 'income');
+    assert.equal(lines[0]?.balanceKurus, 40_000);
+  });
+
+  test('etiket sutun sirasi korundugu icin bulunur', () => {
+    // Bastaki artik tutarlarin ARKASINA eklenseydi splitLabel etiketi bulamaz,
+    // kayit kategorisiz kalirdi.
+    const { lines } = garanti().parse(TERS);
+
+    assert.equal(lines[0]?.label, 'Para Transferi');
+    assert.equal(lines[0]?.description, 'AYSE YILMAZ-AYSE YILMAZ tarafından');
+  });
+
+  test('okunamayan satir olarak raporlanmaz', () => {
+    const { rejected } = garanti().parse(TERS);
+    assert.equal(rejected.length, 0);
+  });
+
+  test('ILERI yon oncelikli: iki bicim ayni belgede bir arada durabilir', () => {
+    const karisik = [
+      // ileri: tarih ustte
+      '01.09.2026 Para Transferi',
+      'SUBE-5428000148 ORNEK A.Ş. fatura ödemesi- +168.000,00 TL 168.400,00 TL',
+      // ters: tarih altta
+      'AYSE YILMAZ-AYSE YILMAZ tarafından +400,00 TL 400,00 TL',
+      '03.08.2026 Para Transferi',
+    ].join('\n');
+
+    const { lines } = garanti().parse(karisik);
+
+    assert.equal(lines.length, 2, 'iki kayit da okunmali');
+    assert.equal(lines[0]?.amountKurus, 16_800_000);
+    assert.equal(lines[1]?.amountKurus, 40_000);
+    assert.equal(checkBalanceChain(lines).status, 'ok');
+  });
+
+  test('BASLIK bloguyla birlestirilmez: donem satiri iki tarih tasir', () => {
+    // "Kullanilabilir Bakiye : 27.326,74 TL" satirinin ardindan donem basligi
+    // gelir. Korumasiz birakilirsa 27.326,74 TL'lik UYDURMA bir gelir uretirdi.
+    const baslik = [
+      'Hesap Numarası : 747 - 6632550 Kullanılabilir Bakiye : 27.326,74 TL',
+      "04/09/2024 - 04/09/2026 aralığında 144'ten fazla kayıt bulunmuştur.",
+    ].join('\n');
+
+    const { lines } = garanti().parse(baslik);
+    assert.equal(lines.length, 0, 'baslik blogundan kayit uretilmemeli');
+  });
+
+  test('tek parasal degerli satir govde sayilmaz', () => {
+    // Govde, tablonun sag ucunu (tutar VE bakiye) tasimali.
+    const eksik = ['Ad Soyad / Unvan : ORNEK KISI Bakiye : 1.000,00 TL', '03.08.2026 Para Transferi'].join(
+      '\n',
+    );
+
+    const { lines } = garanti().parse(eksik);
+    assert.equal(lines.length, 0);
+  });
+});

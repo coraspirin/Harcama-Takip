@@ -201,6 +201,9 @@ const MAX_CONTINUATION = 6;
  */
 const STARTS_WITH_DATE_RE = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/;
 
+/** DATE_RE'nin global esi; bir satirdaki tarihleri SAYMAK icin gerekli. */
+const DATE_RE_G = new RegExp(DATE_RE.source, 'g');
+
 function mergeWrappedRows(lines: string[]): string[] {
   const merged: string[] = [];
   let i = 0;
@@ -246,6 +249,82 @@ function mergeWrappedRows(lines: string[]): string[] {
   }
 
   return merged;
+}
+
+/**
+ * TERS DIZILMIS sarma: govde ustte, tarih altta.
+ *
+ * Garanti ekstresinde aciklamasi iki satira tasan kayitlarin bir kismi soyle
+ * cikiyor:
+ *
+ *   HÜSEYİN ZEKİ ERDOĞAN-... tarafindan +400,00 TL 400,00 TL
+ *   03.08.2026 Para Transferi
+ *
+ * Ileri yonlu birlestirme bu sirayi goremez ve iki parca da tek basina
+ * gecersizdir (ustte tarih yok, altta tutar yok), dolayisiyla KAYIT TUMUYLE
+ * DUSER. Iki Garanti ekstresinde 47 kaydin kaybolma sebebi buydu; hatanin
+ * varligini bakiye zinciri kanitlamisti (kopukluklarin toplami, hesabin
+ * bakiye hatasiyla kurusuna kadar ayni), sebebini ise okunamayan satirlarin
+ * kaydi gosterdi.
+ *
+ * Ayni belgede iki bicim BIR ARADA bulunuyor. Bu yuzden ters birlestirme
+ * ileri yonlu gecisten ARTAKALAN satirlar uzerinde calisir: bir tarih satiri
+ * ileriye baglanabiliyorsa oncelik daima ileri yondedir ve buraya hic gelmez.
+ */
+function mergeInvertedWraps(lines: string[], minBodyTokens: number): string[] {
+  const merged: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const body = lines[i]!;
+    const head = lines[i + 1];
+
+    if (head !== undefined && isInvertedPair(body, head, minBodyTokens)) {
+      merged.push(joinInvertedWrap(head, body));
+      i += 2;
+      continue;
+    }
+
+    merged.push(body);
+    i++;
+  }
+
+  return merged;
+}
+
+function isInvertedPair(body: string, head: string, minBodyTokens: number): boolean {
+  // Govde tarihsiz olmali ve tablonun SAG UCUNU (tutar + bakiye) tasimali.
+  // Tek parasal degeri olan bir baslik satiri ("Kullanilabilir Bakiye :
+  // 27.326,74 TL") bu esikte elenir; yoksa uydurma bir kayda donusurdu.
+  if (DATE_RE.test(body)) return false;
+  if ((body.match(MONEY_RE) ?? []).length < minBodyTokens) return false;
+
+  // Bas satiri tarihle BASLAMALI, tutar tasimamali ve TEK tarih icermeli.
+  // "04/09/2024 - 04/09/2026 araliginda 144'ten fazla kayit bulunmustur."
+  // gibi donem basliklari iki tarih tasidigi icin disarida kalir.
+  if (!STARTS_WITH_DATE_RE.test(head)) return false;
+  if (HAS_MONEY_RE.test(head)) return false;
+  return (head.match(DATE_RE_G) ?? []).length === 1;
+}
+
+/**
+ * Ters cifti, ekstrenin kendi sutun sirasina geri koyar:
+ * tarih | aciklama | etiket | tutar | bakiye
+ *
+ * Bas satirindan artan kisim (genelde etiket) tutarlarin HEMEN ONUNE eklenir.
+ * Sona eklenseydi bakiyenin arkasinda kalir, splitLabel etiketi bulamaz ve
+ * kayit kategorisiz kalirdi.
+ */
+function joinInvertedWrap(head: string, body: string): string {
+  const date = STARTS_WITH_DATE_RE.exec(head)![0];
+  const rest = head.slice(date.length).trim();
+
+  const tokens = [...body.matchAll(MONEY_RE)];
+  const cut = tokens[Math.max(0, tokens.length - 2)]?.index ?? body.length;
+
+  return [date, body.slice(0, cut).trim(), rest, body.slice(cut).trim()]
+    .filter((part) => part !== '')
+    .join(' ');
 }
 
 /** Ozet/baslik satirlarini eleyen ifadeler. */
@@ -311,7 +390,12 @@ export function parseStatementText(
 ): ParseResult {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const normalized = text.split(/\r?\n/).map((raw) => raw.replace(/\s+/g, ' ').trim());
-  const lines = mergeWrappedRows(normalized);
+  // Once ileri yonlu sarma (tarih ustte), sonra ARTAKALANLAR uzerinde ters
+  // sarma (tarih altta). Sira onemli: ileri yon daima onceliklidir.
+  const lines = mergeInvertedWraps(
+    mergeWrappedRows(normalized),
+    opts.lastAmountIsBalance ? 2 : 1,
+  );
   const result: ParsedLine[] = [];
   const rejected: RejectedLine[] = [];
 

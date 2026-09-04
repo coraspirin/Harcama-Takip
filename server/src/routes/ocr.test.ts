@@ -21,6 +21,7 @@ type UploadResult = {
     balanceGapKurus: number;
     statementBalanceKurus: number | null;
     unmappedLabels: string[];
+    unreadLineCount: number;
   };
 };
 
