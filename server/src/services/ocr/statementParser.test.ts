@@ -390,3 +390,66 @@ describe('tarihi ALTTA kalan sarilmis kayit', () => {
     assert.equal(lines.length, 0);
   });
 });
+
+/**
+ * ARDISIK ters kayitlar.
+ *
+ * Ters dizilmis kayitlar arka arkaya geldiginde ileri yonlu birlestirme
+ * bas1'i govde2'ye bagliyordu: tarihler bir kayit KAYIYOR ve dizinin iki
+ * ucunda birer parca sahipsiz kaliyordu. Iki Garanti ekstresinde ilk
+ * duzeltmeden sonra kalan 5 kopukluk (3 + 2) tam olarak bu diziydi;
+ * her birinde bir sahipsiz govde ve bir sahipsiz bas satiri artiyordu.
+ */
+describe('ardisik ters kayitlar', () => {
+  const garanti = () => findParserById('garanti')!;
+
+  const DIZI = [
+    '20.11.2025 TAM KAYIT Para Transferi -100,00 TL 4.301,90 TL',
+    'ZOZAN ERTAS-ZOZAN ERTAS tarafından +4.000,00 TL 4.401,90 TL',
+    '12.11.2025 Para Transferi',
+    'CUNEYT ERDOGAN-CUNEYT ERDOGAN tarafından +401,90 TL 401,90 TL',
+    '08.11.2025 Para Transferi',
+    '03.11.2025 TAM KAYIT Para Transferi -50,00 TL 0,00 TL',
+  ].join('\n');
+
+  test('dizideki HICBIR kayit kaybolmaz', () => {
+    const { lines, rejected } = garanti().parse(DIZI);
+
+    assert.equal(lines.length, 4, 'iki tam + iki sarilmis kayit');
+    assert.equal(rejected.length, 0, 'sahipsiz parca kalmamali');
+  });
+
+  test('her govde KENDI bas satirinin tarihini alir', () => {
+    // Kayan tarih sessiz bir hatadir: bakiye zinciri tarihi denetlemez.
+    const { lines } = garanti().parse(DIZI);
+
+    const dortBin = lines.find((l) => l.amountKurus === 400_000);
+    const dortYuz = lines.find((l) => l.amountKurus === 40_190);
+
+    assert.equal(dortBin?.date, '2025-11-12');
+    assert.equal(dortYuz?.date, '2025-11-08');
+  });
+
+  test('bakiye zinciri kopuksuz', () => {
+    const { lines } = garanti().parse(DIZI);
+    const chain = checkBalanceChain(lines);
+
+    assert.equal(chain.status, 'ok');
+    assert.equal(chain.checkedPairs, 3);
+  });
+
+  test('ILERI yonlu sarma bu korumadan etkilenmez', () => {
+    // Onceki satir tam bir kayit oldugunda bas satiri ileriye baglanmalidir.
+    const ileri = [
+      '20.11.2025 TAM KAYIT Para Transferi -100,00 TL 900,00 TL',
+      '19.11.2025 Para Transferi',
+      'SUBE-5428000148 ORNEK A.Ş. fatura ödemesi- +1.000,00 TL 1.000,00 TL',
+    ].join('\n');
+
+    const { lines } = garanti().parse(ileri);
+
+    assert.equal(lines.length, 2);
+    assert.equal(lines[1]?.date, '2025-11-19');
+    assert.equal(lines[1]?.amountKurus, 100_000);
+  });
+});

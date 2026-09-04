@@ -204,16 +204,38 @@ const STARTS_WITH_DATE_RE = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/;
 /** DATE_RE'nin global esi; bir satirdaki tarihleri SAYMAK icin gerekli. */
 const DATE_RE_G = new RegExp(DATE_RE.source, 'g');
 
+/** Tutari olan ama tarihi olmayan satir: sarilmis bir kaydin GOVDESI. */
+function isLooseBody(line: string): boolean {
+  return HAS_MONEY_RE.test(line) && !DATE_RE.test(line);
+}
+
 function mergeWrappedRows(lines: string[]): string[] {
   const merged: string[] = [];
   let i = 0;
+  /** Bir onceki GIRDI satiri sahipsiz kaldi ve govde gorunumunde mi? */
+  let previousIsLooseBody = false;
 
   while (i < lines.length) {
     const line = lines[i]!;
+    const isHead = STARTS_WITH_DATE_RE.test(line) && !HAS_MONEY_RE.test(line);
 
-    // Tarihle BASLAYAN ama tutari olmayan satir, sarilmis bir kaydin basidir.
-    if (!STARTS_WITH_DATE_RE.test(line) || HAS_MONEY_RE.test(line)) {
+    /*
+     * Tarihle BASLAYAN ama tutari olmayan satir, sarilmis bir kaydin basidir.
+     *
+     * ONCEKI satir sahipsiz bir govdeyse bu bas ONA aittir, ileriye degil.
+     * Ters dizilmis kayitlar ARKA ARKAYA geldiginde
+     *
+     *     govde1 | bas1 | govde2 | bas2 | govde3 | bas3
+     *
+     * ileri yonlu birlestirme bas1'i govde2'ye, bas2'yi govde3'e bagliyordu:
+     * tarihler bir kayit KAYIYOR, dizinin iki ucunda govde1 ile bas3 sahipsiz
+     * kaliyor ve bir kayit tumuyle dusuyordu. Iki Garanti ekstresinde 47
+     * kaydin 28'i tek basina duran ciftlerdi ve duzelmisti; kalan 5'i
+     * (3 + 2) tam olarak bu ardisik dizilerdi.
+     */
+    if (!isHead || previousIsLooseBody) {
       merged.push(line);
+      previousIsLooseBody = isLooseBody(line);
       i++;
       continue;
     }
@@ -236,6 +258,10 @@ function mergeWrappedRows(lines: string[]): string[] {
         break;
       }
     }
+
+    // Her iki durumda da son yazilan satir bir BAS satiridir (ya da onunla
+    // baslayan birlesik kayit); govde degildir.
+    previousIsLooseBody = false;
 
     if (completed) {
       merged.push(parts.join(' '));
