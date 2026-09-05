@@ -87,6 +87,8 @@ export type ImportResult = {
   unmappedLabels: string[];
   /** Ayristiricinin OKUYAMADIGI, kayit gorunumundeki satir sayisi. */
   unreadLineCount: number;
+  /** Bunlarin KAYIP ISLEM olabilecek olanlari; digerleri baslik/dipnot. */
+  unreadSuspectCount: number;
 };
 
 export type ImportOptions = {
@@ -219,6 +221,7 @@ export async function importStatement(
       statementBalanceKurus,
       unmappedLabels: [...unmappedLabels],
       unreadLineCount: rejected.length,
+      unreadSuspectCount: rejected.filter((line) => line.suspect).length,
     };
   } catch (err) {
     db.exec('ROLLBACK');

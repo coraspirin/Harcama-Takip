@@ -292,7 +292,7 @@ export function transactionExistsWithHash(userId: number, externalHash: string):
   return row !== undefined;
 }
 
-export type UnreadLineRow = { seq: number; reason: string; raw: string };
+export type UnreadLineRow = { seq: number; reason: string; raw: string; suspect: number };
 
 /**
  * Ayristiricinin okuyamadigi satirlari saklar.
@@ -302,23 +302,24 @@ export type UnreadLineRow = { seq: number; reason: string; raw: string };
  */
 export function insertUnreadLines(
   importId: number,
-  lines: { reason: string; raw: string }[],
+  lines: { reason: string; raw: string; suspect: boolean }[],
 ): void {
   if (lines.length === 0) return;
 
   const statement = getDb().prepare(
-    `INSERT INTO ocr_unread_lines (import_id, seq, reason, raw) VALUES (?, ?, ?, ?)`,
+    `INSERT INTO ocr_unread_lines (import_id, seq, reason, raw, suspect)
+     VALUES (?, ?, ?, ?, ?)`,
   );
 
   for (const [index, line] of lines.entries()) {
-    statement.run(importId, index + 1, line.reason, line.raw);
+    statement.run(importId, index + 1, line.reason, line.raw, line.suspect ? 1 : 0);
   }
 }
 
 export function listUnreadLines(userId: number, importId: number): UnreadLineRow[] {
   return getDb()
     .prepare(
-      `SELECT u.seq, u.reason, u.raw
+      `SELECT u.seq, u.reason, u.raw, u.suspect
        FROM ocr_unread_lines u
        JOIN ocr_imports i ON i.id = u.import_id
        WHERE u.import_id = ? AND i.user_id = ?

@@ -122,8 +122,8 @@ export default function IceAktar() {
           (result.skippedByDateCount > 0
             ? ` · ${result.skippedByDateCount} satir tarih kesmesi disinda kaldi`
             : '') +
-          (result.unreadLineCount > 0
-            ? ` · ${result.unreadLineCount} satir okunamadi`
+          (result.unreadSuspectCount > 0
+            ? ` · ${result.unreadSuspectCount} satir okunamadi`
             : '') +
           (result.extraction === 'ocr' ? ' · taranmis PDF, OCR kullanildi' : ''),
       );
@@ -270,6 +270,7 @@ export default function IceAktar() {
 
   const lines = detail.data?.lines ?? [];
   const unreadLines = detail.data?.unreadLines ?? [];
+  const suspectLines = unreadLines.filter((line) => line.suspect === 1);
   const current = detail.data?.import;
   const includedCount = lines.filter((l) => !l.excluded).length;
   const includedTotal = lines
@@ -449,7 +450,7 @@ export default function IceAktar() {
                   filtreleyip
                 </button>{' '}
                 eksik islemi elle ekleyebilirsiniz.
-                {unreadLines.length > 0 && (
+                {suspectLines.length > 0 && (
                   <>
                     {' '}
                     Asagidaki <strong>okunamayan satirlar</strong> listesi sebebi gosterebilir.
@@ -466,13 +467,30 @@ export default function IceAktar() {
           */}
           {unreadLines.length > 0 && (
             <div className="mb-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
+              {/*
+                Uyarinin sesi KANITA gore: islem blogunun disinda kalan,
+                tekrarlayan ya da duz yazi olan satirlar kayip islem degildir.
+                Hepsini esit sesle bildirmek, gercek kayip cikinca uyarinin
+                gormezden gelinmesine yol acar.
+              */}
               <button
                 type="button"
                 onClick={() => setUnreadOpen((open) => !open)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                <CircleAlert className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
-                {unreadLines.length} satir okunamadi
+                {suspectLines.length > 0 ? (
+                  <>
+                    <CircleAlert className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                    {suspectLines.length} satir okunamadi &mdash; kayip islem olabilir
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                    <span className="font-normal text-slate-500">
+                      {unreadLines.length} satir ayristirilmadi (baslik/ozet)
+                    </span>
+                  </>
+                )}
                 <span className="ml-auto text-xs font-normal text-slate-500">
                   {unreadOpen ? 'gizle' : 'goster'}
                 </span>
@@ -481,21 +499,32 @@ export default function IceAktar() {
               {unreadOpen && (
                 <div className="border-t border-slate-200 px-3 py-2">
                   <p className="mb-2 text-xs text-slate-500">
-                    Bu satirlar cozulemedigi icin taslaga alinmadi. Cogu baslik/ozet
-                    metnidir; arada gercek bir islem varsa bakiye kopuklugunun sebebi
-                    budur ve kaydi elle ekleyebilirsiniz.
+                    {suspectLines.length > 0
+                      ? 'Bu satirlar islem satirlarinin ARASINDA kaldigi halde cozulemedi; ' +
+                        'aralarinda gercek bir islem olabilir. Eksik kaydi elle ekleyebilirsiniz.'
+                      : 'Ayristirilmayan satirlarin tamami islem blogunun disinda kalan ya da ' +
+                        'her sayfada tekrarlayan metinler: baslik, ozet ve dipnot. Kayip islem ' +
+                        'isareti yok.'}
                   </p>
                   <ul className="max-h-64 space-y-1 overflow-y-auto">
-                    {unreadLines.map((line) => (
-                      <li key={line.seq} className="rounded bg-slate-50 px-2 py-1.5">
-                        <span className="block break-all font-mono text-xs text-slate-700">
-                          {line.raw}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {RET_SEBEBI[line.reason] ?? line.reason}
-                        </span>
-                      </li>
-                    ))}
+                    {[...unreadLines]
+                      .sort((a, b) => b.suspect - a.suspect || a.seq - b.seq)
+                      .map((line) => (
+                        <li
+                          key={line.seq}
+                          className={`rounded px-2 py-1.5 ${
+                            line.suspect ? 'bg-amber-50' : 'bg-slate-50'
+                          }`}
+                        >
+                          <span className="block break-all font-mono text-xs text-slate-700">
+                            {line.raw}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {RET_SEBEBI[line.reason] ?? line.reason}
+                            {line.suspect ? '' : ' · baslik/ozet'}
+                          </span>
+                        </li>
+                      ))}
                   </ul>
                 </div>
               )}

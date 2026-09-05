@@ -22,6 +22,7 @@ type UploadResult = {
     statementBalanceKurus: number | null;
     unmappedLabels: string[];
     unreadLineCount: number;
+    unreadSuspectCount: number;
   };
 };
 

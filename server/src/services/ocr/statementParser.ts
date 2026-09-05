@@ -28,7 +28,20 @@ export type RejectReason =
   | 'tutar-yok'
   | 'tutar-sifir';
 
-export type RejectedLine = { reason: RejectReason; raw: string };
+export type RejectedLine = {
+  reason: RejectReason;
+  raw: string;
+  /**
+   * Bu satir KAYIP BIR ISLEM olabilir mi?
+   *
+   * Ayristirilamayan her satiri esit sesle bildirmek, denetimi degersiz
+   * kilar: bir kredi karti ekstresinin 30 satiri baslik, bonus ozeti ve
+   * ucret tablosudur ve "30 satir okunamadi" uyarisi bir dahaki sefere
+   * gercek kayip cikinca da gormezden gelinir. Siniflandirma ölçülebilir
+   * uc olcute dayanir; bkz. classifySuspects.
+   */
+  suspect: boolean;
+};
 
 export type ParseResult = {
   lines: ParsedLine[];
@@ -39,6 +52,8 @@ export type ParseResult = {
    * ekstrelerinde bakiye zinciri 47 kopukluk bildirdiginde hangi satirlarin
    * kaybolduguna dair elde HICBIR kanit yoktu; sebep ancak canli veritabani
    * kazilarak daraltilabildi. Atilanlar artik sebebiyle birlikte saklanir.
+   *
+   * Kayip bir islem olma ihtimali olanlar "suspect" ile isaretlidir.
    */
   rejected: RejectedLine[];
 };
@@ -498,6 +513,63 @@ function looksLikeRecord(line: string): boolean {
   return hasDate(line) || HAS_MONEY_RE.test(line);
 }
 
+/** Ayni metin bu kadar tekrarliyorsa sayfa ustbilgisi/altbilgisidir. */
+const REPEAT_NOISE = 3;
+
+/**
+ * Tutari olmayan bir satir bu uzunlugun ustundeyse duz yazidir.
+ *
+ * Kayip bir kaydin bas parcasi kisadir ("03.11.2025 Para Transferi", 25
+ * karakter); ekstre dipnotlari yuzlerce karakterdir.
+ */
+const PROSE_LENGTH = 80;
+
+type Rejection = { reason: RejectReason; raw: string; index: number };
+
+/**
+ * Okunamayan satirlarin hangilerinin GERCEKTEN kayip islem olabilecegini
+ * belirler.
+ *
+ * Uc olcut, uc gercek belgeden cikarildi:
+ *
+ *  1. ISLEM BLOGUNUN DISI. Kayitlar belgede bitisik bir blok olusturur.
+ *     Ilk kayittan once ya da son kayittan sonra kalan satirlar baslik ve
+ *     dipnottur. Kredi karti ekstresindeki 30 satirin TAMAMI boyleydi;
+ *     kaybolan Garanti satirlarinin tamami ise blogun ICINDEYDI.
+ *  2. TEKRAR. Ayni metin defalarca geciyorsa sayfa ustbilgisi/altbilgisidir
+ *     (Enpara'nin 9 sayfalik ekstresinde ayni dipnot 9 kez).
+ *  3. TUTARSIZ UZUN METIN. Duz yazi paragraflari.
+ *
+ * Hicbir kayit okunamadiysa siniflandirma yapilmaz: boyle bir belgede her
+ * satir suphelidir ve uyari en yuksek sesle verilmelidir.
+ */
+function classifySuspects(
+  rejections: Rejection[],
+  firstAccepted: number | null,
+  lastAccepted: number | null,
+): RejectedLine[] {
+  const repeats = new Map<string, number>();
+  for (const rejection of rejections) {
+    repeats.set(rejection.raw, (repeats.get(rejection.raw) ?? 0) + 1);
+  }
+
+  return rejections.map(({ reason, raw, index }) => {
+    let suspect = true;
+
+    if (firstAccepted === null || lastAccepted === null) {
+      suspect = true;
+    } else if (index < firstAccepted || index > lastAccepted) {
+      suspect = false;
+    } else if ((repeats.get(raw) ?? 0) >= REPEAT_NOISE) {
+      suspect = false;
+    } else if (!HAS_MONEY_RE.test(raw) && raw.length > PROSE_LENGTH) {
+      suspect = false;
+    }
+
+    return { reason, raw, suspect };
+  });
+}
+
 /**
  * Turk bankalarinin ekstre/hesap hareketi metinlerini satir satir ayristirir.
  *
@@ -518,13 +590,20 @@ export function parseStatementText(
     opts.lastAmountIsBalance ? 2 : 1,
   );
   const result: ParsedLine[] = [];
-  const rejected: RejectedLine[] = [];
+  const rejections: Rejection[] = [];
+
+  // Kayitlarin belgedeki ilk ve son konumu; okunamayan satirlarin islem
+  // blogunun ICINDE mi DISINDA mi kaldigini belirlemek icin.
+  let firstAccepted: number | null = null;
+  let lastAccepted: number | null = null;
+  let index = -1;
 
   const reject = (reason: RejectReason, raw: string) => {
-    if (looksLikeRecord(raw)) rejected.push({ reason, raw });
+    if (looksLikeRecord(raw)) rejections.push({ reason, raw, index });
   };
 
   for (const line of lines) {
+    index++;
     if (shouldSkip(line)) {
       reject('baslik', line);
       continue;
@@ -637,7 +716,13 @@ export function parseStatementText(
       balanceKurus,
       raw: line,
     });
+
+    if (firstAccepted === null) firstAccepted = index;
+    lastAccepted = index;
   }
 
-  return { lines: result, rejected };
+  return {
+    lines: result,
+    rejected: classifySuspects(rejections, firstAccepted, lastAccepted),
+  };
 }

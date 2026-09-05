@@ -41,7 +41,13 @@ export type OcrDraftLine = {
  * Ayristiricinin okuyamadigi satir. Bakiye kopuklugunun sebebi cogu zaman
  * burada gorunur hale gelir.
  */
-export type UnreadLine = { seq: number; reason: string; raw: string };
+export type UnreadLine = {
+  seq: number;
+  reason: string;
+  raw: string;
+  /** 1 ise satir KAYIP ISLEM olabilir; 0 ise belge basligi/dipnotu. */
+  suspect: number;
+};
 
 export type UploadResult = {
   importId: number;
@@ -59,6 +65,7 @@ export type UploadResult = {
   statementBalanceKurus: number | null;
   unmappedLabels: string[];
   unreadLineCount: number;
+  unreadSuspectCount: number;
 };
 
 export type LabelMapping = {
