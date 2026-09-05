@@ -152,17 +152,104 @@ export function splitLabel(
 }
 
 /** gg.aa.yyyy · gg/aa/yyyy · gg-aa-yyyy · gg.aa.yy */
-const DATE_RE = /(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/;
+const NUMERIC_DATE_RE = /(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/;
 
 /**
- * 1.234,56 · 1234,56 · -1.234,56 · +1.234,56 · 1.234,56- (sonda eksi)
+ * Ay ADIYLA yazilmis tarih: "26 Temmuz 2026".
+ *
+ * Garanti kredi karti ekstresi tarihleri boyle yaziyor. Yalnizca sayisal
+ * bicim taninirken bu belgelerden TEK BIR SATIR bile okunamiyordu: her satir
+ * "tarih yok" diye eleniyor, sonuc bos bir taslak oluyordu.
+ *
+ * Eslesme foldTurkish'ten gecmis metin uzerinde yapilir; boylece hem buyuk/
+ * kucuk harf hem de OCR'da kaybolan aksanlar ("Agustos" ~ "Ağustos") ayni
+ * sayilir. foldTurkish uzunlugu degistirmedigi icin bulunan konum ozgun
+ * satirda da gecerlidir.
+ */
+const TURKISH_MONTHS: Record<string, number> = {
+  ocak: 1,
+  subat: 2,
+  mart: 3,
+  nisan: 4,
+  mayis: 5,
+  haziran: 6,
+  temmuz: 7,
+  agustos: 8,
+  eylul: 9,
+  ekim: 10,
+  kasim: 11,
+  aralik: 12,
+};
+
+const TEXT_DATE_RE = new RegExp(
+  String.raw`(\d{1,2})\s+(` + Object.keys(TURKISH_MONTHS).join('|') + String.raw`)\s+(\d{4})`,
+);
+
+export type FoundDate = {
+  index: number;
+  length: number;
+  /** Gecerli degilse null: "tarih yok" ile "tarih bozuk" ayri seylerdir. */
+  iso: string | null;
+};
+
+/**
+ * Satirdaki ILK tarihi bulur; sayisal ve yazili bicimin ikisini de tanir.
+ *
+ * Bir satirda her ikisi birden gecebilir (or. aciklamasinda "03/04/2026
+ * tarihli" yazan bir kayit). Kaydin tarihi daima ONCE gelendir.
+ */
+function findDate(line: string): FoundDate | null {
+  const numeric = NUMERIC_DATE_RE.exec(line);
+  const text = TEXT_DATE_RE.exec(foldTurkish(line));
+
+  const candidates: FoundDate[] = [];
+  if (numeric) {
+    candidates.push({
+      index: numeric.index,
+      length: numeric[0].length,
+      iso: normalizeDate(numeric[1]!, numeric[2]!, numeric[3]!),
+    });
+  }
+  if (text) {
+    candidates.push({
+      index: text.index,
+      length: text[0].length,
+      iso: normalizeDate(text[1]!, String(TURKISH_MONTHS[text[2]!]), text[3]!),
+    });
+  }
+
+  candidates.sort((a, b) => a.index - b.index);
+  return candidates[0] ?? null;
+}
+
+function hasDate(line: string): boolean {
+  return findDate(line) !== null;
+}
+
+function startsWithDate(line: string): boolean {
+  return findDate(line)?.index === 0;
+}
+
+function countDates(line: string): number {
+  const numeric = (line.match(new RegExp(NUMERIC_DATE_RE.source, 'g')) ?? []).length;
+  const text = (foldTurkish(line).match(new RegExp(TEXT_DATE_RE.source, 'g')) ?? []).length;
+  return numeric + text;
+}
+
+/**
+ * 1.234,56 · 1234,56 · -1.234,56 · +1.234,56 · 1.234,56- · 1.234,56+
  *
  * ARTI isareti de desene DAHIL: Garanti gelirleri "+400,00 TL" diye yaziyor.
  * Desen yalnizca "400,00" kismini yakalasaydi, aciklama tutarin baslangicina
  * kadar kesilir ve sonunda sarkan bir "+" kalirdi; bu da etiket sozlugu
  * eslesmesini ("... Para Transferi") sessizce bozardi.
+ *
+ * SONDAKI arti da yakalanir. Garanti kredi karti ekstresi alacaklari boyle
+ * yaziyor ("19,36+" iade, "45.762,00+" odeme); yalnizca sondaki eksi
+ * taninirken bu satirlar isaretsiz gorunuyor ve kredi karti kuralina takilip
+ * HARCAMA sayiliyordu.
  */
-const MONEY_RE = /[-+]?\d{1,3}(?:\.\d{3})*,\d{2}-?|[-+]?\d+,\d{2}-?/g;
+const MONEY_RE = /[-+]?\d{1,3}(?:\.\d{3})*,\d{2}[-+]?|[-+]?\d+,\d{2}[-+]?/g;
 
 /** MONEY_RE'nin durumsuz (global olmayan) esi; test() icin gerekli. */
 const HAS_MONEY_RE = new RegExp(MONEY_RE.source);
@@ -199,14 +286,10 @@ const MAX_CONTINUATION = 6;
  * "Bakiye : -222.673,26 TL" satirini yutup UYDURMA bir islem uretirlerdi.
  * Gercek kayit satirlari daima tarihle baslar.
  */
-const STARTS_WITH_DATE_RE = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/;
-
-/** DATE_RE'nin global esi; bir satirdaki tarihleri SAYMAK icin gerekli. */
-const DATE_RE_G = new RegExp(DATE_RE.source, 'g');
 
 /** Tutari olan ama tarihi olmayan satir: sarilmis bir kaydin GOVDESI. */
 function isLooseBody(line: string): boolean {
-  return HAS_MONEY_RE.test(line) && !DATE_RE.test(line);
+  return HAS_MONEY_RE.test(line) && !hasDate(line);
 }
 
 function mergeWrappedRows(lines: string[]): string[] {
@@ -217,7 +300,7 @@ function mergeWrappedRows(lines: string[]): string[] {
 
   while (i < lines.length) {
     const line = lines[i]!;
-    const isHead = STARTS_WITH_DATE_RE.test(line) && !HAS_MONEY_RE.test(line);
+    const isHead = startsWithDate(line) && !HAS_MONEY_RE.test(line);
 
     /*
      * Tarihle BASLAYAN ama tutari olmayan satir, sarilmis bir kaydin basidir.
@@ -248,7 +331,7 @@ function mergeWrappedRows(lines: string[]): string[] {
       const candidate = lines[j]!;
 
       // Yeni bir tarih goruldu: bu, sarma degil siradaki kayittir.
-      if (DATE_RE.test(candidate)) break;
+      if (hasDate(candidate)) break;
 
       parts.push(candidate);
       j++;
@@ -322,15 +405,15 @@ function isInvertedPair(body: string, head: string, minBodyTokens: number): bool
   // Govde tarihsiz olmali ve tablonun SAG UCUNU (tutar + bakiye) tasimali.
   // Tek parasal degeri olan bir baslik satiri ("Kullanilabilir Bakiye :
   // 27.326,74 TL") bu esikte elenir; yoksa uydurma bir kayda donusurdu.
-  if (DATE_RE.test(body)) return false;
+  if (hasDate(body)) return false;
   if ((body.match(MONEY_RE) ?? []).length < minBodyTokens) return false;
 
   // Bas satiri tarihle BASLAMALI, tutar tasimamali ve TEK tarih icermeli.
   // "04/09/2024 - 04/09/2026 araliginda 144'ten fazla kayit bulunmustur."
   // gibi donem basliklari iki tarih tasidigi icin disarida kalir.
-  if (!STARTS_WITH_DATE_RE.test(head)) return false;
+  if (!startsWithDate(head)) return false;
   if (HAS_MONEY_RE.test(head)) return false;
-  return (head.match(DATE_RE_G) ?? []).length === 1;
+  return countDates(head) === 1;
 }
 
 /**
@@ -342,8 +425,9 @@ function isInvertedPair(body: string, head: string, minBodyTokens: number): bool
  * kayit kategorisiz kalirdi.
  */
 function joinInvertedWrap(head: string, body: string): string {
-  const date = STARTS_WITH_DATE_RE.exec(head)![0];
-  const rest = head.slice(date.length).trim();
+  const found = findDate(head)!;
+  const date = head.slice(0, found.length);
+  const rest = head.slice(found.length).trim();
 
   const tokens = [...body.matchAll(MONEY_RE)];
   const cut = tokens[Math.max(0, tokens.length - 2)]?.index ?? body.length;
@@ -375,16 +459,27 @@ function normalizeDate(day: string, month: string, year: string): string | null 
   return isIsoDate(iso) ? iso : null;
 }
 
-/** "1.234,56-" ve "-1.234,56" bicimlerini isaretli kurusa cevirir. */
+/** "1.234,56-", "-1.234,56" ve "1.234,56+" bicimlerini isaretli kurusa cevirir. */
 function toSignedKurus(token: string): number | null {
-  const trailingMinus = token.endsWith('-');
-  const cleaned = trailingMinus ? token.slice(0, -1) : token;
+  const trailing = token.endsWith('-') || token.endsWith('+') ? token.slice(-1) : '';
+  const cleaned = trailing === '' ? token : token.slice(0, -1);
   try {
     const value = parseKurus(cleaned);
-    return trailingMinus ? -value : value;
+    return trailing === '-' ? -value : value;
   } catch {
     return null;
   }
+}
+
+/**
+ * Tutarin isareti ekstrede ACIKCA yazilmis mi?
+ *
+ * Kredi karti ekstresinde isaretsiz tutar harcamadir; ama "19,36+" gibi acikca
+ * artili bir satir ALACAKTIR ve bu kurala girmemelidir. Isaretsizlik ile
+ * "arti yazilmis" ayirt edilmezse iadeler harcama olarak kaydedilir.
+ */
+function hasExplicitSign(token: string): boolean {
+  return /^[-+]/.test(token) || /[-+]$/.test(token);
 }
 
 function shouldSkip(line: string): boolean {
@@ -400,7 +495,7 @@ function shouldSkip(line: string): boolean {
  * satirinda ise daima ya tarih ya da parasal bir deger bulunur.
  */
 function looksLikeRecord(line: string): boolean {
-  return DATE_RE.test(line) || HAS_MONEY_RE.test(line);
+  return hasDate(line) || HAS_MONEY_RE.test(line);
 }
 
 /**
@@ -435,21 +530,20 @@ export function parseStatementText(
       continue;
     }
 
-    const dateMatch = DATE_RE.exec(line);
-    if (!dateMatch) {
+    const found = findDate(line);
+    if (found === null) {
       reject('tarih-yok', line);
       continue;
     }
-
-    const date = normalizeDate(dateMatch[1]!, dateMatch[2]!, dateMatch[3]!);
-    if (date === null) {
+    if (found.iso === null) {
       reject('gecersiz-tarih', line);
       continue;
     }
+    const date = found.iso;
 
     // Tutarlar tarihten SONRAKI kisimda aranir: tarihin kendi rakamlari
     // parasal deger sanilmasin.
-    const afterDate = line.slice(dateMatch.index + dateMatch[0].length);
+    const afterDate = line.slice(found.index + found.length);
     // Jetonun KONUMU da gerekiyor: ayni sayi hem aciklamada hem tutar
     // sutununda gecebilir ve indexOf yanlis yeri bulur.
     const tokens = [...afterDate.matchAll(MONEY_RE)];
@@ -481,11 +575,17 @@ export function parseStatementText(
      * bozuyordu. Tutar ile bakiye tablonun en sagdaki iki sutunudur;
      * aciklamada gecen tutarlar daima sollarinda kalir.
      *
-     * Bakiye sutunu YOKSA (kredi karti ekstresi) eski davranis korunur: o
-     * bicimlerde tutardan sonra baska sutunlar gelebiliyor ve sagdan saymanin
-     * dogrulugu gercek bir ekstreyle sinanmis degil.
+     * Bakiye sutunu YOKSA (kredi karti ekstresi) tutar en sagdaki jetondur.
+     * Gercek bir Garanti kredi karti ekstresinde dogrulandi: satirlarda
+     * tutardan ONCE "Kalan Borc / Taksit" (3.720,91x3=11.162,73) ve "Bonus"
+     * (44,80) sutunlari var. Soldan sayan eski kural bu satirlarda bonus
+     * puanini ya da taksit anaparasini tutar sanip yaziyordu; sagdan
+     * sayildiginda ekstrenin kendi "Donem Harcamalari" toplamiyla kurusuna
+     * kadar tutuyor.
      */
-    const amountToken = hasBalanceColumn ? tokens[tokens.length - 2]! : tokens[0]!;
+    const amountToken = hasBalanceColumn
+      ? tokens[tokens.length - 2]!
+      : tokens[tokens.length - 1]!;
 
     const signed = toSignedKurus(amountToken[0]);
     if (signed === null) {
@@ -517,6 +617,10 @@ export function parseStatementText(
     let type: 'income' | 'expense';
     if (signed < 0) {
       type = 'expense';
+    } else if (hasExplicitSign(amountToken[0])) {
+      // Ekstre tutari ACIKCA artili yazmis ("19,36+"): bu bir alacaktir ve
+      // kredi kartinin "isaretsiz = harcama" kuralina girmez.
+      type = 'income';
     } else if (opts.unsignedMeansExpense) {
       // Kredi karti ekstresi: isaretsiz tutar harcamadir, iade/odeme haric
       type = looksLikeIncome ? 'income' : 'expense';

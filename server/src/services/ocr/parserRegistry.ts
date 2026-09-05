@@ -49,6 +49,14 @@ function bankParser(
 const CREDIT_CARD_OPTIONS: Partial<ParserOptions> = {
   unsignedMeansExpense: true,
   lastAmountIsBalance: false,
+  /*
+   * Kart ekstresinde "odeme" kelimesi TEK BASINA gelir isareti degildir:
+   * "SGK ÖDEMESİ" bir harcamadir, "ÖDEMENİZ İÇİN TEŞEKKÜR EDERİZ" ise
+   * karta yapilan odemedir. Ortak sozluk kullanildiginda ikisi de gelir
+   * sayiliyordu. Alacaklarin cogu zaten sondaki arti ile ("45.762,00+")
+   * isaretli; sozluk yalnizca isaretsiz kalanlar icin gerekiyor.
+   */
+  incomeKeywords: ['iade', 'tesekkur ederiz', 'odemeniz icin', 'alacak'],
 };
 
 /**
@@ -96,6 +104,33 @@ const ENPARA_LABELS = [
 ];
 
 export const PARSERS: BankParser[] = [
+  /*
+   * Kredi karti ekstresi banka tespitinden ONCE gelir.
+   *
+   * Bir Garanti kart ekstresi hem dosya adinda hem metninde "Garanti"
+   * gectigi icin HESAP ayristiricisina dusuyordu; o da tutar/bakiye sutunu
+   * varsayarak satirlari yanlis okuyordu. Karta ozgu terimler ise hesap
+   * hareketi belgelerinde gecmez.
+   *
+   * "kredi kart" BILEREK listede degil: Enpara hesap ekstresinde
+   * "Enpara.com kredi karti odemesi" diye bir HAREKET var ve belgenin
+   * tamamini yanlis ayristiriciya gonderirdi.
+   */
+  bankParser(
+    'kredi-karti',
+    'Kredi karti ekstresi (genel)',
+    [
+      'donem borcu',
+      'donem borcunuz',
+      'asgari odeme',
+      'min. odeme tutari',
+      'kart limiti',
+      'nakit avans limiti',
+      'hesap kesim tarihi',
+    ],
+    CREDIT_CARD_OPTIONS,
+  ),
+
   bankParser('isbank', 'Türkiye İş Bankası', ['is bankasi', 'işbank', 'isbank', 'iş bankası']),
   bankParser('garanti', 'Garanti BBVA', ['garanti', 'bbva'], { labels: GARANTI_LABELS }),
   bankParser('yapikredi', 'Yapı Kredi', ['yapi kredi', 'yapı kredi', 'yapikredi', 'worldcard']),
@@ -105,14 +140,6 @@ export const PARSERS: BankParser[] = [
     labels: ENPARA_LABELS,
     labelPosition: 'prefix',
   }),
-
-  // Kredi karti ekstreleri: isaretsiz tutar = harcama
-  bankParser(
-    'kredi-karti',
-    'Kredi kartı ekstresi (genel)',
-    ['ekstre', 'kredi kart', 'donem borcu', 'dönem borcu', 'asgari odeme', 'asgari ödeme'],
-    CREDIT_CARD_OPTIONS,
-  ),
 ];
 
 export const GENERIC_PARSER: BankParser = {
