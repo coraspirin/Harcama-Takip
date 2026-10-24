@@ -250,4 +250,39 @@ describe('dashboard ozeti', () => {
     // Onceki ay 20.000 gider -> 40.000: %100 artis
     assert.equal(res.body.previousMonth.expenseChangePercent, 100);
   });
+
+  test('genel limit, ay durumu ve borc ozeti ozette gelir', async () => {
+    const ozetci = await createUserAndLogin(server, 'ozetekrani');
+
+    await createTransaction(ozetci, { type: 'income', amountKurus: 300_000, date: '2026-11-01' });
+    await createTransaction(ozetci, { type: 'expense', amountKurus: 60_000, date: '2026-11-03' });
+    await ozetci.post('/api/budgets', { yearMonth: '2026-11', limitKurus: 150_000 });
+    await ozetci.post('/api/debts', {
+      kind: 'loan',
+      name: 'Kredi',
+      balanceKurus: 500_000,
+      monthlyPaymentKurus: 100_000,
+    });
+
+    const res = await ozetci.get<{
+      limit: { limitKurus: number; spentKurus: number; remainingKurus: number } | null;
+      overview: { expectedIncomeKurus: number; freeKurus: number };
+      debts: { oweKurus: number; monthlyPaymentKurus: number; debtFreeMonth: string | null };
+    }>('/api/dashboard/summary?month=2026-11');
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.limit?.spentKurus, 60_000);
+    assert.equal(res.body.limit?.remainingKurus, 90_000);
+    assert.equal(res.body.overview.expectedIncomeKurus, 300_000);
+    assert.equal(res.body.overview.freeKurus, 240_000);
+    assert.equal(res.body.debts.oweKurus, 500_000);
+    assert.equal(res.body.debts.monthlyPaymentKurus, 100_000);
+    assert.ok(res.body.debts.debtFreeMonth, 'borcsuz kalma ayi hesaplanmali');
+  });
+
+  test('genel limit yoksa limit null doner', async () => {
+    const limitsiz = await createUserAndLogin(server, 'limitsiz');
+    const res = await limitsiz.get<{ limit: unknown }>('/api/dashboard/summary');
+    assert.equal(res.body.limit, null);
+  });
 });

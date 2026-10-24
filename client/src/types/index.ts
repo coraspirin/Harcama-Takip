@@ -219,6 +219,20 @@ export type DashboardSummary = {
     incomeChangePercent: number | null;
     expenseChangePercent: number | null;
   };
+  /** Bu ayin genel limiti ve gidisati; limit yoksa null */
+  limit: {
+    limitKurus: number;
+    spentKurus: number;
+    remainingKurus: number;
+    usagePercent: number;
+    exceeded: boolean;
+    daysLeft: number;
+    dailyAllowanceKurus: number | null;
+    projectedSpendKurus: number;
+    projectedExceeds: boolean;
+  } | null;
+  overview: MonthOverview;
+  debts: DebtListResponse['totals'];
   recentTransactions: Transaction[];
 };
 

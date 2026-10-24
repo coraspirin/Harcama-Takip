@@ -4,7 +4,7 @@ import { asyncHandler } from '../middleware/error.ts';
 import { requireUser, currentUser } from '../middleware/auth.ts';
 import { badRequest, conflict, notFound } from '../lib/errors.ts';
 import { idParamSchema, positiveKurusSchema, yearMonthSchema } from '../lib/validation.ts';
-import { addMonthsToYearMonth, monthRange, todayIso, toYearMonth } from '../lib/date.ts';
+import { addMonthsToYearMonth, todayIso, toYearMonth } from '../lib/date.ts';
 import {
   budgetExistsForCategory,
   copyBudgets,
@@ -16,10 +16,8 @@ import {
   type BudgetWithSpent,
 } from '../db/budgets.ts';
 import { findCategory } from '../db/categories.ts';
-import { sumTransactions } from '../db/transactions.ts';
-import { monthlyTotals } from '../db/reports.ts';
-import { sumPendingOccurrences } from '../db/scheduled.ts';
-import { calculateFreeMoney, calculatePace } from '../services/budgetPaceService.ts';
+import { calculatePace } from '../services/budgetPaceService.ts';
+import { getMonthOverview } from '../services/monthOverviewService.ts';
 
 export const budgetsRouter: Router = Router();
 
@@ -148,61 +146,14 @@ budgetsRouter.delete(
   }),
 );
 
-/** Ortalama gelir icin geriye bakilan ay sayisi. */
-const INCOME_AVERAGE_MONTHS = 3;
-
-/**
- * Ayin para durumu: beklenen gelir, yapilan harcama, bekleyen odemeler ve
- * ay sonuna kadar serbestce harcanabilecek tutar.
- *
- * Icinde bulunulan ayda vadesi GECMIS ama odenmemis kayitlar da bekleyen
- * odemelere dahildir: o para hala bu ay cikacak.
- */
+/** Ayin para durumu; hesap monthOverviewService'tedir (ozet ekrani da kullanir). */
 budgetsRouter.get(
   '/overview',
   asyncHandler(async (req, res) => {
     const user = currentUser(req);
     const today = todayIso();
     const month = req.query.month ? yearMonthSchema.parse(req.query.month) : toYearMonth(today);
-    const range = monthRange(month);
-
-    const actual = sumTransactions(user.id, { from: range.start, to: range.end });
-
-    const pendingFrom = month === toYearMonth(today) ? '0000-01-01' : range.start;
-    const pending = sumPendingOccurrences(user.id, pendingFrom, range.end);
-
-    const history = monthlyTotals(
-      user.id,
-      addMonthsToYearMonth(month, -INCOME_AVERAGE_MONTHS),
-      addMonthsToYearMonth(month, -1),
-    );
-    // Yalnizca kaydi olan aylar ortalamaya girer: uygulamayi yeni kullanmaya
-    // baslayan biri icin bos aylar ortalamayi sifira cekerdi.
-    const averageIncomeKurus =
-      history.length === 0
-        ? 0
-        : Math.round(history.reduce((sum, r) => sum + Number(r.income_kurus), 0) / history.length);
-
-    const free = calculateFreeMoney({
-      actualIncomeKurus: actual.incomeKurus,
-      pendingIncomeKurus: pending.incomeKurus,
-      averageIncomeKurus,
-      spentKurus: actual.expenseKurus,
-      pendingExpenseKurus: pending.expenseKurus,
-    });
-
-    res.json({
-      month,
-      actualIncomeKurus: actual.incomeKurus,
-      pendingIncomeKurus: pending.incomeKurus,
-      averageIncomeKurus,
-      expectedIncomeKurus: free.expectedIncomeKurus,
-      incomeIsEstimate: free.incomeIsEstimate,
-      spentKurus: actual.expenseKurus,
-      pendingExpenseKurus: pending.expenseKurus,
-      unknownAmountCount: pending.unknownAmountCount,
-      freeKurus: free.freeKurus,
-    });
+    res.json(getMonthOverview(user.id, month, today));
   }),
 );
 
