@@ -72,7 +72,9 @@ docker compose up -d --build                  # /kurulum ekranı yeniden açıl�
 ```
 
 Sunucuda 4000 portu doluysa `docker-compose.yml`'i düzenlemeyin (her `git pull`'da
-çakışır) — `.env` içine `HOST_PORT=4001` yazmanız yeterlidir.
+çakışır) — `.env` içine `HOST_PORT=4001` yazmanız yeterlidir. Ağ oluşturulurken
+"Pool overlaps" hatası alırsanız aynı şekilde `.env` içine boş bir aralık yazın:
+`DOCKER_SUBNET=172.31.7.0/24`.
 
 `.env` içindeki `DATA_DIR` ve `CLIENT_DIR` satırları
 **yalnızca yerel geliştirme içindir**; Docker'da compose bunları container içi
