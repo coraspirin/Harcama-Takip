@@ -35,21 +35,47 @@ export type Category = {
 
 export type Budget = {
   id: number;
-  categoryId: number;
-  categoryName: string;
+  /** null: genel aylik limit (o ayin tum giderleri) */
+  categoryId: number | null;
+  categoryName: string | null;
   categoryArchived: boolean;
+  isGeneral: boolean;
   yearMonth: string;
   limitKurus: number;
   spentKurus: number;
   remainingKurus: number;
   usagePercent: number;
   exceeded: boolean;
+  /** Bugun DAHIL kalan gun; gecmis ayda 0 */
+  daysLeft: number;
+  /** Limiti asmamak icin bugunden itibaren gunluk tutar; gecmis ayda null */
+  dailyAllowanceKurus: number | null;
+  /** Bu hizla ay sonunda varilacak harcama */
+  projectedSpendKurus: number;
+  projectedExceeds: boolean;
 };
 
 export type BudgetListResponse = {
   month: string;
+  general: Budget | null;
   budgets: Budget[];
+  /** Yalnizca kategori limitleri; genel limit ayni giderleri tekrar sayardi */
   totals: { limitKurus: number; spentKurus: number; exceededCount: number };
+};
+
+export type MonthOverview = {
+  month: string;
+  actualIncomeKurus: number;
+  pendingIncomeKurus: number;
+  averageIncomeKurus: number;
+  expectedIncomeKurus: number;
+  /** Bu ay gelir gorunmedigi icin onceki aylarin ortalamasi kullanildi */
+  incomeIsEstimate: boolean;
+  spentKurus: number;
+  pendingExpenseKurus: number;
+  /** Tutari henuz girilmemis bekleyen vadeler */
+  unknownAmountCount: number;
+  freeKurus: number;
 };
 
 export type CategoryBreakdownItem = {

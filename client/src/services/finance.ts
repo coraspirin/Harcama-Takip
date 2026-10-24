@@ -6,6 +6,7 @@ import type {
   Category,
   DashboardSummary,
   ImportResult,
+  MonthOverview,
   MonthlyReport,
   Pagination,
   TrendReport,
@@ -61,11 +62,13 @@ export const categoryService = {
 
 export const budgetService = {
   list: (month: string) => api.get<BudgetListResponse>(`/api/budgets?month=${month}`),
-  create: (input: { categoryId: number; yearMonth: string; limitKurus: number }) =>
+  /** categoryId null ise genel aylik limit olusturulur. */
+  create: (input: { categoryId: number | null; yearMonth: string; limitKurus: number }) =>
     api.post<{ budget: Budget }>('/api/budgets', input),
   update: (id: number, limitKurus: number) =>
     api.patch<{ budget: Budget }>(`/api/budgets/${id}`, { limitKurus }),
   remove: (id: number) => api.delete<{ deleted: boolean }>(`/api/budgets/${id}`),
+  overview: (month: string) => api.get<MonthOverview>(`/api/budgets/overview?month=${month}`),
   copyFromPreviousMonth: (toMonth: string) =>
     api.post<{ fromMonth: string; toMonth: string; copied: number }>('/api/budgets/copy', {
       toMonth,

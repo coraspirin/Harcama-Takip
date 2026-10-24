@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Copy, Plus, Target, Trash2 } from 'lucide-react';
+import { AlertTriangle, Copy, Gauge, Plus, Target, Trash2 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { budgetService, categoryService } from '../services/finance.ts';
 import { ApiError } from '../services/api.ts';
-import type { Budget } from '../types/index.ts';
+import type { Budget, MonthOverview } from '../types/index.ts';
 import { Button } from '../components/ui/Button.tsx';
 import { SelectField } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
@@ -12,6 +12,14 @@ import { ConfirmDialog, Modal } from '../components/ui/Modal.tsx';
 import { MoneyInput } from '../components/MoneyInput.tsx';
 import { Money } from '../components/Money.tsx';
 import { MonthPicker, currentYearMonth } from '../components/MonthPicker.tsx';
+
+/** Formdaki hedef secimi: genel limit veya bir kategori id'si. */
+const GENERAL = 'general';
+
+function budgetLabel(budget: Budget): string {
+  if (budget.isGeneral) return 'Genel aylik limit';
+  return `${budget.categoryName ?? 'Kategori'}${budget.categoryArchived ? ' (arsivli)' : ''}`;
+}
 
 function BudgetBar({ budget }: { budget: Budget }) {
   // Cubuk %100'u gecmez; asim ayri renk ve metinle anlatilir
@@ -42,9 +50,88 @@ function BudgetBar({ budget }: { budget: Budget }) {
   );
 }
 
+/** Gunluk harcanabilir tutar ve mevcut hizla ay sonu tahmini. */
+function PaceLine({ budget }: { budget: Budget }) {
+  if (budget.dailyAllowanceKurus === null) return null;
+
+  return (
+    <p className="mt-2 text-xs text-slate-600">
+      Gunde en fazla{' '}
+      <strong className="text-slate-900">
+        <Money kurus={budget.dailyAllowanceKurus} />
+      </strong>{' '}
+      (bugun dahil {budget.daysLeft} gun)
+      {budget.projectedExceeds && !budget.exceeded && (
+        <span className="text-amber-700">
+          {' '}
+          · bu hizla ay sonu <Money kurus={budget.projectedSpendKurus} />
+        </span>
+      )}
+    </p>
+  );
+}
+
+function OverviewTile({
+  label,
+  kurus,
+  note,
+  tone = '',
+}: {
+  label: string;
+  kurus: number;
+  note?: string;
+  tone?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className={`mt-0.5 text-lg font-semibold ${tone}`}>
+        <Money kurus={kurus} />
+      </p>
+      {note && <p className="mt-0.5 text-xs text-slate-400">{note}</p>}
+    </div>
+  );
+}
+
+function MonthStatus({ overview }: { overview: MonthOverview }) {
+  const free = overview.freeKurus;
+  return (
+    <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <OverviewTile
+        label="Beklenen gelir"
+        kurus={overview.expectedIncomeKurus}
+        note={
+          overview.incomeIsEstimate
+            ? 'Bu ay gelir girilmedi; onceki aylarin ortalamasi'
+            : overview.pendingIncomeKurus > 0
+              ? 'Bekleyen alacaklar dahil'
+              : undefined
+        }
+      />
+      <OverviewTile label="Harcanan" kurus={overview.spentKurus} />
+      <OverviewTile
+        label="Bekleyen odemeler"
+        kurus={overview.pendingExpenseKurus}
+        note={
+          overview.unknownAmountCount > 0
+            ? `${overview.unknownAmountCount} kaydin tutari henuz girilmedi`
+            : undefined
+        }
+      />
+      <OverviewTile
+        label="Serbest para"
+        kurus={free}
+        tone={free < 0 ? 'text-red-600' : 'text-emerald-600'}
+        note={free < 0 ? 'Bu gidisle ay acikla kapanir' : 'Ay sonuna kadar harcanabilir'}
+      />
+    </div>
+  );
+}
+
 export default function Butce() {
   const [month, setMonth] = useState(currentYearMonth());
   const budgets = useAsync(() => budgetService.list(month), [month]);
+  const overview = useAsync(() => budgetService.overview(month), [month]);
   const categories = useAsync(() => categoryService.list(), []);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -54,9 +141,10 @@ export default function Butce() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [target, setTarget] = useState<string>('');
   const [limitKurus, setLimitKurus] = useState<number | null>(null);
 
+  const general = budgets.data?.general ?? null;
   const list = budgets.data?.budgets ?? [];
   const totals = budgets.data?.totals;
 
@@ -65,20 +153,37 @@ export default function Butce() {
     (c) => c.kind === 'expense' && !list.some((b) => b.categoryId === c.id),
   );
 
-  function openCreate() {
+  /**
+   * Genel limit onerisi: beklenen gelirden bekleyen odemeler dusuldukten sonra
+   * kalan, yani bu ay harcamaya ayrilabilecek en yuksek tutar.
+   */
+  const suggestedGeneralKurus = overview.data
+    ? overview.data.expectedIncomeKurus - overview.data.pendingExpenseKurus
+    : null;
+
+  function openCreate(initialTarget?: string) {
     setEditing(null);
-    setCategoryId(availableCategories[0]?.id ?? null);
-    setLimitKurus(null);
+    const first = availableCategories[0];
+    setTarget(initialTarget ?? (general ? (first ? String(first.id) : '') : GENERAL));
+    setLimitKurus(
+      initialTarget === GENERAL && suggestedGeneralKurus !== null && suggestedGeneralKurus > 0
+        ? suggestedGeneralKurus
+        : null,
+    );
     setError(null);
     setFormOpen(true);
   }
 
   function openEdit(budget: Budget) {
     setEditing(budget);
-    setCategoryId(budget.categoryId);
+    setTarget(budget.isGeneral ? GENERAL : String(budget.categoryId));
     setLimitKurus(budget.limitKurus);
     setError(null);
     setFormOpen(true);
+  }
+
+  async function reloadAll() {
+    await Promise.all([budgets.reload(), overview.reload()]);
   }
 
   async function handleSave() {
@@ -86,18 +191,25 @@ export default function Butce() {
       setError('Limit sifirdan buyuk olmali');
       return;
     }
-    if (!editing && categoryId === null) {
-      setError('Kategori secin');
+    if (!editing && target === '') {
+      setError('Genel limit veya bir kategori secin');
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      if (editing) await budgetService.update(editing.id, limitKurus);
-      else await budgetService.create({ categoryId: categoryId!, yearMonth: month, limitKurus });
+      if (editing) {
+        await budgetService.update(editing.id, limitKurus);
+      } else {
+        await budgetService.create({
+          categoryId: target === GENERAL ? null : Number(target),
+          yearMonth: month,
+          limitKurus,
+        });
+      }
       setFormOpen(false);
-      await budgets.reload();
+      await reloadAll();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Kaydedilemedi');
     } finally {
@@ -111,7 +223,7 @@ export default function Butce() {
     try {
       await budgetService.remove(deleting.id);
       setDeleting(null);
-      await budgets.reload();
+      await reloadAll();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Silinemedi');
     } finally {
@@ -126,10 +238,10 @@ export default function Butce() {
       const res = await budgetService.copyFromPreviousMonth(month);
       setNotice(
         res.copied === 0
-          ? 'Onceki aydan kopyalanacak yeni butce bulunamadi.'
-          : `${res.copied} butce onceki aydan kopyalandi.`,
+          ? 'Onceki aydan kopyalanacak yeni limit bulunamadi.'
+          : `${res.copied} limit onceki aydan kopyalandi.`,
       );
-      await budgets.reload();
+      await reloadAll();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Kopyalanamadi');
     } finally {
@@ -137,20 +249,22 @@ export default function Butce() {
     }
   }
 
+  const nothingYet = !budgets.loading && !general && list.length === 0;
+
   return (
     <>
       <PageHeader
         title="Butce"
-        description="Kategori bazli aylik harcama limitleri"
+        description="Aylik harcama limiti, gunluk harcanabilir tutar ve ay sonu gidisati"
         actions={
           <>
             <Button variant="secondary" size="sm" loading={busy} onClick={() => void handleCopy()}>
               <Copy className="h-4 w-4" aria-hidden />
               Onceki aydan kopyala
             </Button>
-            <Button size="sm" onClick={openCreate}>
+            <Button size="sm" onClick={() => openCreate()}>
               <Plus className="h-4 w-4" aria-hidden />
-              Butce ekle
+              Limit ekle
             </Button>
           </>
         }
@@ -160,9 +274,9 @@ export default function Butce() {
         <MonthPicker value={month} onChange={setMonth} />
       </div>
 
-      {budgets.error && (
+      {(budgets.error || overview.error) && (
         <div className="mb-4">
-          <Alert tone="error">{budgets.error}</Alert>
+          <Alert tone="error">{budgets.error ?? overview.error}</Alert>
         </div>
       )}
       {notice && (
@@ -171,22 +285,94 @@ export default function Butce() {
         </div>
       )}
 
+      {overview.data && <MonthStatus overview={overview.data} />}
+
+      <div className="mb-6">
+        {general ? (
+          <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="flex items-start justify-between gap-3">
+              <button className="min-w-0 flex-1 text-left" onClick={() => openEdit(general)}>
+                <p className="flex items-center gap-1.5 font-semibold text-slate-900">
+                  <Gauge className="h-4 w-4 text-brand-600" aria-hidden />
+                  Genel aylik limit
+                </p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  <Money kurus={general.spentKurus} /> / <Money kurus={general.limitKurus} />
+                  <span className="text-slate-400"> · tum giderler</span>
+                </p>
+              </button>
+              <Button size="sm" variant="ghost" onClick={() => setDeleting(general)} aria-label="Sil">
+                <Trash2 className="h-4 w-4 text-red-500" aria-hidden />
+              </Button>
+            </div>
+            <BudgetBar budget={general} />
+            {general.dailyAllowanceKurus !== null && (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">
+                    Gunluk harcanabilir (bugun dahil {general.daysLeft} gun)
+                  </p>
+                  <p className="mt-0.5 text-xl font-semibold text-slate-900">
+                    <Money kurus={general.dailyAllowanceKurus} />
+                  </p>
+                </div>
+                <div
+                  className={`rounded-lg p-3 ${
+                    general.projectedExceeds ? 'bg-amber-50' : 'bg-slate-50'
+                  }`}
+                >
+                  <p className="text-xs text-slate-500">Bu hizla ay sonu harcama</p>
+                  <p
+                    className={`mt-0.5 flex items-center gap-1.5 text-xl font-semibold ${
+                      general.projectedExceeds ? 'text-amber-700' : 'text-slate-900'
+                    }`}
+                  >
+                    {general.projectedExceeds && <AlertTriangle className="h-4 w-4" aria-hidden />}
+                    <Money kurus={general.projectedSpendKurus} />
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          !budgets.loading && (
+            <Card>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="flex items-center gap-1.5 font-semibold text-slate-900">
+                    <Gauge className="h-4 w-4 text-brand-600" aria-hidden />
+                    Genel aylik limit belirlenmemis
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    Tum giderler icin tek bir ust sinir koyun; gunluk ne kadar harcayabileceginizi
+                    gosterelim.
+                    {suggestedGeneralKurus !== null && suggestedGeneralKurus > 0 && (
+                      <>
+                        {' '}
+                        Oneri: <Money kurus={suggestedGeneralKurus} /> (beklenen gelir − bekleyen
+                        odemeler).
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Button size="sm" onClick={() => openCreate(GENERAL)}>
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Genel limit koy
+                </Button>
+              </div>
+            </Card>
+          )
+        )}
+      </div>
+
+      <h2 className="mb-3 text-sm font-semibold text-slate-700">Kategori limitleri</h2>
+
       {totals && list.length > 0 && (
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          <OverviewTile label="Kategori limitleri toplami" kurus={totals.limitKurus} />
+          <OverviewTile label="Bu kategorilerde harcanan" kurus={totals.spentKurus} />
           <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs text-slate-500">Toplam limit</p>
-            <p className="mt-0.5 text-lg font-semibold">
-              <Money kurus={totals.limitKurus} />
-            </p>
-          </div>
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs text-slate-500">Harcanan</p>
-            <p className="mt-0.5 text-lg font-semibold">
-              <Money kurus={totals.spentKurus} />
-            </p>
-          </div>
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <p className="text-xs text-slate-500">Limiti asan kategori</p>
+            <p className="text-xs text-slate-500">Asilan limit</p>
             <p
               className={`mt-0.5 text-lg font-semibold ${
                 totals.exceededCount > 0 ? 'text-red-600' : 'text-slate-900'
@@ -198,30 +384,35 @@ export default function Butce() {
         </div>
       )}
 
-      {!budgets.loading && list.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Target}
-            title="Bu ay icin butce belirlenmemis"
-            description="Bir gider kategorisine aylik limit koyarak harcamalarinizi kontrol altinda tutun."
-            action={
-              <Button size="sm" onClick={openCreate}>
-                <Plus className="h-4 w-4" aria-hidden />
-                Butce ekle
-              </Button>
-            }
-          />
-        </Card>
+      {list.length === 0 ? (
+        !budgets.loading && (
+          <Card>
+            <EmptyState
+              icon={Target}
+              title={nothingYet ? 'Bu ay icin limit belirlenmemis' : 'Kategori limiti yok'}
+              description="Market, yemek gibi bir gider kategorisine ayri limit koyarak o kalemi kontrol altinda tutun."
+              action={
+                availableCategories.length > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => openCreate(String(availableCategories[0]!.id))}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                    Kategori limiti ekle
+                  </Button>
+                ) : undefined
+              }
+            />
+          </Card>
+        )
       ) : (
         <div className="space-y-3">
           {list.map((budget) => (
             <div key={budget.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-start justify-between gap-3">
                 <button className="min-w-0 flex-1 text-left" onClick={() => openEdit(budget)}>
-                  <p className="truncate font-medium text-slate-900">
-                    {budget.categoryName}
-                    {budget.categoryArchived && ' (arsivli)'}
-                  </p>
+                  <p className="truncate font-medium text-slate-900">{budgetLabel(budget)}</p>
                   <p className="text-sm text-slate-500">
                     <Money kurus={budget.spentKurus} /> / <Money kurus={budget.limitKurus} />
                   </p>
@@ -236,6 +427,7 @@ export default function Butce() {
                 </Button>
               </div>
               <BudgetBar budget={budget} />
+              <PaceLine budget={budget} />
             </div>
           ))}
         </div>
@@ -243,7 +435,7 @@ export default function Butce() {
 
       <Modal
         open={formOpen}
-        title={editing ? 'Butceyi duzenle' : 'Butce ekle'}
+        title={editing ? 'Limiti duzenle' : 'Limit ekle'}
         onClose={() => setFormOpen(false)}
         footer={
           <>
@@ -259,17 +451,18 @@ export default function Butce() {
         <div className="space-y-4">
           {editing ? (
             <p className="text-sm text-slate-600">
-              Kategori: <strong>{editing.categoryName}</strong>
+              <strong>{budgetLabel(editing)}</strong>
             </p>
           ) : (
             <SelectField
-              label="Kategori"
-              value={categoryId ?? ''}
-              onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-              hint="Yalnizca butcesi olmayan gider kategorileri listelenir"
+              label="Neye limit konacak?"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              hint="Genel limit tum giderleri kapsar; kategori limitleri ayrica takip edilir."
               required
             >
               <option value="">Secin</option>
+              {!general && <option value={GENERAL}>Genel aylik limit (tum giderler)</option>}
               {availableCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -286,19 +479,26 @@ export default function Butce() {
             autoFocus
           />
 
+          {target === GENERAL && suggestedGeneralKurus !== null && suggestedGeneralKurus > 0 && (
+            <p className="text-xs text-slate-500">
+              Oneri: <Money kurus={suggestedGeneralKurus} /> — bu ayin beklenen gelirinden bekleyen
+              odemeler dusulmus hali.
+            </p>
+          )}
+
           {error && <Alert tone="error">{error}</Alert>}
         </div>
       </Modal>
 
       <ConfirmDialog
         open={deleting !== null}
-        title="Butceyi sil"
+        title="Limiti sil"
         loading={busy}
         onClose={() => setDeleting(null)}
         onConfirm={() => void handleDelete()}
         message={
           <>
-            <strong>{deleting?.categoryName}</strong> kategorisinin bu aya ait butce limiti
+            <strong>{deleting ? budgetLabel(deleting) : ''}</strong> icin bu aya ait limit
             silinecek. Islemleriniz etkilenmez.
           </>
         }

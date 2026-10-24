@@ -198,6 +198,129 @@ describe('butce', () => {
   });
 });
 
+describe('genel limit ve ay durumu', () => {
+  type GeneralBudget = Budget & {
+    isGeneral: boolean;
+    daysLeft: number;
+    dailyAllowanceKurus: number | null;
+    projectedSpendKurus: number;
+  };
+
+  let ev: TestClient;
+  let marketId: number;
+  let kiraId: number;
+
+  before(async () => {
+    ev = await createUserAndLogin(server, 'evhalki');
+    const list = await categories(ev);
+    marketId = list.find((c) => c.name === 'Market')!.id;
+    kiraId = list.find((c) => c.name === 'Kira')!.id;
+
+    for (const tx of [
+      { categoryId: marketId, amountKurus: 200_000, date: '2026-05-10' },
+      { categoryId: kiraId, amountKurus: 1_500_000, date: '2026-05-01' },
+      { categoryId: null, amountKurus: 50_000, date: '2026-05-20' },
+    ]) {
+      await ev.post('/api/transactions', { type: 'expense', ...tx });
+    }
+  });
+
+  test('genel limit TUM giderleri sayar ve ayri doner', async () => {
+    const created = await ev.post('/api/budgets', { yearMonth: '2026-05', limitKurus: 2_000_000 });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+
+    await ev.post('/api/budgets', {
+      categoryId: marketId,
+      yearMonth: '2026-05',
+      limitKurus: 300_000,
+    });
+
+    const res = await ev.get<{
+      general: GeneralBudget | null;
+      budgets: GeneralBudget[];
+      totals: { limitKurus: number; spentKurus: number };
+    }>('/api/budgets?month=2026-05');
+
+    assert.ok(res.body.general);
+    assert.equal(res.body.general.isGeneral, true);
+    // Kategorisiz gider de genel limite sayilir: 200.000 + 1.500.000 + 50.000
+    assert.equal(res.body.general.spentKurus, 1_750_000);
+    assert.equal(res.body.general.remainingKurus, 250_000);
+    // Gecmis ay: gunluk harcanabilir yok, tahmin gercek harcama
+    assert.equal(res.body.general.dailyAllowanceKurus, null);
+    assert.equal(res.body.general.projectedSpendKurus, 1_750_000);
+
+    // Kategori limitleri listede, genel limit toplamlara karismaz
+    assert.equal(res.body.budgets.length, 1);
+    assert.equal(res.body.totals.limitKurus, 300_000);
+    assert.equal(res.body.totals.spentKurus, 200_000);
+  });
+
+  test('ayni ay icin ikinci genel limit reddedilir', async () => {
+    const res = await ev.post<{ error: { message: string } }>('/api/budgets', {
+      yearMonth: '2026-05',
+      limitKurus: 100_000,
+    });
+    assert.equal(res.status, 409);
+    assert.match(res.body.error.message, /genel limit/);
+  });
+
+  test('genel limit varken onceki aydan kopyalama hepsini tasir', async () => {
+    const res = await ev.post<{ copied: number }>('/api/budgets/copy', { toMonth: '2026-06' });
+    assert.equal(res.body.copied, 2, 'genel limit + market limiti');
+
+    const june = await ev.get<{ general: GeneralBudget | null; budgets: GeneralBudget[] }>(
+      '/api/budgets?month=2026-06',
+    );
+    assert.equal(june.body.general?.limitKurus, 2_000_000);
+    assert.equal(june.body.budgets.length, 1);
+
+    const again = await ev.post<{ copied: number }>('/api/budgets/copy', { toMonth: '2026-06' });
+    assert.equal(again.body.copied, 0, 'genel limit ikinci kez kopyalanmamali');
+  });
+
+  test('ay durumu: beklenen gelir, harcama, bekleyen odeme ve serbest para', async () => {
+    await ev.post('/api/transactions', { type: 'income', amountKurus: 4_000_000, date: '2026-05-01' });
+    await ev.post('/api/scheduled', {
+      kind: 'planned',
+      name: 'Okul taksiti',
+      direction: 'expense',
+      amountKurus: 600_000,
+      startDate: '2026-05-25',
+    });
+
+    const res = await ev.get<{
+      expectedIncomeKurus: number;
+      incomeIsEstimate: boolean;
+      spentKurus: number;
+      pendingExpenseKurus: number;
+      freeKurus: number;
+    }>('/api/budgets/overview?month=2026-05');
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.expectedIncomeKurus, 4_000_000);
+    assert.equal(res.body.incomeIsEstimate, false);
+    assert.equal(res.body.spentKurus, 1_750_000);
+    assert.equal(res.body.pendingExpenseKurus, 600_000);
+    // 4.000.000 - 1.750.000 - 600.000
+    assert.equal(res.body.freeKurus, 1_650_000);
+  });
+
+  test('gelir girilmemis ayda onceki aylarin ortalamasi kullanilir', async () => {
+    const res = await ev.get<{ expectedIncomeKurus: number; incomeIsEstimate: boolean }>(
+      '/api/budgets/overview?month=2026-06',
+    );
+    assert.equal(res.body.incomeIsEstimate, true);
+    // Son 3 ayda yalnizca mayista gelir var; bos aylar ortalamayi dusurmez
+    assert.equal(res.body.expectedIncomeKurus, 4_000_000);
+  });
+
+  test('baskasinin ay durumu gorunmez', async () => {
+    const res = await other.get<{ spentKurus: number }>('/api/budgets/overview?month=2026-05');
+    assert.equal(res.body.spentKurus, 0);
+  });
+});
+
 describe('veri disa/ice aktarim', () => {
   test('export tum veriyi icerir', async () => {
     const res = await user.get<{

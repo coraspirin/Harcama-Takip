@@ -6,6 +6,7 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-10-24 16:31 | Faz C (aylık limit): genel aylık limit (tüm giderler) eklendi; her limit için bugün dahil kalan gün, günlük harcanabilir tutar ve mevcut hızla ay sonu tahmini hesaplanıyor (budgetPaceService). Yeni /api/budgets/overview: beklenen gelir (gelir yoksa önceki 3 ayın ortalaması), harcanan, bekleyen ödemeler (geciken dahil) ve serbest para. Bütçe sayfası yeniden düzenlendi, genel limit için öneri gösteriliyor. Genel limit varken "önceki aydan kopyala"nın hiçbir şey kopyalamaması (NOT IN + NULL) düzeltildi. 174 test geçiyor.
 - 2026-10-24 16:26 | Faz A (ev muhasebesine sadeleştirme): banka, hesap, kredi kartı ekstresi, faiz paneli ve OCR/içe aktarma kaldırıldı. Yeni 014_household migration'ı eski finans tablolarını düşürüp hesapsız şemayı kurar (kullanıcılar ve HA ayarları korunur, varsayılan kategoriler yeniden eklenir). Kategorilere sabit/değişken (nature) eklendi, genel aylık limit için bütçe kategorisi boş olabilir. Yedek formatı sürüm 2 (sürüm 1 yedekler okunur). OCR bağımlılıkları ve Docker'daki poppler/tesseract kaldırıldı. 158 test geçiyor.
 - 2026-10-24 15:07 | memory.md oluşturuldu; geçmiş değişiklikler git geçmişinden aktarıldı
 

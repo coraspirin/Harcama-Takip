@@ -232,6 +232,35 @@ export function listUpcomingOccurrences(
     .all(userId, untilDate, limit) as OccurrenceWithItem[];
 }
 
+export type PendingTotals = {
+  incomeKurus: number;
+  expenseKurus: number;
+  /** Tutari henuz girilmemis bekleyen vadeler (genelde faturalar) */
+  unknownAmountCount: number;
+};
+
+/** Bir tarih araligindaki bekleyen vadelerin yon bazinda toplami. */
+export function sumPendingOccurrences(userId: number, from: string, to: string): PendingTotals {
+  const row = getDb()
+    .prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN i.direction = 'income'  THEN o.amount_kurus ELSE 0 END), 0) AS income,
+         COALESCE(SUM(CASE WHEN i.direction = 'expense' THEN o.amount_kurus ELSE 0 END), 0) AS expense,
+         COALESCE(SUM(CASE WHEN o.amount_kurus IS NULL THEN 1 ELSE 0 END), 0) AS unknown
+       FROM scheduled_occurrences o
+       JOIN scheduled_items i ON i.id = o.scheduled_item_id AND i.user_id = o.user_id
+       WHERE o.user_id = ? AND o.status = 'pending' AND i.active = 1
+         AND o.due_date >= ? AND o.due_date <= ?`,
+    )
+    .get(userId, from, to) as { income: number; expense: number; unknown: number };
+
+  return {
+    incomeKurus: Number(row.income),
+    expenseKurus: Number(row.expense),
+    unknownAmountCount: Number(row.unknown),
+  };
+}
+
 /** Tum kullanicilarda vadesi yaklasan kayitlar - zamanlanmis gorev icin. */
 export function listAllUpcomingOccurrences(untilDate: string): OccurrenceWithItem[] {
   return getDb()
