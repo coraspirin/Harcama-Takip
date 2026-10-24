@@ -124,8 +124,8 @@ function MonthStatus({ overview }: { overview: MonthOverview }) {
         kurus={free}
         tone={free < 0 ? 'text-red-600' : 'text-emerald-600'}
         note={
-          overview.reserveKurus > 0
-            ? `Yillik giderler icin ${formatTRY(overview.reserveKurus)} kenara ayrildiktan sonra`
+          overview.reserveKurus + overview.savingsKurus > 0
+            ? `${formatTRY(overview.reserveKurus + overview.savingsKurus)} kenara/birikime ayrildiktan sonra`
             : free < 0
               ? 'Bu gidisle ay acikla kapanir'
               : 'Ay sonuna kadar harcanabilir'
@@ -168,7 +168,8 @@ export default function Butce() {
   const suggestedGeneralKurus = overview.data
     ? overview.data.expectedIncomeKurus -
       overview.data.pendingExpenseKurus -
-      overview.data.reserveKurus
+      overview.data.reserveKurus -
+      overview.data.savingsKurus
     : null;
 
   function openCreate(initialTarget?: string) {
@@ -360,7 +361,7 @@ export default function Butce() {
                       <>
                         {' '}
                         Oneri: <Money kurus={suggestedGeneralKurus} /> (beklenen gelir − bekleyen
-                        odemeler − kenara ayrilacak pay).
+                        odemeler − kenara ayrilacak pay − birikim).
                       </>
                     )}
                   </p>
@@ -492,7 +493,7 @@ export default function Butce() {
           {target === GENERAL && suggestedGeneralKurus !== null && suggestedGeneralKurus > 0 && (
             <p className="text-xs text-slate-500">
               Oneri: <Money kurus={suggestedGeneralKurus} /> — bu ayin beklenen gelirinden bekleyen
-              odemeler ve yillik giderlerin aylik payi dusulmus hali.
+              odemeler, yillik giderlerin aylik payi ve birikim plani dusulmus hali.
             </p>
           )}
 

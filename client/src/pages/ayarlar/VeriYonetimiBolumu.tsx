@@ -107,7 +107,7 @@ export default function VeriYonetimiBolumu() {
           <div>
             <p className="mb-2 text-sm text-slate-600">
               Kategorileriniz, islemleriniz ve butceleriniz tek bir JSON dosyasina aktarilir.
-              Bekleyen odemeler ve borclar yedege dahil degildir.
+              Bekleyen odemeler, borclar ve birikimler yedege dahil degildir.
             </p>
             <Button variant="secondary" loading={busy} onClick={() => void handleExport()}>
               <Download className="h-4 w-4" aria-hidden />
@@ -198,8 +198,8 @@ export default function VeriYonetimiBolumu() {
             </Alert>
           ) : (
             <Alert tone="warning" title="Mevcut veriniz silinecek">
-              Bu modda tum islemleriniz, kategorileriniz, butceleriniz, bekleyen odemeleriniz ve borclariniz
-              silinip dosyadaki hâliyle kurulur. Bu islem geri alinamaz.
+              Bu modda tum islemleriniz, kategorileriniz, butceleriniz, bekleyen odemeleriniz, borclariniz ve
+              birikimleriniz silinip dosyadaki hâliyle kurulur. Bu islem geri alinamaz.
             </Alert>
           )}
         </div>
@@ -237,8 +237,8 @@ export default function VeriYonetimiBolumu() {
       >
         <div className="space-y-4">
           <Alert tone="error" title="Bu islem geri alinamaz">
-            Tum islemleriniz, kategorileriniz, butceleriniz, bekleyen odemeleriniz ve borclariniz
-            kalici olarak silinecek.
+            Tum islemleriniz, kategorileriniz, butceleriniz, bekleyen odemeleriniz, borclariniz ve
+            birikimleriniz kalici olarak silinecek.
           </Alert>
 
           <TextField

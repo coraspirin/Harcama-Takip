@@ -94,6 +94,8 @@ export type FreeMoneyInput = {
   pendingExpenseKurus: number;
   /** Uc aylik / yillik giderler icin bu ay kenara ayrilacak pay */
   reserveKurus?: number;
+  /** Birikim hedeflerine bu ay giden tutar (plan veya gercek katki) */
+  savingsKurus?: number;
 };
 
 export type FreeMoney = {
@@ -102,8 +104,8 @@ export type FreeMoney = {
   incomeIsEstimate: boolean;
   /**
    * Ay sonuna kadar serbestce harcanabilecek para: beklenen gelir - yapilan
-   * harcama - bekleyen odemeler - kenara ayrilacak pay. Negatifse ay acikla
-   * kapanacak demektir.
+   * harcama - bekleyen odemeler - kenara ayrilacak pay - birikim. Negatifse
+   * ay acikla kapanacak demektir.
    */
   freeKurus: number;
 };
@@ -120,6 +122,7 @@ export function calculateFreeMoney(input: FreeMoneyInput): FreeMoney {
       expectedIncomeKurus -
       input.spentKurus -
       input.pendingExpenseKurus -
-      (input.reserveKurus ?? 0),
+      (input.reserveKurus ?? 0) -
+      (input.savingsKurus ?? 0),
   };
 }

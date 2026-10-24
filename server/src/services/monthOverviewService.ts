@@ -4,6 +4,7 @@ import { monthlyTotals } from '../db/reports.ts';
 import { listRecurringBills, sumPendingOccurrences } from '../db/scheduled.ts';
 import { calculateFreeMoney } from './budgetPaceService.ts';
 import { calculateReserve } from './reserveService.ts';
+import { savingsForMonth } from './savingsOverviewService.ts';
 
 /** Ortalama gelir icin geriye bakilan ay sayisi. */
 export const INCOME_AVERAGE_MONTHS = 3;
@@ -20,6 +21,8 @@ export type MonthOverview = {
   unknownAmountCount: number;
   /** Uc aylik / yillik giderler icin bu ay kenara ayrilacak pay */
   reserveKurus: number;
+  /** Birikim hedeflerine bu ay giden tutar */
+  savingsKurus: number;
   freeKurus: number;
 };
 
@@ -69,6 +72,8 @@ export function getMonthOverview(userId: number, month: YearMonth, today: IsoDat
           month,
         ).monthlyKurus;
 
+  const savingsKurus = savingsForMonth(userId, month, today);
+
   const free = calculateFreeMoney({
     actualIncomeKurus: actual.incomeKurus,
     pendingIncomeKurus: pending.incomeKurus,
@@ -76,6 +81,7 @@ export function getMonthOverview(userId: number, month: YearMonth, today: IsoDat
     spentKurus: actual.expenseKurus,
     pendingExpenseKurus: pending.expenseKurus,
     reserveKurus,
+    savingsKurus,
   });
 
   return {
@@ -89,6 +95,7 @@ export function getMonthOverview(userId: number, month: YearMonth, today: IsoDat
     pendingExpenseKurus: pending.expenseKurus,
     unknownAmountCount: pending.unknownAmountCount,
     reserveKurus,
+    savingsKurus,
     freeKurus: free.freeKurus,
   };
 }

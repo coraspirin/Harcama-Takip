@@ -77,6 +77,8 @@ export type MonthOverview = {
   unknownAmountCount: number;
   /** Uc aylik / yillik giderler icin bu ay kenara ayrilacak pay */
   reserveKurus: number;
+  /** Birikim hedeflerine bu ay giden tutar */
+  savingsKurus: number;
   freeKurus: number;
 };
 
@@ -385,5 +387,57 @@ export type ScheduledSummary = {
     }[];
     monthlyKurus: number;
     unknownCount: number;
+  };
+};
+
+export type GoalProgress = {
+  savedKurus: number;
+  remainingKurus: number;
+  percent: number;
+  reached: boolean;
+  /** Hedef tarihine yetismek icin bu aydan itibaren aylik gereken tutar */
+  requiredMonthlyKurus: number | null;
+  monthsLeft: number | null;
+  /** Son 3 aydaki ortalama net katki */
+  averageMonthlyKurus: number;
+  /** Bu tempoyla hedefe ulasilacak ay */
+  projectedMonth: string | null;
+  onTrack: boolean | null;
+};
+
+export type SavingsGoal = {
+  id: number;
+  name: string;
+  targetKurus: number;
+  targetDate: string | null;
+  monthlyPlanKurus: number | null;
+  isEmergencyFund: boolean;
+  note: string | null;
+  closed: boolean;
+  contributedThisMonthKurus: number;
+  progress: GoalProgress;
+};
+
+export type SavingsContribution = {
+  id: number;
+  goalId: number;
+  date: string;
+  amountKurus: number;
+  note: string | null;
+};
+
+export type SavingsOverview = {
+  goals: SavingsGoal[];
+  totals: {
+    savedKurus: number;
+    targetKurus: number;
+    monthlyPlanKurus: number;
+    contributedThisMonthKurus: number;
+  };
+  emergencyFund: {
+    basedOnMonths: number;
+    averageFixedExpenseKurus: number;
+    minKurus: number;
+    comfortableKurus: number;
   };
 };

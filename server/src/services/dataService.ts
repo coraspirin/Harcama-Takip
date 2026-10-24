@@ -99,6 +99,8 @@ export function exportUserData(userId: number, username: string) {
 export function deleteAllUserData(userId: number): void {
   const db = getDb();
   // Sira onemli: yabanci anahtar zinciri asagidan yukari bosaltilir.
+  db.prepare('DELETE FROM savings_contributions WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM savings_goals WHERE user_id = ?').run(userId);
   db.prepare('DELETE FROM debt_payments WHERE user_id = ?').run(userId);
   db.prepare('DELETE FROM debts WHERE user_id = ?').run(userId);
   db.prepare('DELETE FROM notifications WHERE user_id = ?').run(userId);

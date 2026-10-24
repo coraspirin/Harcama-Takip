@@ -240,7 +240,7 @@ export default function Dashboard() {
               footer={
                 data.overview.incomeIsEstimate
                   ? 'Gelir tahmini (onceki aylarin ortalamasi)'
-                  : 'Beklenen gelir − harcanan − bekleyen odemeler − kenara ayrilacak'
+                  : 'Beklenen gelir − harcanan − bekleyen odemeler − kenara ayrilacak − birikim'
               }
             >
               <Money kurus={data.overview.freeKurus} signed />

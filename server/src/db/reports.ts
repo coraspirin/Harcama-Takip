@@ -64,3 +64,38 @@ export function topCategories(
 ): CategoryBreakdownRow[] {
   return categoryBreakdown(userId, from, to, 'expense').slice(0, limit);
 }
+
+export type MonthlyNatureRow = {
+  year_month: string;
+  income_kurus: number;
+  fixed_expense_kurus: number;
+  variable_expense_kurus: number;
+};
+
+/**
+ * Aylik gelir ve giderin sabit/degisken kirilimi. Kategorisiz gider degisken
+ * sayilir: sabit bir kalemi kategorisiz birakmak, onu ortalamadan
+ * dusurmekten daha az yaniltir.
+ */
+export function monthlyNatureTotals(
+  userId: number,
+  fromMonth: string,
+  toMonth: string,
+): MonthlyNatureRow[] {
+  return getDb()
+    .prepare(
+      `SELECT substr(t.date, 1, 7) AS year_month,
+              COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount_kurus ELSE 0 END), 0) AS income_kurus,
+              COALESCE(SUM(CASE WHEN t.type = 'expense' AND c.nature = 'fixed'
+                                THEN t.amount_kurus ELSE 0 END), 0) AS fixed_expense_kurus,
+              COALESCE(SUM(CASE WHEN t.type = 'expense' AND (c.nature IS NULL OR c.nature = 'variable')
+                                THEN t.amount_kurus ELSE 0 END), 0) AS variable_expense_kurus
+       FROM transactions t
+       LEFT JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+       WHERE t.user_id = ?
+         AND substr(t.date, 1, 7) >= ? AND substr(t.date, 1, 7) <= ?
+       GROUP BY year_month
+       ORDER BY year_month`,
+    )
+    .all(userId, fromMonth, toMonth) as MonthlyNatureRow[];
+}
