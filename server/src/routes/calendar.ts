@@ -42,6 +42,7 @@ calendarRouter.get(
       direction: o.direction,
       amountKurus: o.amount_kurus,
       dueDate: o.due_date,
+      excludedFromBudget: o.exclude_from_budget === 1,
     }));
 
     const days = buildCalendar({ month, daysInMonth: daysInMonth(y, m), today, totalsByDay, pending });

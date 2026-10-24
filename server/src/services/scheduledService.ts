@@ -148,6 +148,7 @@ export type ConfirmInput = {
 /**
  * Vadeyi onaylar: gercek bir islem kaydi olusturur ve vadeye baglar.
  * Onaylanana kadar kayit raporlara girmez - bu fonksiyon o esigi gecirir.
+ * Butce disi kayitta islem olusmaz; vade yalnizca odendi olarak isaretlenir.
  */
 export function confirmOccurrence(userId: number, occurrenceId: number, input: ConfirmInput) {
   const occurrence = findOccurrence(userId, occurrenceId);
@@ -161,6 +162,11 @@ export function confirmOccurrence(userId: number, occurrenceId: number, input: C
 
   const item = findScheduledItem(userId, occurrence.scheduled_item_id);
   if (!item) throw notFound('Zamanlanmis kayit bulunamadi');
+
+  if (item.exclude_from_budget === 1) {
+    setOccurrenceStatus(userId, occurrenceId, 'confirmed', null, amountKurus);
+    return null;
+  }
 
   const db = getDb();
   db.exec('BEGIN');

@@ -234,6 +234,7 @@ export function listInstallmentDebts(userId: number): InstallmentDebtRow[] {
        JOIN scheduled_occurrences o
          ON o.scheduled_item_id = i.id AND o.user_id = i.user_id AND o.status = 'pending'
        WHERE i.user_id = ? AND i.kind = 'installment' AND i.active = 1
+         AND i.exclude_from_budget = 0
        GROUP BY i.id
        ORDER BY last_due_date`,
     )
@@ -248,6 +249,7 @@ export function pendingInstallmentsByMonth(userId: number): Map<string, number> 
        FROM scheduled_occurrences o
        JOIN scheduled_items i ON i.id = o.scheduled_item_id AND i.user_id = o.user_id
        WHERE o.user_id = ? AND o.status = 'pending' AND i.kind = 'installment' AND i.active = 1
+         AND i.exclude_from_budget = 0
        GROUP BY month`,
     )
     .all(userId) as { month: string; total: number }[];

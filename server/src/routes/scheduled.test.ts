@@ -550,3 +550,108 @@ describe('aboneligin yenilenme ayi', () => {
     assert.equal(res.status, 400);
   });
 });
+
+describe('butceye yansimayan kayit', () => {
+  let haric: TestClient;
+
+  /** Bugunden n ay sonraki "YYYY-MM" (Europe/Istanbul). */
+  function monthFromNow(n: number): string {
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Istanbul',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(new Date());
+    const [y, m] = today.split('-').map(Number) as [number, number];
+    const total = y * 12 + (m - 1) + n;
+    return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+  }
+
+  type Overview = { pendingExpenseKurus: number; reserveKurus: number };
+
+  before(async () => {
+    haric = await createUserAndLogin(server, 'butcedisi');
+  });
+
+  test('listede gorunur ama bekleyen toplama, abonelik toplamina ve borca girmez', async () => {
+    const month = monthFromNow(1);
+    const created = await haric.post<{ item: { id: number; excludeFromBudget: boolean } }>(
+      '/api/scheduled',
+      {
+        kind: 'bill',
+        name: 'Annemin internet faturasi',
+        period: 'monthly',
+        amountKurus: 50_000,
+        isSubscription: true,
+        startDate: `${month}-10`,
+        excludeFromBudget: true,
+      },
+    );
+    assert.equal(created.status, 201);
+    assert.equal(created.body.item.excludeFromBudget, true);
+
+    await haric.post('/api/scheduled', {
+      kind: 'installment',
+      name: 'Kardesin telefonu',
+      totalAmountKurus: 120_000,
+      installmentCount: 12,
+      startDate: `${month}-15`,
+      excludeFromBudget: true,
+    });
+
+    const list = await haric.get<{ items: unknown[] }>('/api/scheduled');
+    assert.equal(list.body.items.length, 2, 'ikisi de listede');
+
+    const overview = await haric.get<Overview>(`/api/budgets/overview?month=${month}`);
+    assert.equal(overview.body.pendingExpenseKurus, 0);
+
+    const summary = await haric.get<{ subscriptions: { monthlyKurus: number } }>(
+      `/api/scheduled/summary?month=${month}`,
+    );
+    assert.equal(summary.body.subscriptions.monthlyKurus, 0);
+
+    const debts = await haric.get<{ totals: { oweKurus: number } }>('/api/debts');
+    assert.equal(debts.body.totals.oweKurus, 0);
+  });
+
+  test('onaylaninca islem kaydi olusmaz', async () => {
+    const items = await haric.get<{ items: { id: number; kind: string }[] }>('/api/scheduled?kind=bill');
+    const [first] = await occurrencesOf(haric, items.body.items[0]!.id);
+
+    const res = await haric.post(`/api/occurrences/${first!.id}/confirm`, {});
+    assert.equal(res.status, 200);
+
+    const after = (await occurrencesOf(haric, items.body.items[0]!.id))[0]!;
+    assert.equal(after.status, 'confirmed');
+    assert.equal(after.transactionId, null);
+
+    const tx = await haric.get<{ transactions: unknown[] }>('/api/transactions');
+    assert.equal(tx.body.transactions.length, 0);
+
+    const undo = await haric.post(`/api/occurrences/${first!.id}/unconfirm`, {});
+    assert.equal(undo.status, 200);
+  });
+
+  test('ayar sonradan acilip kapatilabilir', async () => {
+    const month = monthFromNow(1);
+    const items = await haric.get<{ items: { id: number }[] }>('/api/scheduled?kind=bill');
+    const id = items.body.items[0]!.id;
+
+    const res = await haric.patch<{ item: { excludeFromBudget: boolean } }>(
+      `/api/scheduled/${id}/budget`,
+      { excludeFromBudget: false },
+    );
+    assert.equal(res.status, 200);
+    assert.equal(res.body.item.excludeFromBudget, false);
+
+    const overview = await haric.get<Overview>(`/api/budgets/overview?month=${month}`);
+    assert.equal(overview.body.pendingExpenseKurus, 50_000);
+  });
+
+  test('baska kullanicinin kaydinin ayari degistirilemez', async () => {
+    const items = await haric.get<{ items: { id: number }[] }>('/api/scheduled?kind=bill');
+    const res = await other.patch(`/api/scheduled/${items.body.items[0]!.id}/budget`, {
+      excludeFromBudget: true,
+    });
+    assert.equal(res.status, 404);
+  });
+});

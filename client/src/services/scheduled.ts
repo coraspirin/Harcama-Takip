@@ -24,6 +24,8 @@ export type ScheduledInput = {
   isSubscription?: boolean;
   /** Yalnizca faturada: vadeler bu aya kadar (dahil) uretilir */
   endMonth?: string | null;
+  /** Listede kalir ama butceye yansimaz */
+  excludeFromBudget?: boolean;
 };
 
 export const scheduledService = {
@@ -58,6 +60,11 @@ export const scheduledService = {
       active: boolean;
     },
   ) => api.patch<{ item: ScheduledItem }>(`/api/scheduled/${id}`, input).then((r) => r.item),
+
+  setExcludeFromBudget: (id: number, excludeFromBudget: boolean) =>
+    api
+      .patch<{ item: ScheduledItem }>(`/api/scheduled/${id}/budget`, { excludeFromBudget })
+      .then((r) => r.item),
 
   remove: (id: number) =>
     api.delete<{ deleted: boolean; keptTransactions: number }>(`/api/scheduled/${id}`),

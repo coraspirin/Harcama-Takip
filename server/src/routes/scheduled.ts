@@ -11,6 +11,7 @@ import {
   SCHEDULED_KINDS,
   countConfirmedOccurrences,
   deleteScheduledItem,
+  setExcludeFromBudget,
   findOccurrence,
   findScheduledItem,
   listOccurrences,
@@ -58,6 +59,7 @@ function serializeItem(row: ScheduledItemWithProgress) {
     remainingKurus: row.remaining_kurus,
     isSubscription: row.is_subscription === 1,
     endMonth: row.end_month,
+    excludeFromBudget: row.exclude_from_budget === 1,
   };
 }
 
@@ -75,6 +77,7 @@ function serializeOccurrence(row: OccurrenceWithItem) {
     transactionId: row.transaction_id,
     seq: row.seq,
     totalSeq: row.total_seq,
+    excludeFromBudget: row.exclude_from_budget === 1,
   };
 }
 
@@ -99,6 +102,8 @@ const createSchema = z
     isSubscription: z.boolean().default(false),
     // Fatura/abonelik: vadeler bu aya kadar (dahil) uretilir
     endMonth: yearMonthSchema.nullable().default(null),
+    // Listede kalir ama butceye yansimaz
+    excludeFromBudget: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'planned' && value.amountKurus === null) {
@@ -237,6 +242,22 @@ const updateSchema = z.object({
   description: z.string().trim().max(500).nullable().default(null),
   active: z.boolean().default(true),
 });
+
+/** Butceye yansima ayari; olusturduktan sonra da degistirilebilir. */
+scheduledRouter.patch(
+  '/:id/budget',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const id = idParamSchema.parse(req.params.id);
+    const { excludeFromBudget } = z.object({ excludeFromBudget: z.boolean() }).parse(req.body);
+
+    if (!findScheduledItem(user.id, id)) throw notFound('Kayit bulunamadi');
+    setExcludeFromBudget(user.id, id, excludeFromBudget);
+
+    const updated = findScheduledItem(user.id, id);
+    res.json({ item: updated ? serializeItem(updated) : null });
+  }),
+);
 
 scheduledRouter.patch(
   '/:id',

@@ -145,6 +145,8 @@ export type ScheduledItem = {
   isSubscription: boolean;
   /** Fatura/abonelik: vadelerin uretildigi son ay (dahil); null = suresiz */
   endMonth: string | null;
+  /** Listede kalir ama butceye (toplamlar, pay, borc, islem) yansimaz */
+  excludeFromBudget: boolean;
 };
 
 export type Occurrence = {
@@ -160,6 +162,7 @@ export type Occurrence = {
   transactionId: number | null;
   seq: number | null;
   totalSeq: number | null;
+  excludeFromBudget: boolean;
 };
 
 export type Notification = {
@@ -504,6 +507,8 @@ export type CalendarDay = {
     amountKurus: number | null;
     dueDate: string;
     overdue: boolean;
+    /** Gorunur ama net akisa girmez */
+    excludedFromBudget?: boolean;
   }[];
   /** Ay basindan bu gunun sonuna kadar net akis (gerceklesen + bekleyen) */
   cumulativeKurus: number;

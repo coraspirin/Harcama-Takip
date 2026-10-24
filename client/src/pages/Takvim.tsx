@@ -44,7 +44,7 @@ function DayCell({ day, today }: { day: CalendarDay; today: string }) {
             className={`truncate rounded px-1 ${
               p.overdue ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
             }`}
-            title={p.name}
+            title={p.excludedFromBudget ? `${p.name} (butce disi)` : p.name}
           >
             {p.name}
           </p>
@@ -160,6 +160,7 @@ export default function Takvim() {
                           <p key={p.id} className={p.overdue ? 'text-red-700' : 'text-slate-600'}>
                             {p.overdue ? 'Gecikti: ' : 'Bekliyor: '}
                             {p.name}
+                            {p.excludedFromBudget && ' (butce disi)'}
                             {p.amountKurus !== null && (
                               <>
                                 {' '}

@@ -65,6 +65,8 @@ export type CalendarPending = {
   amountKurus: number | null;
   dueDate: string;
   overdue: boolean;
+  /** Takvimde gorunur ama net akisa girmez */
+  excludedFromBudget?: boolean;
 };
 
 export type CalendarDay = {
@@ -120,7 +122,7 @@ export function buildCalendar(input: {
     // bekleyeni (gecmis ay) olmamis bir hareket olarak sayilmaz.
     if (date >= input.today) {
       for (const p of pending) {
-        if (p.amountKurus === null) continue;
+        if (p.amountKurus === null || p.excludedFromBudget) continue;
         cumulative += p.direction === 'income' ? p.amountKurus : -p.amountKurus;
       }
     }

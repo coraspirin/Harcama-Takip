@@ -133,6 +133,7 @@ export function ZamanlanmisListe({
   const [installmentCount, setInstallmentCount] = useState('12');
   const [period, setPeriod] = useState<BillPeriod>('monthly');
   const [endMonth, setEndMonth] = useState('');
+  const [excludeFromBudget, setExcludeFromBudget] = useState(false);
 
   // --- vade tutari girisi ---
   const [occurrenceAmount, setOccurrenceAmount] = useState<number | null>(null);
@@ -149,6 +150,7 @@ export function ZamanlanmisListe({
     setInstallmentCount('12');
     setPeriod('monthly');
     setEndMonth('');
+    setExcludeFromBudget(false);
     setError(null);
     setFormOpen(true);
   }
@@ -179,6 +181,7 @@ export function ZamanlanmisListe({
         counterparty: counterparty.trim() || null,
         description: null,
         startDate,
+        excludeFromBudget: kind !== 'planned' && excludeFromBudget,
         ...(kind === 'planned' && { amountKurus }),
         ...(kind === 'installment' && {
           totalAmountKurus,
@@ -264,6 +267,20 @@ export function ZamanlanmisListe({
     }
   }
 
+  async function handleBudgetToggle(item: ScheduledItem, exclude: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      await scheduledService.setExcludeFromBudget(item.id, exclude);
+      await items.reload();
+      onChanged?.();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Kaydedilemedi');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleUnconfirm(occurrence: Occurrence) {
     setBusy(true);
     setError(null);
@@ -333,6 +350,7 @@ export function ZamanlanmisListe({
               onDelete={() => setDeleting(item)}
               onConfirm={handleConfirm}
               onUnconfirm={handleUnconfirm}
+              onBudgetToggle={(exclude) => handleBudgetToggle(item, exclude)}
             />
           ))}
         </div>
@@ -467,6 +485,24 @@ export function ZamanlanmisListe({
             />
           )}
 
+          {kind !== 'planned' && (
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={excludeFromBudget}
+                onChange={(e) => setExcludeFromBudget(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+              />
+              <span>
+                Butceye yansitma
+                <span className="block text-xs text-slate-500">
+                  Kayit listede kalir ama serbest paraya, limitlere, borclara ve raporlara
+                  girmez. Odendi olarak isaretlediginizde islem kaydi olusmaz.
+                </span>
+              </span>
+            </label>
+          )}
+
           <SelectField
             label="Kategori"
             value={categoryId ?? ''}
@@ -567,6 +603,7 @@ function ScheduledCard({
   onDelete,
   onConfirm,
   onUnconfirm,
+  onBudgetToggle,
 }: {
   item: ScheduledItem;
   kind: ScheduledKind;
@@ -577,6 +614,7 @@ function ScheduledCard({
   onDelete: () => void;
   onConfirm: (occurrence: Occurrence) => void;
   onUnconfirm: (occurrence: Occurrence) => void;
+  onBudgetToggle: (exclude: boolean) => void;
 }) {
   const occurrences = useAsync(
     () => (expanded ? scheduledService.occurrences(item.id) : Promise.resolve([])),
@@ -599,6 +637,11 @@ function ScheduledCard({
             {!item.active && (
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                 pasif
+              </span>
+            )}
+            {item.excludeFromBudget && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 ring-1 ring-amber-200">
+                butce disi
               </span>
             )}
           </div>
@@ -659,6 +702,23 @@ function ScheduledCard({
 
       {expanded && (
         <div className="border-t border-slate-100 px-4 py-3">
+          {kind !== 'planned' && (
+            <label className="mb-3 flex items-start gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={item.excludeFromBudget}
+                disabled={busy}
+                onChange={(e) => onBudgetToggle(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+              />
+              <span>
+                Butceye yansitma
+                <span className="block text-xs text-slate-500">
+                  Listede kalir; serbest paraya, limitlere ve raporlara girmez.
+                </span>
+              </span>
+            </label>
+          )}
           {occurrences.loading && <p className="text-sm text-slate-500">Vadeler yukleniyor...</p>}
 
           {occurrences.data && occurrences.data.length > 0 && (

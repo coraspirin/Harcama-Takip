@@ -27,6 +27,8 @@ export type ScheduledItemRow = {
   is_subscription: number;
   /** Fatura/abonelik: vadelerin uretilecegi son ay (dahil); NULL = suresiz */
   end_month: string | null;
+  /** Listede kalir ama butceye (toplamlar, pay, borc, islem) yansimaz */
+  exclude_from_budget: number;
   created_at: string;
   updated_at: string;
 };
@@ -60,6 +62,7 @@ export type OccurrenceWithItem = OccurrenceRow & {
   direction: 'income' | 'expense';
   category_id: number | null;
   category_name: string | null;
+  exclude_from_budget: number;
 };
 
 const SELECT_ITEM = `
@@ -117,6 +120,7 @@ export type CreateScheduledItemInput = {
   startDate: string;
   isSubscription?: boolean;
   endMonth?: string | null;
+  excludeFromBudget?: boolean;
 };
 
 export function insertScheduledItem(userId: number, input: CreateScheduledItemInput): number {
@@ -125,8 +129,8 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
       `INSERT INTO scheduled_items
          (user_id, kind, name, direction, category_id, counterparty, description,
           total_amount_kurus, installment_count, period, amount_kurus, start_date,
-          is_subscription, end_month)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          is_subscription, end_month, exclude_from_budget)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
@@ -143,6 +147,7 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
       input.startDate,
       input.isSubscription ? 1 : 0,
       input.endMonth ?? null,
+      input.excludeFromBudget ? 1 : 0,
     );
   return Number(result.lastInsertRowid);
 }
@@ -181,6 +186,16 @@ export function updateScheduledItem(
     );
 }
 
+/** Kaydin butceye yansiyip yansimayacagi; vadeler ve gecmis islemler degismez. */
+export function setExcludeFromBudget(userId: number, id: number, exclude: boolean): void {
+  getDb()
+    .prepare(
+      `UPDATE scheduled_items SET exclude_from_budget = ?, updated_at = datetime('now')
+       WHERE user_id = ? AND id = ?`,
+    )
+    .run(exclude ? 1 : 0, userId, id);
+}
+
 export function deleteScheduledItem(userId: number, id: number): boolean {
   const result = getDb()
     .prepare('DELETE FROM scheduled_items WHERE user_id = ? AND id = ?')
@@ -207,7 +222,8 @@ const SELECT_OCCURRENCE = `
          i.kind      AS kind,
          i.direction AS direction,
          i.category_id,
-         c.name      AS category_name
+         c.name      AS category_name,
+         i.exclude_from_budget
   FROM scheduled_occurrences o
   JOIN scheduled_items i ON i.id = o.scheduled_item_id AND i.user_id = o.user_id
   LEFT JOIN categories c ON c.id = i.category_id AND c.user_id = i.user_id
@@ -259,6 +275,7 @@ export function sumPendingOccurrences(userId: number, from: string, to: string):
        FROM scheduled_occurrences o
        JOIN scheduled_items i ON i.id = o.scheduled_item_id AND i.user_id = o.user_id
        WHERE o.user_id = ? AND o.status = 'pending' AND i.active = 1
+         AND i.exclude_from_budget = 0
          AND o.due_date >= ? AND o.due_date <= ?`,
     )
     .get(userId, from, to) as { income: number; expense: number; unknown: number };
@@ -373,6 +390,7 @@ export function listRecurringBills(userId: number, month: string): RecurringBill
                ORDER BY o.due_date DESC LIMIT 1) AS last_paid_kurus
        FROM scheduled_items i
        WHERE i.user_id = ? AND i.kind = 'bill' AND i.active = 1 AND i.period IS NOT NULL
+         AND i.exclude_from_budget = 0
          AND (i.end_month IS NULL OR i.end_month >= ?)
        ORDER BY i.name COLLATE NOCASE`,
     )
