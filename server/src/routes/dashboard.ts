@@ -5,9 +5,8 @@ import { requireUser, currentUser } from '../middleware/auth.ts';
 import { yearMonthSchema } from '../lib/validation.ts';
 import { addMonthsToYearMonth, monthRange, todayIso, toYearMonth } from '../lib/date.ts';
 import { percentChange } from '../lib/money.ts';
-import { listAccounts } from '../db/accounts.ts';
 import { listTransactions, sumTransactions } from '../db/transactions.ts';
-import { serializeAccount, serializeTransaction } from './serializers.ts';
+import { serializeTransaction } from './serializers.ts';
 
 export const dashboardRouter: Router = Router();
 
@@ -17,10 +16,7 @@ const querySchema = z.object({
   month: yearMonthSchema.optional(),
 });
 
-/**
- * Dashboard ozeti. Faz 5'te kategori dagilimi ve trend grafikleri eklenecek;
- * bu asamada hesap bakiyeleri, aylik gelir/gider/net ve son islemler doner.
- */
+/** Dashboard ozeti: aylik gelir/gider/net, onceki aya gore degisim ve son islemler. */
 dashboardRouter.get(
   '/summary',
   asyncHandler(async (req, res) => {
@@ -42,17 +38,9 @@ dashboardRouter.get(
       to: previousRange.end,
     });
 
-    const accounts = listAccounts(user.id).map(serializeAccount);
-
-    // Kredi karti bakiyesi negatiftir (borc); "toplam varlik" hesabinda
-    // borclar dusulmus olur.
-    const totalBalanceKurus = accounts.reduce((sum, a) => sum + a.balanceKurus, 0);
-
     res.json({
       month: current,
-      accounts,
       totals: {
-        totalBalanceKurus,
         incomeKurus: currentTotals.incomeKurus,
         expenseKurus: currentTotals.expenseKurus,
         netKurus: currentTotals.incomeKurus - currentTotals.expenseKurus,

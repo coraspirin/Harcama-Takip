@@ -23,20 +23,12 @@ FROM node:26-alpine
 ENV NODE_ENV=production
 WORKDIR /app/server
 
-# pdftoppm: metin katmani olmayan (taranmis) PDF ekstreleri goruntuye cevirmek
-# icin (Faz 8). font-liberation: alpine'da font yoktur; metin katmani bozuk
-# PDF'ler rasterize edilirken fontsuz sayfa bos render olur.
+# tzdata: zamanlanmis gorevler Europe/Istanbul saatine gore calisir.
 # Kod degisiminden bagimsiz cache'lensin diye COPY'lerden ONCE.
-RUN apk add --no-cache poppler-utils font-liberation tzdata
+RUN apk add --no-cache tzdata
 
-# Tesseract Turkce dil verisi imaja GOMULUR: calisma aninda agdan model
-# cekilmesi beklenmez (sunucu intranette olabilir) ve ilk OCR yavaslamaz.
-RUN mkdir -p /app/server/tessdata && \
-    wget -qO /app/server/tessdata/tur.traineddata \
-      https://raw.githubusercontent.com/tesseract-ocr/tessdata/4.1.0/tur.traineddata
-
-# Yalnizca uretim bagimliliklari. node:sqlite yerlesiktir, bcryptjs ve
-# tesseract.js saf JS/WASM oldugu icin native derleme gerekmez.
+# Yalnizca uretim bagimliliklari. node:sqlite yerlesiktir, bcryptjs saf JS
+# oldugu icin native derleme gerekmez.
 COPY server/package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
@@ -45,8 +37,6 @@ COPY --from=client-build /app/client/dist /app/client/dist
 
 ENV CLIENT_DIR=/app/client/dist \
     DATA_DIR=/data/db \
-    UPLOAD_DIR=/data/uploads \
-    TESSDATA_DIR=/app/server/tessdata \
     PORT=4000 \
     TZ=Europe/Istanbul
 

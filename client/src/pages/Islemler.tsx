@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { ArrowLeftRight, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
 import {
-  accountService,
   categoryService,
   transactionService,
   type TransactionQuery,
@@ -21,7 +20,6 @@ import { formatDate, todayIso } from '../lib/format.ts';
 const PAGE_SIZE = 50;
 
 export default function Islemler() {
-  const accounts = useAsync(() => accountService.list(true), []);
   const categories = useAsync(() => categoryService.list(), []);
 
   const [filters, setFilters] = useState<TransactionQuery>({ page: 1, pageSize: PAGE_SIZE });
@@ -39,7 +37,6 @@ export default function Islemler() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [accountId, setAccountId] = useState<number | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amountKurus, setAmountKurus] = useState<number | null>(null);
@@ -50,7 +47,6 @@ export default function Islemler() {
 
   function openCreate() {
     setEditing(null);
-    setAccountId(accounts.data?.[0]?.id ?? null);
     setCategoryId(null);
     setType('expense');
     setAmountKurus(null);
@@ -62,9 +58,8 @@ export default function Islemler() {
 
   function openEdit(tx: Transaction) {
     setEditing(tx);
-    setAccountId(tx.accountId);
     setCategoryId(tx.categoryId);
-    setType(tx.type === 'income' ? 'income' : 'expense');
+    setType(tx.type);
     setAmountKurus(tx.amountKurus);
     setDate(tx.date);
     setDescription(tx.description ?? '');
@@ -73,8 +68,8 @@ export default function Islemler() {
   }
 
   async function handleSave() {
-    if (accountId === null || amountKurus === null) {
-      setError('Hesap ve tutar zorunlu');
+    if (amountKurus === null) {
+      setError('Tutar zorunlu');
       return;
     }
 
@@ -82,7 +77,6 @@ export default function Islemler() {
     setError(null);
     try {
       const input = {
-        accountId,
         categoryId,
         type,
         amountKurus,
@@ -92,7 +86,7 @@ export default function Islemler() {
       if (editing) await transactionService.update(editing.id, input);
       else await transactionService.create(input);
       setFormOpen(false);
-      await Promise.all([list.reload(), accounts.reload()]);
+      await list.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Kaydedilemedi');
     } finally {
@@ -131,7 +125,7 @@ export default function Islemler() {
     try {
       await transactionService.remove(deleting.id);
       setDeleting(null);
-      await Promise.all([list.reload(), accounts.reload()]);
+      await list.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Silinemedi');
     } finally {
@@ -146,7 +140,6 @@ export default function Islemler() {
   const activeFilterCount = [
     filters.from,
     filters.to,
-    filters.accountId,
     filters.categoryId,
     filters.kind,
     filters.search,
@@ -201,20 +194,6 @@ export default function Islemler() {
               <option value="">Tumu</option>
               <option value="income">Gelir</option>
               <option value="expense">Gider</option>
-            </SelectField>
-            <SelectField
-              label="Hesap"
-              value={filters.accountId ?? ''}
-              onChange={(e) =>
-                updateFilter({ accountId: e.target.value ? Number(e.target.value) : undefined })
-              }
-            >
-              <option value="">Tumu</option>
-              {(accounts.data ?? []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
             </SelectField>
             <SelectField
               label="Kategori"
@@ -343,7 +322,7 @@ export default function Islemler() {
                       {tx.description || tx.categoryName || 'Islem'}
                     </p>
                     <p className="truncate text-sm text-slate-500">
-                      {formatDate(tx.date)} · {tx.accountName}
+                      {formatDate(tx.date)}
                       {tx.categoryName ? ` · ${tx.categoryName}` : ''}
                     </p>
                   </div>
@@ -460,20 +439,6 @@ export default function Islemler() {
           />
 
           <SelectField
-            label="Hesap"
-            value={accountId ?? ''}
-            onChange={(e) => setAccountId(e.target.value ? Number(e.target.value) : null)}
-            required
-          >
-            <option value="">Secin</option>
-            {(accounts.data ?? []).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </SelectField>
-
-          <SelectField
             label="Kategori"
             value={categoryId ?? ''}
             onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
@@ -503,7 +468,7 @@ export default function Islemler() {
         loading={busy}
         onClose={() => setBulkDeleting(false)}
         onConfirm={() => void handleBulkDelete()}
-        message="Secilen islemler kalici olarak silinir ve hesap bakiyeleri guncellenir."
+        message="Secilen islemler kalici olarak silinir."
       />
 
       <ConfirmDialog
@@ -512,7 +477,7 @@ export default function Islemler() {
         loading={busy}
         onClose={() => setDeleting(null)}
         onConfirm={() => void handleDelete()}
-        message="Bu islem kalici olarak silinecek ve hesap bakiyesi guncellenecek."
+        message="Bu islem kalici olarak silinecek."
       />
     </>
   );

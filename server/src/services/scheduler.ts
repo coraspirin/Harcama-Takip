@@ -112,7 +112,7 @@ export function runDailyScan(): ScanResult {
     const created = createNotification(occurrence.user_id, {
       type: overdue ? 'occurrence.overdue' : 'occurrence.due',
       title,
-      body: `${amountPart} Vade: ${formatTR(occurrence.due_date)} · Hesap: ${occurrence.account_name}`,
+      body: `${amountPart} Vade: ${formatTR(occurrence.due_date)}`,
       relatedType: 'occurrence',
       relatedId: occurrence.id,
       dueDate: occurrence.due_date,

@@ -58,13 +58,7 @@ before(async () => {
   ayse = await createUserAndLogin(server, 'ayse');
 
   // Ayse'nin finansal verisi olsun ki sizinti testi anlamli olsun
-  const account = await ayse.post<{ account: { id: number } }>('/api/accounts', {
-    name: 'Gizli Hesap',
-    type: 'bank',
-    openingBalanceKurus: 12_345_600,
-  });
   await ayse.post('/api/transactions', {
-    accountId: account.body.account.id,
     type: 'expense',
     amountKurus: 99_900,
     date: '2026-08-05',
@@ -90,7 +84,7 @@ describe('erisim kontrolu', () => {
   });
 
   test('super admin finansal uclara ERISEMEZ', async () => {
-    for (const path of ['/api/accounts', '/api/transactions', '/api/reports/monthly']) {
+    for (const path of ['/api/categories', '/api/transactions', '/api/reports/monthly']) {
       assert.equal((await admin.get(path)).status, 403, `${path} admin'e kapali olmali`);
     }
   });
@@ -140,7 +134,7 @@ describe('kullanici yonetimi', () => {
     });
     assert.equal(login.status, 200);
 
-    const blocked = await client.get<{ error: { code: string } }>('/api/accounts');
+    const blocked = await client.get<{ error: { code: string } }>('/api/categories');
     assert.equal(blocked.body.error.code, 'PASSWORD_CHANGE_REQUIRED');
 
     await client.post('/api/auth/change-password', {
@@ -166,7 +160,7 @@ describe('kullanici yonetimi', () => {
       username: 'yeni.kullanici',
       password: 'KendiSifrem123!',
     });
-    assert.equal((await client.get('/api/accounts')).status, 200);
+    assert.equal((await client.get('/api/categories')).status, 200);
 
     const res = await admin.patch<{ user: AdminUser }>(`/api/admin/users/${createdId}/active`, {
       isActive: false,
@@ -175,7 +169,7 @@ describe('kullanici yonetimi', () => {
     assert.equal(res.body.user.isActive, false);
 
     // Acik oturum da gecersiz olmali
-    assert.equal((await client.get('/api/accounts')).status, 403);
+    assert.equal((await client.get('/api/categories')).status, 403);
     assert.equal((await client.post('/api/auth/refresh')).status, 401);
 
     const relogin = await server.newClient().post('/api/auth/login', {
@@ -202,7 +196,7 @@ describe('kullanici yonetimi', () => {
     assert.equal(login.status, 200);
 
     // Sifreyi degistirmeden uygulamaya giremez
-    const blocked = await client.get<{ error: { code: string } }>('/api/accounts');
+    const blocked = await client.get<{ error: { code: string } }>('/api/categories');
     assert.equal(blocked.body.error.code, 'PASSWORD_CHANGE_REQUIRED');
   });
 
@@ -225,7 +219,7 @@ describe('kullanici yonetimi', () => {
     assert.equal(res.status, 200);
 
     // Ayse'nin oturumu da gecersiz olmali
-    assert.equal((await ayse.get('/api/accounts')).status, 401);
+    assert.equal((await ayse.get('/api/categories')).status, 401);
 
     const after = await admin.get<{ users: AdminUser[] }>('/api/admin/users');
     assert.ok(!after.body.users.some((u) => u.username === 'ayse'));

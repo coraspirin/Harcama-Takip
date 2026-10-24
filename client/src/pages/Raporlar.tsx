@@ -90,7 +90,7 @@ export default function Raporlar() {
               <p className="mt-1 text-2xl font-semibold">
                 <Money kurus={data.totals.netKurus} signed />
               </p>
-              <p className="mt-1 text-xs text-slate-400">Transferler haric</p>
+              <p className="mt-1 text-xs text-slate-400">Gelir eksi gider</p>
             </div>
           </div>
         )}
@@ -126,38 +126,6 @@ export default function Raporlar() {
             {trend.data && <AylikTrend series={trend.data.series} />}
           </Card>
 
-          {data && data.byAccount.length > 0 && (
-            <Card title="Hesap bazinda" description="Secili ayin hesap kirilimi">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-slate-500">
-                      <th className="pb-2 font-medium">Hesap</th>
-                      <th className="pb-2 text-right font-medium">Gelir</th>
-                      <th className="pb-2 text-right font-medium">Gider</th>
-                      <th className="pb-2 text-right font-medium">Net</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {data.byAccount.map((row) => (
-                      <tr key={row.accountId}>
-                        <td className="py-2.5 text-slate-900">{row.accountName}</td>
-                        <td className="tabular py-2.5 text-right text-emerald-600">
-                          <Money kurus={row.incomeKurus} />
-                        </td>
-                        <td className="tabular py-2.5 text-right text-red-600">
-                          <Money kurus={row.expenseKurus} />
-                        </td>
-                        <td className="tabular py-2.5 text-right">
-                          <Money kurus={row.incomeKurus - row.expenseKurus} signed />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
         </div>
       </div>
     </>

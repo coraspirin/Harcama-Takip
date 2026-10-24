@@ -1,12 +1,5 @@
 import { getDb } from './connection.ts';
 
-/**
- * Rapor sorgularinin ORTAK kurali: transferler HER ZAMAN dislanir
- * (type IN ('income','expense')). Transfer ayni parayi iki kez saydirir ve
- * gelir/gider toplamlarini sisirir.
- */
-const REPORTABLE = "t.type IN ('income', 'expense')";
-
 export type CategoryBreakdownRow = {
   category_id: number | null;
   category_name: string | null;
@@ -28,7 +21,7 @@ export function categoryBreakdown(
               COUNT(*)            AS transaction_count
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
-       WHERE t.user_id = ? AND ${REPORTABLE} AND t.type = ?
+       WHERE t.user_id = ? AND t.type = ?
          AND t.date >= ? AND t.date <= ?
        GROUP BY t.category_id
        ORDER BY total_kurus DESC`,
@@ -54,39 +47,12 @@ export function monthlyTotals(
               COALESCE(SUM(CASE WHEN t.type = 'income'  THEN t.amount_kurus ELSE 0 END), 0) AS income_kurus,
               COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount_kurus ELSE 0 END), 0) AS expense_kurus
        FROM transactions t
-       WHERE t.user_id = ? AND ${REPORTABLE}
+       WHERE t.user_id = ?
          AND substr(t.date, 1, 7) >= ? AND substr(t.date, 1, 7) <= ?
        GROUP BY year_month
        ORDER BY year_month`,
     )
     .all(userId, fromMonth, toMonth) as MonthlyTotalsRow[];
-}
-
-export type AccountBreakdownRow = {
-  account_id: number;
-  account_name: string;
-  income_kurus: number;
-  expense_kurus: number;
-};
-
-export function accountBreakdown(
-  userId: number,
-  from: string,
-  to: string,
-): AccountBreakdownRow[] {
-  return getDb()
-    .prepare(
-      `SELECT t.account_id,
-              a.name AS account_name,
-              COALESCE(SUM(CASE WHEN t.type = 'income'  THEN t.amount_kurus ELSE 0 END), 0) AS income_kurus,
-              COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount_kurus ELSE 0 END), 0) AS expense_kurus
-       FROM transactions t
-       JOIN accounts a ON a.id = t.account_id AND a.user_id = t.user_id
-       WHERE t.user_id = ? AND ${REPORTABLE} AND t.date >= ? AND t.date <= ?
-       GROUP BY t.account_id
-       ORDER BY expense_kurus DESC`,
-    )
-    .all(userId, from, to) as AccountBreakdownRow[];
 }
 
 /** Bir donemde en cok harcanan kategoriler (limitli). */

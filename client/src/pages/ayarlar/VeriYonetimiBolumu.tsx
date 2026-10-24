@@ -106,8 +106,8 @@ export default function VeriYonetimiBolumu() {
         <div className="space-y-5">
           <div>
             <p className="mb-2 text-sm text-slate-600">
-              Tum bankalariniz, hesaplariniz, islemleriniz, ekstreleriniz ve butceleriniz tek bir
-              JSON dosyasina aktarilir.
+              Kategorileriniz, islemleriniz ve butceleriniz tek bir JSON dosyasina aktarilir.
+              Bekleyen odemeler yedege dahil degildir.
             </p>
             <Button variant="secondary" loading={busy} onClick={() => void handleExport()}>
               <Download className="h-4 w-4" aria-hidden />
@@ -133,15 +133,8 @@ export default function VeriYonetimiBolumu() {
 
           {result && (
             <Alert tone="success" title="Ice aktarim tamamlandi">
-              {result.banks} banka, {result.accounts} hesap, {result.categories} kategori,{' '}
-              {result.transactions} islem, {result.cardStatements} ekstre, {result.budgets} butce
+              {result.categories} kategori, {result.transactions} islem, {result.budgets} butce
               eklendi.
-              {result.skippedTransactions > 0 && (
-                <>
-                  {' '}
-                  {result.skippedTransactions} islem, hesabi cozulemedigi icin atlandi.
-                </>
-              )}
             </Alert>
           )}
 
@@ -200,12 +193,12 @@ export default function VeriYonetimiBolumu() {
 
           {importMode === 'merge' ? (
             <Alert tone="info">
-              Dosyadaki kayitlar mevcut verinizin uzerine eklenir. Ayni isimli banka, hesap ve
-              kategoriler yeniden olusturulmaz, mevcut olanlar kullanilir.
+              Dosyadaki kayitlar mevcut verinizin uzerine eklenir. Ayni isimli kategoriler yeniden
+              olusturulmaz, mevcut olanlar kullanilir.
             </Alert>
           ) : (
             <Alert tone="warning" title="Mevcut veriniz silinecek">
-              Bu modda tum bankalariniz, hesaplariniz, islemleriniz, ekstreleriniz ve butceleriniz
+              Bu modda tum islemleriniz, kategorileriniz, butceleriniz ve bekleyen odemeleriniz
               silinip dosyadaki hâliyle kurulur. Bu islem geri alinamaz.
             </Alert>
           )}
@@ -244,8 +237,8 @@ export default function VeriYonetimiBolumu() {
       >
         <div className="space-y-4">
           <Alert tone="error" title="Bu islem geri alinamaz">
-            Tum bankalariniz, hesaplariniz, islemleriniz, ekstreleriniz ve butceleriniz kalici
-            olarak silinecek.
+            Tum islemleriniz, kategorileriniz, butceleriniz ve bekleyen odemeleriniz kalici olarak
+            silinecek.
           </Alert>
 
           <TextField

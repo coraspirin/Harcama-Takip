@@ -7,7 +7,6 @@ import { TextField } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
 import { Card, PageHeader } from '../components/ui/Card.tsx';
 import { formatDateTime } from '../lib/format.ts';
-import BankalarBolumu from './ayarlar/BankalarBolumu.tsx';
 import VeriYonetimiBolumu from './ayarlar/VeriYonetimiBolumu.tsx';
 import HomeAssistantBolumu from './ayarlar/HomeAssistantBolumu.tsx';
 
@@ -66,11 +65,10 @@ export default function Ayarlar() {
     <>
       <PageHeader
         title="Ayarlar"
-        description="Bankalar, hesap bilgileri ve oturum guvenligi"
+        description="Hesap bilgileri, veri yonetimi ve oturum guvenligi"
       />
 
       <div className="mb-6 space-y-6">
-        <BankalarBolumu />
         <HomeAssistantBolumu />
         <VeriYonetimiBolumu />
       </div>

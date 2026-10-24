@@ -329,7 +329,7 @@ export default function Kullanicilar() {
         message={
           <>
             <strong>{deleting?.username}</strong> hesabi ve bu hesaba ait{' '}
-            <strong>tum finansal veri</strong> (hesaplar, islemler, ekstreler, butceler) kalici
+            <strong>tum finansal veri</strong> (islemler, butceler, bekleyen odemeler) kalici
             olarak silinecek. Bu islem geri alinamaz.
           </>
         }

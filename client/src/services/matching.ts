@@ -11,7 +11,6 @@ export type RecurrenceSuggestion = {
   lastDate: string;
   averageIntervalDays: number;
   categoryId: number | null;
-  accountId: number;
   installmentSeq: number | null;
   installmentTotal: number | null;
 };

@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.ts';
@@ -6,7 +5,6 @@ import { requireUser, currentUser } from '../middleware/auth.ts';
 import { badRequest, notFound } from '../lib/errors.ts';
 import { idParamSchema, isoDateSchema, positiveKurusSchema } from '../lib/validation.ts';
 import { isIsoDate } from '../lib/date.ts';
-import { accountExists } from '../db/accounts.ts';
 import { categoryExists } from '../db/categories.ts';
 import {
   countTransactions,
@@ -19,7 +17,6 @@ import {
   updateTransaction,
   type TransactionFilters,
 } from '../db/transactions.ts';
-import { getDb } from '../db/connection.ts';
 import { serializeTransaction } from './serializers.ts';
 
 export const transactionsRouter: Router = Router();
@@ -27,7 +24,6 @@ export const transactionsRouter: Router = Router();
 transactionsRouter.use(requireUser);
 
 const transactionSchema = z.object({
-  accountId: z.number().int().positive(),
   categoryId: z.number().int().positive().nullable().default(null),
   type: z.enum(['income', 'expense']),
   amountKurus: positiveKurusSchema,
@@ -38,23 +34,17 @@ const transactionSchema = z.object({
 const listQuerySchema = z.object({
   from: isoDateSchema.optional(),
   to: isoDateSchema.optional(),
-  accountId: z.coerce.number().int().positive().optional(),
   categoryId: z.coerce.number().int().positive().optional(),
-  kind: z.enum(['income', 'expense', 'transfer']).optional(),
+  kind: z.enum(['income', 'expense']).optional(),
   minAmountKurus: z.coerce.number().int().min(0).optional(),
   maxAmountKurus: z.coerce.number().int().min(0).optional(),
   search: z.string().trim().max(200).optional(),
-  includeTransfers: z
-    .enum(['true', 'false'])
-    .optional()
-    .transform((v) => (v === undefined ? undefined : v === 'true')),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
 });
 
-/** Referans verilen hesap/kategori gercekten bu kullaniciya mi ait? */
-function assertOwnedRefs(userId: number, accountId: number, categoryId: number | null): void {
-  if (!accountExists(userId, accountId)) throw notFound('Secilen hesap bulunamadi');
+/** Referans verilen kategori gercekten bu kullaniciya mi ait? */
+function assertOwnedRefs(userId: number, categoryId: number | null): void {
   if (categoryId !== null && !categoryExists(userId, categoryId)) {
     throw notFound('Secilen kategori bulunamadi');
   }
@@ -80,13 +70,11 @@ transactionsRouter.get(
     const filters: TransactionFilters = {
       ...(q.from !== undefined && { from: q.from }),
       ...(q.to !== undefined && { to: q.to }),
-      ...(q.accountId !== undefined && { accountId: q.accountId }),
       ...(q.categoryId !== undefined && { categoryId: q.categoryId }),
       ...(q.kind !== undefined && { kind: q.kind }),
       ...(q.minAmountKurus !== undefined && { minAmountKurus: q.minAmountKurus }),
       ...(q.maxAmountKurus !== undefined && { maxAmountKurus: q.maxAmountKurus }),
       ...(q.search !== undefined && { search: q.search }),
-      ...(q.includeTransfers !== undefined && { includeTransfers: q.includeTransfers }),
     };
 
     const total = countTransactions(user.id, filters);
@@ -94,7 +82,6 @@ transactionsRouter.get(
 
     res.json({
       transactions: rows.map(serializeTransaction),
-      // Toplamlar transferleri HARIC tutar; aksi halde ayni para iki kez sayilir.
       totals: sumTransactions(user.id, filters),
       pagination: { page: q.page, pageSize: q.pageSize, total },
     });
@@ -108,7 +95,7 @@ transactionsRouter.post(
     const input = transactionSchema.parse(req.body);
 
     if (!isIsoDate(input.date)) throw badRequest('Gecersiz tarih');
-    assertOwnedRefs(user.id, input.accountId, input.categoryId);
+    assertOwnedRefs(user.id, input.categoryId);
 
     const id = insertTransaction(user.id, input);
     const created = findTransaction(user.id, id);
@@ -128,7 +115,7 @@ transactionsRouter.patch(
     const existing = findTransaction(user.id, id);
     if (!existing) throw notFound('Islem bulunamadi');
     if (!isIsoDate(input.date)) throw badRequest('Gecersiz tarih');
-    assertOwnedRefs(user.id, input.accountId, input.categoryId);
+    assertOwnedRefs(user.id, input.categoryId);
 
     const updated = updateTransaction(user.id, id, input);
     if (!updated) throw notFound('Islem bulunamadi');
@@ -155,13 +142,7 @@ const bulkDeleteSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(1000),
 });
 
-/**
- * Secili islemleri topluca siler.
- *
- * Bir transferin tek bacagini silmek hesaplari tutarsiz birakir; tekil silme
- * ucunda oldugu gibi grubun tamami silinir. Bu yuzden silinen satir sayisi
- * gonderilen id sayisindan FAZLA olabilir ve yanit bunu bildirir.
- */
+/** Secili islemleri topluca siler. */
 transactionsRouter.post(
   '/bulk-delete',
   asyncHandler(async (req, res) => {
@@ -169,77 +150,5 @@ transactionsRouter.post(
     const input = bulkDeleteSchema.parse(req.body);
 
     res.json({ removedRows: bulkDeleteTransactions(user.id, input.ids) });
-  }),
-);
-
-const transferSchema = z.object({
-  fromAccountId: z.number().int().positive(),
-  toAccountId: z.number().int().positive(),
-  amountKurus: positiveKurusSchema,
-  date: isoDateSchema,
-  description: z.string().trim().max(500).nullable().default(null),
-});
-
-/**
- * Hesaptan hesaba para gonderme kisayolu.
- *
- * Artik "transfer" diye AYRI BIR TUR yazmaz; kaynakta bir gider, hedefte bir
- * gelir olmak uzere IKI SIRADAN islem olusturur. Kullanici hesaplar arasi
- * hareketlerin de gelir/gider toplamlarina katilmasina karar verdi; ayri tur
- * bu satirlari raporlardan disliyordu.
- *
- * Bu formun tek faydasi iki kaydi tek seferde girmektir; olusan satirlar
- * birbirine bagli DEGILDIR, ayri ayri duzenlenip silinebilirler.
- */
-transactionsRouter.post(
-  '/transfer',
-  asyncHandler(async (req, res) => {
-    const user = currentUser(req);
-    const input = transferSchema.parse(req.body);
-
-    if (input.fromAccountId === input.toAccountId) {
-      throw badRequest('Kaynak ve hedef hesap ayni olamaz');
-    }
-    if (!isIsoDate(input.date)) throw badRequest('Gecersiz tarih');
-    if (!accountExists(user.id, input.fromAccountId)) throw notFound('Kaynak hesap bulunamadi');
-    if (!accountExists(user.id, input.toAccountId)) throw notFound('Hedef hesap bulunamadi');
-
-    const db = getDb();
-    const created: number[] = [];
-
-    db.exec('BEGIN');
-    try {
-      created.push(
-        insertTransaction(user.id, {
-          accountId: input.fromAccountId,
-          categoryId: null,
-          type: 'expense',
-          amountKurus: input.amountKurus,
-          date: input.date,
-          description: input.description,
-        }),
-      );
-      created.push(
-        insertTransaction(user.id, {
-          accountId: input.toAccountId,
-          categoryId: null,
-          type: 'income',
-          amountKurus: input.amountKurus,
-          date: input.date,
-          description: input.description,
-        }),
-      );
-      db.exec('COMMIT');
-    } catch (err) {
-      db.exec('ROLLBACK');
-      throw err;
-    }
-
-    res.status(201).json({
-      transactions: created
-        .map((id) => findTransaction(user.id, id))
-        .filter((row): row is NonNullable<typeof row> => row !== null)
-        .map(serializeTransaction),
-    });
   }),
 );

@@ -1,47 +1,27 @@
 import { getDb } from './connection.ts';
+import { DEFAULT_CATEGORIES } from './defaultCategories.ts';
 
 export type CategoryKind = 'income' | 'expense';
+export type CategoryNature = 'fixed' | 'variable';
 
 export type CategoryRow = {
   id: number;
   user_id: number;
   name: string;
   kind: CategoryKind;
+  nature: CategoryNature;
   is_default: number;
   archived: number;
   created_at: string;
 };
 
-/**
- * Yeni kullanici olusturulurken eklenen varsayilan kategoriler.
- * Bu bir "demo veri" degildir: kullanicinin ilk islemini kategorisiz girmek
- * zorunda kalmamasi icin gereken minimum iskelet.
- */
-export const DEFAULT_CATEGORIES: { name: string; kind: CategoryKind }[] = [
-  { name: 'Market', kind: 'expense' },
-  { name: 'Yemek', kind: 'expense' },
-  { name: 'Ulasim', kind: 'expense' },
-  { name: 'Fatura', kind: 'expense' },
-  { name: 'Kira', kind: 'expense' },
-  { name: 'Saglik', kind: 'expense' },
-  { name: 'Giyim', kind: 'expense' },
-  { name: 'Eglence', kind: 'expense' },
-  { name: 'Egitim', kind: 'expense' },
-  { name: 'Abonelik', kind: 'expense' },
-  { name: 'Diger gider', kind: 'expense' },
-  { name: 'Maas', kind: 'income' },
-  { name: 'Ek gelir', kind: 'income' },
-  { name: 'Yatirim geliri', kind: 'income' },
-  { name: 'Diger gelir', kind: 'income' },
-];
-
 export function seedDefaultCategories(userId: number): void {
   const stmt = getDb().prepare(
-    `INSERT OR IGNORE INTO categories (user_id, name, kind, is_default)
-     VALUES (?, ?, ?, 1)`,
+    `INSERT OR IGNORE INTO categories (user_id, name, kind, nature, is_default)
+     VALUES (?, ?, ?, ?, 1)`,
   );
   for (const category of DEFAULT_CATEGORIES) {
-    stmt.run(userId, category.name, category.kind);
+    stmt.run(userId, category.name, category.kind, category.nature);
   }
 }
 
@@ -81,10 +61,17 @@ export function categoryNameExists(
   return row !== undefined;
 }
 
-export function createCategory(userId: number, name: string, kind: CategoryKind): CategoryRow {
+export function createCategory(
+  userId: number,
+  name: string,
+  kind: CategoryKind,
+  nature: CategoryNature = 'variable',
+): CategoryRow {
   const result = getDb()
-    .prepare('INSERT INTO categories (user_id, name, kind, is_default) VALUES (?, ?, ?, 0)')
-    .run(userId, name, kind);
+    .prepare(
+      'INSERT INTO categories (user_id, name, kind, nature, is_default) VALUES (?, ?, ?, ?, 0)',
+    )
+    .run(userId, name, kind, nature);
 
   const created = findCategory(userId, Number(result.lastInsertRowid));
   if (!created) throw new Error('Kategori olusturuldu ancak okunamadi');
@@ -96,11 +83,14 @@ export function updateCategory(
   id: number,
   name: string,
   archived: boolean,
+  nature: CategoryNature,
 ): CategoryRow | null {
   // kind degistirilemez: gecmis islemlerin isareti bozulmasin
   getDb()
-    .prepare('UPDATE categories SET name = ?, archived = ? WHERE user_id = ? AND id = ?')
-    .run(name, archived ? 1 : 0, userId, id);
+    .prepare(
+      'UPDATE categories SET name = ?, archived = ?, nature = ? WHERE user_id = ? AND id = ?',
+    )
+    .run(name, archived ? 1 : 0, nature, userId, id);
   return findCategory(userId, id);
 }
 

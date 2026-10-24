@@ -50,7 +50,7 @@ export function TekrarOnerileri({
                 {item.occurrences} kez · yaklasik {item.averageIntervalDays} gunde bir ·{' '}
                 {formatDate(item.firstDate)} – {formatDate(item.lastDate)}
                 {item.installmentTotal !== null &&
-                  ` · ekstrede ${item.installmentSeq}/${item.installmentTotal} taksit yaziyor`}
+                  ` · aciklamada ${item.installmentSeq}/${item.installmentTotal} taksit yaziyor`}
               </p>
             </div>
 

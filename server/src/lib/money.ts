@@ -7,7 +7,7 @@
 const KURUS = 100;
 
 /**
- * Kullanicidan/OCR'dan gelen metni kurusa cevirir.
+ * Kullanicidan gelen metni kurusa cevirir.
  * Kabul edilen bicimler:  "1.234,56"  "1234,56"  "1234.56"  "1234"  1234.56
  */
 export function parseKurus(input: string | number): number {

@@ -11,7 +11,6 @@ export type ScheduledInput = {
   kind: ScheduledKind;
   name: string;
   direction: 'income' | 'expense';
-  accountId: number;
   categoryId: number | null;
   counterparty: string | null;
   description: string | null;

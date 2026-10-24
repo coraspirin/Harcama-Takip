@@ -9,13 +9,11 @@ import Giris from './pages/Giris.tsx';
 import SifreDegistir from './pages/SifreDegistir.tsx';
 import Ayarlar from './pages/Ayarlar.tsx';
 import Dashboard from './pages/Dashboard.tsx';
-import Hesaplar from './pages/Hesaplar.tsx';
 import Islemler from './pages/Islemler.tsx';
 import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
 import Raporlar from './pages/Raporlar.tsx';
 import ZamanlanmisSayfa from './pages/ZamanlanmisSayfa.tsx';
-import IceAktar from './pages/IceAktar.tsx';
 import Kullanicilar from './pages/admin/Kullanicilar.tsx';
 import IslemGunlugu from './pages/admin/IslemGunlugu.tsx';
 
@@ -74,7 +72,6 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
-        <Route path="hesaplar" element={<Hesaplar />} />
         <Route path="islemler" element={<Islemler />} />
         <Route path="planlanan" element={<ZamanlanmisSayfa kind="planned" />} />
         <Route path="taksitler" element={<ZamanlanmisSayfa kind="installment" />} />
@@ -82,7 +79,6 @@ function AppRoutes() {
         <Route path="raporlar" element={<Raporlar />} />
         <Route path="kategoriler" element={<Kategoriler />} />
         <Route path="butce" element={<Butce />} />
-        <Route path="ice-aktar" element={<IceAktar />} />
         <Route path="ayarlar" element={<Ayarlar />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

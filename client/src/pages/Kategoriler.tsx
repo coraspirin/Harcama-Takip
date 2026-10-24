@@ -3,7 +3,7 @@ import { Archive, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { categoryService } from '../services/finance.ts';
 import { ApiError } from '../services/api.ts';
-import type { Category, CategoryKind } from '../types/index.ts';
+import type { Category, CategoryKind, CategoryNature } from '../types/index.ts';
 import { Button } from '../components/ui/Button.tsx';
 import { SelectField, TextField } from '../components/ui/Field.tsx';
 import { Alert } from '../components/ui/Alert.tsx';
@@ -23,12 +23,14 @@ export default function Kategoriler() {
 
   const [name, setName] = useState('');
   const [kind, setKind] = useState<CategoryKind>('expense');
+  const [nature, setNature] = useState<CategoryNature>('variable');
   const [archived, setArchived] = useState(false);
 
   function openCreate() {
     setEditing(null);
     setName('');
     setKind('expense');
+    setNature('variable');
     setArchived(false);
     setError(null);
     setFormOpen(true);
@@ -38,6 +40,7 @@ export default function Kategoriler() {
     setEditing(category);
     setName(category.name);
     setKind(category.kind);
+    setNature(category.nature);
     setArchived(category.archived);
     setError(null);
     setFormOpen(true);
@@ -47,8 +50,11 @@ export default function Kategoriler() {
     setBusy(true);
     setError(null);
     try {
-      if (editing) await categoryService.update(editing.id, { name: name.trim(), archived });
-      else await categoryService.create({ name: name.trim(), kind });
+      if (editing) {
+        await categoryService.update(editing.id, { name: name.trim(), archived, nature });
+      } else {
+        await categoryService.create({ name: name.trim(), kind, nature });
+      }
       setFormOpen(false);
       await categories.reload();
     } catch (err) {
@@ -98,6 +104,7 @@ export default function Kategoriler() {
                   {category.usageCount === 0
                     ? 'Hic kullanilmamis'
                     : `${category.usageCount} islemde kullanilmis`}
+                  {category.nature === 'fixed' && ' · sabit'}
                   {category.isDefault && ' · varsayilan'}
                 </p>
               </div>
@@ -214,6 +221,16 @@ export default function Kategoriler() {
               <option value="income">Gelir</option>
             </SelectField>
           )}
+
+          <SelectField
+            label="Sabit mi, degisken mi?"
+            value={nature}
+            onChange={(e) => setNature(e.target.value as CategoryNature)}
+            hint="Sabit: her ay buyuk olcude ayni tutarda tekrar eder (kira, aidat, maas). Tahminler sabit ve degisken kalemleri ayri hesaplar."
+          >
+            <option value="variable">Degisken</option>
+            <option value="fixed">Sabit</option>
+          </SelectField>
 
           {editing && (
             <label className="flex items-center gap-2 text-sm">

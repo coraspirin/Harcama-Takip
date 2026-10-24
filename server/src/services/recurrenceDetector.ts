@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection.ts';
-import { foldTurkish } from './ocr/statementParser.ts';
+import { foldTurkish } from '../lib/text.ts';
 
 /**
  * Gecmis islemlerden tekrar eden odemeleri bulur ve zamanlanmis kayit onerir.
@@ -29,7 +29,6 @@ export type RecurrenceSuggestion = {
   lastDate: string;
   averageIntervalDays: number;
   categoryId: number | null;
-  accountId: number;
   /** Taksitte okunan sira/toplam ("03/03" -> 3 ve 3). */
   installmentSeq: number | null;
   installmentTotal: number | null;
@@ -69,7 +68,6 @@ export function recurrenceSignature(description: string): string {
 
 type Row = {
   id: number;
-  account_id: number;
   category_id: number | null;
   amount_kurus: number;
   date: string;
@@ -100,7 +98,7 @@ function readableName(rows: Row[]): string {
 export function detectRecurrences(userId: number): RecurrenceSuggestion[] {
   const rows = getDb()
     .prepare(
-      `SELECT id, account_id, category_id, amount_kurus, date, description
+      `SELECT id, category_id, amount_kurus, date, description
        FROM transactions
        WHERE user_id = ? AND type = 'expense'
        ORDER BY date`,
@@ -166,7 +164,6 @@ export function detectRecurrences(userId: number): RecurrenceSuggestion[] {
       lastDate: dates[dates.length - 1]!,
       averageIntervalDays: interval,
       categoryId: last.category_id,
-      accountId: last.account_id,
       installmentSeq: installmentMatch ? Number(installmentMatch[1]) : null,
       installmentTotal: installmentMatch ? Number(installmentMatch[2]) : null,
     });

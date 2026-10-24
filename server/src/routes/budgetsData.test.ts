@@ -66,16 +66,11 @@ describe('kategoriler', () => {
   });
 
   test('KULLANIMDA olan kategori silinmez, ARSIVLENIR', async () => {
-    const account = await user.post<{ account: { id: number } }>('/api/accounts', {
-      name: 'Kategori Hesabi',
-      type: 'cash',
-    });
     const list = await categories(user);
     const market = list.find((c) => c.name === 'Market');
     assert.ok(market);
 
     await user.post('/api/transactions', {
-      accountId: account.body.account.id,
       categoryId: market.id,
       type: 'expense',
       amountKurus: 5_000,
@@ -135,13 +130,8 @@ describe('butce', () => {
     });
     assert.equal(created.status, 201);
 
-    const account = await user.post<{ account: { id: number } }>('/api/accounts', {
-      name: 'Butce Hesabi',
-      type: 'cash',
-    });
 
     await user.post('/api/transactions', {
-      accountId: account.body.account.id,
       categoryId,
       type: 'expense',
       amountKurus: 30_000,
@@ -158,13 +148,8 @@ describe('butce', () => {
   });
 
   test('limit asildiginda exceeded true olur', async () => {
-    const account = await user.post<{ account: { id: number } }>('/api/accounts', {
-      name: 'Asim Hesabi',
-      type: 'cash',
-    });
 
     await user.post('/api/transactions', {
-      accountId: account.body.account.id,
       categoryId,
       type: 'expense',
       amountKurus: 90_000,
@@ -217,16 +202,14 @@ describe('veri disa/ice aktarim', () => {
   test('export tum veriyi icerir', async () => {
     const res = await user.get<{
       schemaVersion: number;
-      banks: unknown[];
-      accounts: unknown[];
       categories: unknown[];
       transactions: unknown[];
       budgets: unknown[];
     }>('/api/data/export');
 
     assert.equal(res.status, 200);
-    assert.equal(res.body.schemaVersion, 1);
-    assert.ok(res.body.accounts.length > 0);
+    assert.equal(res.body.schemaVersion, 2);
+    assert.ok(!('accounts' in res.body), 'hesap verisi artik disa aktarilmaz');
     assert.ok(res.body.categories.length > 0);
     assert.ok(res.body.transactions.length > 0);
     assert.ok(res.body.budgets.length > 0);
@@ -239,20 +222,18 @@ describe('veri disa/ice aktarim', () => {
     assert.equal(reset.status, 200);
 
     const emptied = await user.get<Record<string, unknown[]>>('/api/data/export');
-    assert.equal(emptied.body['accounts']?.length, 0);
     assert.equal(emptied.body['transactions']?.length, 0);
     // Sifirlamada varsayilan kategoriler yeniden kurulur
     assert.ok((emptied.body['categories']?.length ?? 0) > 10);
 
-    const imported = await user.post<{ result: { transactions: number; skippedTransactions: number } }>(
-      '/api/data/import',
-      { mode: 'replace', data: before.body },
-    );
+    const imported = await user.post<{ result: { transactions: number } }>('/api/data/import', {
+      mode: 'replace',
+      data: before.body,
+    });
     assert.equal(imported.status, 200);
-    assert.equal(imported.body.result.skippedTransactions, 0);
+    assert.equal(imported.body.result.transactions, before.body['transactions']?.length);
 
     const after = await user.get<Record<string, unknown[]>>('/api/data/export');
-    assert.equal(after.body['accounts']?.length, before.body['accounts']?.length);
     assert.equal(after.body['transactions']?.length, before.body['transactions']?.length);
     assert.equal(after.body['budgets']?.length, before.body['budgets']?.length);
   });
@@ -265,35 +246,71 @@ describe('veri disa/ice aktarim', () => {
 
     // Veri yerinde durmali
     const data = await user.get<Record<string, unknown[]>>('/api/data/export');
-    assert.ok((data.body['accounts']?.length ?? 0) > 0);
+    assert.ok((data.body['transactions']?.length ?? 0) > 0);
   });
 
   test('bozuk dosya reddedilir ve mevcut veri korunur', async () => {
     const res = await user.post<{ error: { code: string } }>('/api/data/import', {
       mode: 'replace',
       data: {
-        schemaVersion: 1,
-        accounts: [{ id: 1, name: 'Bozuk', type: 'gecersiz_tur', openingBalanceKurus: 0 }],
+        schemaVersion: 2,
+        transactions: [
+          { categoryId: null, type: 'gecersiz_tur', amountKurus: 100, date: '2026-08-01', description: null },
+        ],
       },
     });
     assert.equal(res.status, 400);
     assert.equal(res.body.error.code, 'VALIDATION_ERROR');
 
     const data = await user.get<Record<string, unknown[]>>('/api/data/export');
-    assert.ok((data.body['accounts']?.length ?? 0) > 0, 'mevcut veri silinmemeli');
+    assert.ok((data.body['transactions']?.length ?? 0) > 0, 'mevcut veri silinmemeli');
   });
 
   test('ice aktarim BASKA kullanicinin verisine dokunmaz', async () => {
-    await other.post('/api/accounts', { name: 'Mehmet Hesabi', type: 'cash' });
+    await other.post('/api/transactions', { type: 'expense', amountKurus: 1000, date: '2026-08-01' });
     const beforeOther = await other.get<Record<string, unknown[]>>('/api/data/export');
 
     await user.post('/api/data/import', {
       mode: 'replace',
-      data: { schemaVersion: 1, accounts: [], transactions: [] },
+      data: { schemaVersion: 2, transactions: [] },
     });
 
     const afterOther = await other.get<Record<string, unknown[]>>('/api/data/export');
-    assert.equal(afterOther.body['accounts']?.length, beforeOther.body['accounts']?.length);
-    assert.ok((afterOther.body['accounts']?.length ?? 0) > 0);
+    assert.equal(
+      afterOther.body['transactions']?.length,
+      beforeOther.body['transactions']?.length,
+    );
+    assert.ok((afterOther.body['transactions']?.length ?? 0) > 0);
+  });
+
+  test('surum 1 yedegi okunur: hesaplar yok sayilir, transferler gelir/gider olur', async () => {
+    const eski = await createUserAndLogin(server, 'eskiyedek');
+
+    const res = await eski.post<{ result: { transactions: number; categories: number } }>(
+      '/api/data/import',
+      {
+        mode: 'replace',
+        data: {
+          schemaVersion: 1,
+          banks: [{ id: 1, name: 'Eski Banka', monthlyInterestBp: 300, taxesIncluded: true }],
+          accounts: [{ id: 1, bankId: 1, name: 'Vadesiz', type: 'bank', openingBalanceKurus: 0, archived: false }],
+          categories: [{ id: 7, name: 'Market', kind: 'expense', isDefault: true, archived: false }],
+          transactions: [
+            { accountId: 1, categoryId: 7, type: 'expense', amountKurus: 5000, date: '2026-07-01', description: 'Market', transferGroupId: null, source: 'ocr' },
+            { accountId: 1, categoryId: null, type: 'transfer_out', amountKurus: 2000, date: '2026-07-02', description: 'Nakit', transferGroupId: 'g1', source: 'manual' },
+          ],
+          cardStatements: [],
+          budgets: [],
+        },
+      },
+    );
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.result.transactions, 2);
+
+    const list = await eski.get<{ transactions: { type: string; categoryName: string | null }[] }>(
+      '/api/transactions',
+    );
+    assert.deepEqual(list.body.transactions.map((t) => t.type).sort(), ['expense', 'expense']);
+    assert.ok(list.body.transactions.some((t) => t.categoryName === 'Market'));
   });
 });

@@ -14,7 +14,6 @@ export type ScheduledItemRow = {
   kind: ScheduledKind;
   name: string;
   direction: 'income' | 'expense';
-  account_id: number;
   category_id: number | null;
   counterparty: string | null;
   description: string | null;
@@ -29,7 +28,6 @@ export type ScheduledItemRow = {
 };
 
 export type ScheduledItemWithProgress = ScheduledItemRow & {
-  account_name: string;
   category_name: string | null;
   occurrence_count: number;
   confirmed_count: number;
@@ -56,15 +54,12 @@ export type OccurrenceWithItem = OccurrenceRow & {
   item_name: string;
   kind: ScheduledKind;
   direction: 'income' | 'expense';
-  account_id: number;
-  account_name: string;
   category_id: number | null;
   category_name: string | null;
 };
 
 const SELECT_ITEM = `
   SELECT i.*,
-         a.name AS account_name,
          c.name AS category_name,
          COALESCE((SELECT COUNT(*) FROM scheduled_occurrences o
                    WHERE o.scheduled_item_id = i.id AND o.user_id = i.user_id), 0) AS occurrence_count,
@@ -81,7 +76,6 @@ const SELECT_ITEM = `
                    WHERE o.scheduled_item_id = i.id AND o.user_id = i.user_id
                      AND o.status = 'pending'), 0) AS remaining_kurus
   FROM scheduled_items i
-  JOIN accounts a ON a.id = i.account_id AND a.user_id = i.user_id
   LEFT JOIN categories c ON c.id = i.category_id AND c.user_id = i.user_id
 `;
 
@@ -109,7 +103,6 @@ export type CreateScheduledItemInput = {
   kind: ScheduledKind;
   name: string;
   direction: 'income' | 'expense';
-  accountId: number;
   categoryId: number | null;
   counterparty: string | null;
   description: string | null;
@@ -124,16 +117,15 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
   const result = getDb()
     .prepare(
       `INSERT INTO scheduled_items
-         (user_id, kind, name, direction, account_id, category_id, counterparty, description,
+         (user_id, kind, name, direction, category_id, counterparty, description,
           total_amount_kurus, installment_count, period, amount_kurus, start_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
       input.kind,
       input.name,
       input.direction,
-      input.accountId,
       input.categoryId,
       input.counterparty,
       input.description,
@@ -205,13 +197,10 @@ const SELECT_OCCURRENCE = `
          i.name      AS item_name,
          i.kind      AS kind,
          i.direction AS direction,
-         i.account_id,
-         a.name      AS account_name,
          i.category_id,
          c.name      AS category_name
   FROM scheduled_occurrences o
   JOIN scheduled_items i ON i.id = o.scheduled_item_id AND i.user_id = o.user_id
-  JOIN accounts a ON a.id = i.account_id AND a.user_id = i.user_id
   LEFT JOIN categories c ON c.id = i.category_id AND c.user_id = i.user_id
 `;
 

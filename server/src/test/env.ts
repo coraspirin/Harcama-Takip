@@ -24,4 +24,3 @@ process.env.COOKIE_SECURE = 'false';
 export const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'harcama-test-'));
 
 process.env.DATA_DIR = TEST_DATA_DIR;
-process.env.UPLOAD_DIR = path.join(TEST_DATA_DIR, 'uploads');

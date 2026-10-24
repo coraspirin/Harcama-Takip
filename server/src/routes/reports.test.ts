@@ -5,8 +5,6 @@ import type { TestClient, TestServer } from '../test/harness.ts';
 
 let server: TestServer;
 let user: TestClient;
-let accountId: number;
-let secondAccountId: number;
 let marketId: number;
 let kiraId: number;
 let maasId: number;
@@ -20,26 +18,13 @@ type Breakdown = {
 };
 
 async function addTransaction(body: Record<string, unknown>) {
-  const res = await user.post('/api/transactions', { accountId, ...body });
+  const res = await user.post('/api/transactions', body);
   assert.equal(res.status, 201, JSON.stringify(res.body));
 }
 
 before(async () => {
   server = await bootstrap();
   user = await createUserAndLogin(server, 'ayse');
-
-  const account = await user.post<{ account: { id: number } }>('/api/accounts', {
-    name: 'Ana Hesap',
-    type: 'bank',
-    openingBalanceKurus: 0,
-  });
-  accountId = account.body.account.id;
-
-  const second = await user.post<{ account: { id: number } }>('/api/accounts', {
-    name: 'Nakit',
-    type: 'cash',
-  });
-  secondAccountId = second.body.account.id;
 
   const categories = await user.get<{ categories: { id: number; name: string }[] }>(
     '/api/categories',
@@ -63,15 +48,6 @@ before(async () => {
   await addTransaction({ type: 'expense', categoryId: kiraId, amountKurus: 250_000, date: '2026-07-15' });
   // Kategorisiz gider
   await addTransaction({ type: 'expense', categoryId: null, amountKurus: 50_000, date: '2026-07-20' });
-
-  // Hesaplar arasi hareket AYRI BIR AYDA sinanir: artik siradan gelir/gider
-  // oldugu icin ayni aya konsaydi o ayin tum toplamlarini degistirirdi.
-  await user.post('/api/transactions/transfer', {
-    fromAccountId: accountId,
-    toAccountId: secondAccountId,
-    amountKurus: 999_999,
-    date: '2026-09-15',
-  });
 });
 
 after(async () => {
@@ -89,24 +65,6 @@ describe('aylik rapor', () => {
     // 150.000 (ayin son gunu) + 250.000 + 50.000
     assert.equal(res.body.totals.expenseKurus, 450_000);
     assert.equal(res.body.totals.netKurus, 150_000);
-  });
-
-  test('hesaplar arasi hareket RAPORLARA GIRER', async () => {
-    // Ayri bir "transfer" turu yok: cikan bacak gider, giren bacak gelir olarak
-    // raporlanir. Kullanici bu ayrimin kaldirilmasina karar verdi.
-    const res = await user.get<{
-      totals: { incomeKurus: number; expenseKurus: number; netKurus: number };
-      byAccount: { accountName: string; expenseKurus: number }[];
-    }>('/api/reports/monthly?month=2026-09');
-
-    assert.equal(res.body.totals.incomeKurus, 999_999, 'giren bacak gelir sayilmali');
-    assert.equal(res.body.totals.expenseKurus, 999_999, 'cikan bacak gider sayilmali');
-    assert.equal(res.body.totals.netKurus, 0, 'net etki sifir');
-
-    assert.ok(
-      res.body.byAccount.some((a) => a.accountName === 'Nakit'),
-      'para giren hesap raporda gorunmeli',
-    );
   });
 
   test('onceki aya gore degisim yuzdesi hesaplanir', async () => {

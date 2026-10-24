@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarClock, Check, ChevronDown, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
-import { accountService, categoryService } from '../services/finance.ts';
+import { categoryService } from '../services/finance.ts';
 import { occurrenceService, scheduledService } from '../services/scheduled.ts';
 import { ApiError } from '../services/api.ts';
 import {
@@ -75,7 +75,6 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
   const today = todayIso();
 
   const items = useAsync(() => scheduledService.list(kind), [kind]);
-  const accounts = useAsync(() => accountService.list(), []);
   const categories = useAsync(() => categoryService.list(), []);
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -89,7 +88,6 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
   // --- form ---
   const [name, setName] = useState('');
   const [direction, setDirection] = useState<'income' | 'expense'>('expense');
-  const [accountId, setAccountId] = useState<number | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [counterparty, setCounterparty] = useState('');
   const [startDate, setStartDate] = useState(today);
@@ -105,7 +103,6 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
   function openCreate() {
     setName('');
     setDirection('expense');
-    setAccountId(accounts.data?.[0]?.id ?? null);
     setCategoryId(null);
     setCounterparty('');
     setStartDate(today);
@@ -121,7 +118,6 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
   function useSuggestion(suggestion: RecurrenceSuggestion) {
     openCreate();
     setName(suggestion.name);
-    setAccountId(suggestion.accountId);
     setCategoryId(suggestion.categoryId);
     setAmountKurus(suggestion.amountKurus);
     setPeriod('monthly');
@@ -133,11 +129,6 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
   }
 
   async function handleSave() {
-    if (accountId === null) {
-      setError('Hesap secin');
-      return;
-    }
-
     setBusy(true);
     setError(null);
     try {
@@ -145,7 +136,6 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
         kind,
         name: name.trim(),
         direction: kind === 'planned' ? direction : 'expense',
-        accountId,
         categoryId,
         counterparty: counterparty.trim() || null,
         description: null,
@@ -404,20 +394,6 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
           />
 
           <SelectField
-            label="Hesap"
-            value={accountId ?? ''}
-            onChange={(e) => setAccountId(e.target.value ? Number(e.target.value) : null)}
-            required
-          >
-            <option value="">Secin</option>
-            {(accounts.data ?? []).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </SelectField>
-
-          <SelectField
             label="Kategori"
             value={categoryId ?? ''}
             onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
@@ -554,11 +530,14 @@ function ScheduledCard({
           </div>
 
           <p className="mt-0.5 text-sm text-slate-500">
-            {kind === 'installment' && `${item.progress.confirmed}/${item.progress.total} taksit · `}
-            {kind === 'bill' && item.period && `${BILL_PERIOD_LABELS[item.period]} · `}
-            {item.accountName}
-            {item.categoryName && ` · ${item.categoryName}`}
-            {item.counterparty && ` · ${item.counterparty}`}
+            {[
+              kind === 'installment' && `${item.progress.confirmed}/${item.progress.total} taksit`,
+              kind === 'bill' && item.period && BILL_PERIOD_LABELS[item.period],
+              item.categoryName,
+              item.counterparty,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
 
           <p className={`mt-1 text-sm ${overdue ? 'font-medium text-red-600' : 'text-slate-600'}`}>

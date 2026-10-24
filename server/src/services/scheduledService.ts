@@ -155,7 +155,6 @@ export function confirmOccurrence(userId: number, occurrenceId: number, input: C
   db.exec('BEGIN');
   try {
     const transactionId = insertTransaction(userId, {
-      accountId: item.account_id,
       categoryId: item.category_id,
       type: item.direction,
       amountKurus,

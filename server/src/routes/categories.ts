@@ -22,11 +22,14 @@ categoriesRouter.use(requireUser);
 const createSchema = z.object({
   name: z.string().trim().min(1, 'Kategori adi gerekli').max(60),
   kind: z.enum(['income', 'expense']),
+  nature: z.enum(['fixed', 'variable']).default('variable'),
 });
 
 const updateSchema = z.object({
   name: z.string().trim().min(1, 'Kategori adi gerekli').max(60),
   archived: z.boolean().default(false),
+  // Gonderilmezse mevcut deger korunur.
+  nature: z.enum(['fixed', 'variable']).optional(),
 });
 
 categoriesRouter.get(
@@ -56,7 +59,7 @@ categoriesRouter.post(
 
     res
       .status(201)
-      .json({ category: serializeCategory(createCategory(user.id, input.name, input.kind)) });
+      .json({ category: serializeCategory(createCategory(user.id, input.name, input.kind, input.nature)) });
   }),
 );
 
@@ -74,7 +77,13 @@ categoriesRouter.patch(
       throw conflict('Bu isimde bir kategori zaten var');
     }
 
-    const updated = updateCategory(user.id, id, input.name, input.archived);
+    const updated = updateCategory(
+      user.id,
+      id,
+      input.name,
+      input.archived,
+      input.nature ?? existing.nature,
+    );
     if (!updated) throw notFound('Kategori bulunamadi');
 
     res.json({ category: serializeCategory(updated) });
@@ -96,7 +105,7 @@ categoriesRouter.delete(
 
     const usage = countCategoryUsage(user.id, id);
     if (usage > 0) {
-      const archived = updateCategory(user.id, id, existing.name, true);
+      const archived = updateCategory(user.id, id, existing.name, true, existing.nature);
       res.json({
         action: 'archived',
         usageCount: usage,

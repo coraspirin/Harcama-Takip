@@ -8,7 +8,6 @@ import { addMonthsToYearMonth, monthRange, todayIso, toYearMonth } from '../lib/
 import { percentChange } from '../lib/money.ts';
 import { sumTransactions } from '../db/transactions.ts';
 import {
-  accountBreakdown,
   categoryBreakdown,
   monthlyTotals,
   type CategoryBreakdownRow,
@@ -33,7 +32,7 @@ function serializeBreakdown(rows: CategoryBreakdownRow[]) {
 
 /**
  * Aylik ozet: secilen ayin gelir/gider/net toplami, onceki aya gore degisim ve
- * kategori kirilimi. Transferler her yerde disaridadir.
+ * kategori kirilimi.
  */
 reportsRouter.get(
   '/monthly',
@@ -74,12 +73,6 @@ reportsRouter.get(
       incomeByCategory: serializeBreakdown(
         categoryBreakdown(user.id, range.start, range.end, 'income'),
       ),
-      byAccount: accountBreakdown(user.id, range.start, range.end).map((row) => ({
-        accountId: row.account_id,
-        accountName: row.account_name,
-        incomeKurus: Number(row.income_kurus),
-        expenseKurus: Number(row.expense_kurus),
-      })),
     });
   }),
 );

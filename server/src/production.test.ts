@@ -31,7 +31,6 @@ before(async () => {
   // Uretim modu gecerli sirlar ister; varsayilanlarla acilmayi reddeder.
   process.env.NODE_ENV = 'production';
   process.env.DATA_DIR = tempDir;
-  process.env.UPLOAD_DIR = path.join(tempDir, 'uploads');
   process.env.CLIENT_DIR = clientDist;
   process.env.JWT_ACCESS_SECRET = 'uretim-testi-access-sirri-en-az-otuziki-karakter';
   process.env.JWT_REFRESH_SECRET = 'uretim-testi-refresh-sirri-en-az-otuziki-karakter';

@@ -6,7 +6,6 @@ import type { TestClient, TestServer } from '../test/harness.ts';
 let server: TestServer;
 let user: TestClient;
 let other: TestClient;
-let accountId: number;
 let categoryId: number;
 
 type Item = {
@@ -39,13 +38,6 @@ before(async () => {
   user = await createUserAndLogin(server, 'ayse');
   other = await createUserAndLogin(server, 'mehmet');
 
-  const account = await user.post<{ account: { id: number } }>('/api/accounts', {
-    name: 'Ana Hesap',
-    type: 'bank',
-    openingBalanceKurus: 1_000_000,
-  });
-  accountId = account.body.account.id;
-
   const categories = await user.get<{ categories: { id: number; name: string }[] }>('/api/categories');
   const fatura = categories.body.categories.find((c) => c.name === 'Fatura');
   assert.ok(fatura);
@@ -64,7 +56,6 @@ describe('planlanan odeme/alacak', () => {
       kind: 'planned',
       name: 'Arkadasa borc',
       direction: 'income',
-      accountId,
       amountKurus: 50_000,
       startDate: '2026-09-15',
       counterparty: 'Ali',
@@ -130,7 +121,6 @@ describe('taksitli odeme', () => {
     const res = await user.post<{ item: Item }>('/api/scheduled', {
       kind: 'installment',
       name: 'Telefon',
-      accountId,
       categoryId,
       totalAmountKurus: 100_007, // bolunmeyen tutar
       installmentCount: 12,
@@ -176,7 +166,6 @@ describe('taksitli odeme', () => {
     const res = await user.post('/api/scheduled', {
       kind: 'installment',
       name: 'Tek taksit',
-      accountId,
       totalAmountKurus: 10_000,
       installmentCount: 1,
       startDate: '2026-09-05',
@@ -189,7 +178,6 @@ describe('taksitli odeme', () => {
       kind: 'installment',
       name: 'Gelir taksiti',
       direction: 'income',
-      accountId,
       totalAmountKurus: 10_000,
       installmentCount: 3,
       startDate: '2026-09-05',
@@ -205,7 +193,6 @@ describe('fatura', () => {
     const res = await user.post<{ item: Item }>('/api/scheduled', {
       kind: 'bill',
       name: 'Elektrik',
-      accountId,
       categoryId,
       period: 'monthly',
       startDate: '2026-08-20',
@@ -266,7 +253,6 @@ describe('fatura', () => {
     const created = await user.post<{ item: Item }>('/api/scheduled', {
       kind: 'bill',
       name: 'Aidat',
-      accountId,
       period: 'quarterly',
       startDate: '2026-08-01',
     });

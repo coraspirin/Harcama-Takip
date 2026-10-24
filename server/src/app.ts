@@ -8,11 +8,8 @@ import { apiNotFoundHandler, errorHandler } from './middleware/error.ts';
 import { healthRouter } from './routes/health.ts';
 import { setupRouter } from './routes/setup.ts';
 import { authRouter } from './routes/auth.ts';
-import { banksRouter } from './routes/banks.ts';
-import { accountsRouter } from './routes/accounts.ts';
 import { categoriesRouter } from './routes/categories.ts';
 import { transactionsRouter } from './routes/transactions.ts';
-import { statementsRouter } from './routes/statements.ts';
 import { budgetsRouter } from './routes/budgets.ts';
 import { dataRouter } from './routes/data.ts';
 import { reportsRouter } from './routes/reports.ts';
@@ -20,7 +17,6 @@ import { occurrencesRouter, scheduledRouter } from './routes/scheduled.ts';
 import { notificationsRouter } from './routes/notifications.ts';
 import { adminUsersRouter } from './routes/admin/users.ts';
 import { adminAuditLogRouter } from './routes/admin/auditLog.ts';
-import { ocrRouter } from './routes/ocr.ts';
 import { matchingRouter } from './routes/matching.ts';
 import { homeAssistantRouter } from './routes/homeAssistant.ts';
 import { dashboardRouter } from './routes/dashboard.ts';
@@ -79,11 +75,8 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
 
   // Normal kullanici veri uclari. Tumu requireUser ile korunur; super admin
   // bu route'larin hicbirine erisemez.
-  app.use('/api/banks', banksRouter);
-  app.use('/api/accounts', accountsRouter);
   app.use('/api/categories', categoriesRouter);
   app.use('/api/transactions', transactionsRouter);
-  app.use('/api/statements', statementsRouter);
   app.use('/api/budgets', budgetsRouter);
   app.use('/api/data', dataRouter);
   app.use('/api/reports', reportsRouter);
@@ -91,7 +84,6 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use('/api/occurrences', occurrencesRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
-  app.use('/api/ocr', ocrRouter);
   app.use('/api/matching', matchingRouter);
   app.use('/api/settings/home-assistant', homeAssistantRouter);
 

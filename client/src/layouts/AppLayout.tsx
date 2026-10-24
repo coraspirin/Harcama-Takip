@@ -5,7 +5,6 @@ import {
   BarChart3,
   CalendarClock,
   CreditCard,
-  FileUp,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -21,7 +20,6 @@ import { BildirimZili } from '../components/BildirimZili.tsx';
 
 const NAV = [
   { to: '/', label: 'Ozet', icon: LayoutDashboard, end: true },
-  { to: '/hesaplar', label: 'Hesaplar', icon: Wallet },
   { to: '/islemler', label: 'Islemler', icon: ArrowLeftRight },
   { to: '/planlanan', label: 'Planlanan', icon: CalendarClock },
   { to: '/taksitler', label: 'Taksitler', icon: CreditCard },
@@ -29,7 +27,6 @@ const NAV = [
   { to: '/raporlar', label: 'Raporlar', icon: BarChart3 },
   { to: '/kategoriler', label: 'Kategoriler', icon: Tags },
   { to: '/butce', label: 'Butce', icon: Target },
-  { to: '/ice-aktar', label: 'Ice aktar', icon: FileUp },
   { to: '/ayarlar', label: 'Ayarlar', icon: Settings },
 ] as const;
 

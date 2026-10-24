@@ -25,9 +25,6 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
 
   DATA_DIR: z.string().default(path.join(serverRoot, '..', 'data')),
-  UPLOAD_DIR: z.string().optional(),
-  /** Tesseract Turkce dil verisinin bulundugu dizin (Docker imajinda gomulu). */
-  TESSDATA_DIR: z.string().default(path.join(serverRoot, 'tessdata')),
   CLIENT_DIR: z.string().default(path.join(serverRoot, '..', 'client', 'dist')),
 
   JWT_ACCESS_SECRET: secret('JWT_ACCESS_SECRET').default(
@@ -64,8 +61,6 @@ export const env = {
   isProd: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test',
   DATA_DIR: path.resolve(raw.DATA_DIR),
-  UPLOAD_DIR: path.resolve(raw.UPLOAD_DIR ?? path.join(raw.DATA_DIR, 'uploads')),
-  TESSDATA_DIR: path.resolve(raw.TESSDATA_DIR),
   CLIENT_DIR: path.resolve(raw.CLIENT_DIR),
   serverRoot,
 } as const;

@@ -1,37 +1,21 @@
 import type { Migration } from '../migrate.ts';
 import { migration001Auth } from './001_auth.ts';
-import { migration002FinanceCore } from './002_finance_core.ts';
-import { migration003CardStatements } from './003_card_statements.ts';
-import { migration004Budgets } from './004_budgets.ts';
-import { migration005Scheduled } from './005_scheduled.ts';
-import { migration006Ocr } from './006_ocr.ts';
 import { migration007HomeAssistant } from './007_home_assistant.ts';
-import { migration008ImportQuality } from './008_import_quality.ts';
-import { migration009PostImport } from './009_post_import.ts';
-import { migration010ChainCoverage } from './010_chain_coverage.ts';
-import { migration011DropTransferSplit } from './011_drop_transfer_split.ts';
-import { migration012UnreadLines } from './012_unread_lines.ts';
-import { migration013UnreadSuspect } from './013_unread_suspect.ts';
+import { migration014Household } from './014_household.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
- *   1. yeni bir dosya olustur (or. 004_budgets.ts)
+ *   1. yeni bir dosya olustur (or. 015_debts.ts)
  *   2. asagidaki diziye SIRAYLA ekle
  * Uygulanmis bir migration'in SQL'i asla degistirilmez; duzeltme yeni bir
  * migration ile yapilir.
+ *
+ * Bosluklar bilinclidir: 002-006 ve 008-013 ev muhasebesine geciste silindi
+ * (bkz. 014_household). Eski kurulumlarda bu id'ler uygulanmis durumdadir;
+ * yeni migration'lar 015'ten devam etmelidir.
  */
 export const migrations: Migration[] = [
   migration001Auth,
-  migration002FinanceCore,
-  migration003CardStatements,
-  migration004Budgets,
-  migration005Scheduled,
-  migration006Ocr,
   migration007HomeAssistant,
-  migration008ImportQuality,
-  migration009PostImport,
-  migration010ChainCoverage,
-  migration011DropTransferSplit,
-  migration012UnreadLines,
-  migration013UnreadSuspect,
+  migration014Household,
 ];

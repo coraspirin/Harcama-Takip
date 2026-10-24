@@ -5,7 +5,6 @@ import { requireUser, currentUser } from '../middleware/auth.ts';
 import { badRequest, notFound } from '../lib/errors.ts';
 import { idParamSchema, isoDateSchema, positiveKurusSchema } from '../lib/validation.ts';
 import { addDays, todayIso } from '../lib/date.ts';
-import { accountExists } from '../db/accounts.ts';
 import { categoryExists } from '../db/categories.ts';
 import {
   BILL_PERIODS,
@@ -38,8 +37,6 @@ function serializeItem(row: ScheduledItemWithProgress) {
     kind: row.kind,
     name: row.name,
     direction: row.direction,
-    accountId: row.account_id,
-    accountName: row.account_name,
     categoryId: row.category_id,
     categoryName: row.category_name,
     counterparty: row.counterparty,
@@ -67,8 +64,6 @@ function serializeOccurrence(row: OccurrenceWithItem) {
     itemName: row.item_name,
     kind: row.kind,
     direction: row.direction,
-    accountId: row.account_id,
-    accountName: row.account_name,
     categoryName: row.category_name,
     dueDate: row.due_date,
     amountKurus: row.amount_kurus,
@@ -84,7 +79,6 @@ const createSchema = z
     kind: z.enum(SCHEDULED_KINDS),
     name: z.string().trim().min(1, 'Ad gerekli').max(100),
     direction: z.enum(['income', 'expense']).default('expense'),
-    accountId: z.number().int().positive(),
     categoryId: z.number().int().positive().nullable().default(null),
     counterparty: z.string().trim().max(100).nullable().default(null),
     description: z.string().trim().max(500).nullable().default(null),
@@ -155,7 +149,6 @@ scheduledRouter.post(
     const user = currentUser(req);
     const input = createSchema.parse(req.body);
 
-    if (!accountExists(user.id, input.accountId)) throw notFound('Secilen hesap bulunamadi');
     if (input.categoryId !== null && !categoryExists(user.id, input.categoryId)) {
       throw notFound('Secilen kategori bulunamadi');
     }

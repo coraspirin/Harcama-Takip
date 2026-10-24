@@ -1,6 +1,7 @@
 # Harcama Takip
 
-Çok kullanıcılı kişisel gelir/gider takip uygulaması. Her kullanıcının verisi
+Çok kullanıcılı ev muhasebesi uygulaması: gelir/gider, bekleyen ödemeler, bütçe
+ve raporlar. Her kullanıcının verisi
 tamamen izoledir; ayrıca yalnızca hesap yönetimi yapan, **hiçbir finansal veriye
 erişemeyen** bir süper admin rolü vardır.
 
@@ -8,13 +9,11 @@ erişemeyen** bir süper admin rolü vardır.
 
 | Alan | Kapsam |
 | --- | --- |
-| Hesaplar | Nakit, banka hesabı, kredi kartı · hesaplar arası transfer · arşivleme |
-| İşlemler | Gelir/gider CRUD · tarih, hesap, kategori, tutar aralığı ve açıklama filtreleri |
-| Kredi kartı | Ekstre kaydı · tahmini faiz (KKDF + BSMV dahil) · ekstre–işlem mutabakatı |
-| Zamanlanmış | Planlanan ödeme/alacak · taksit (3/12 ilerleme) · fatura · günlük hatırlatma |
-| Raporlar | Aylık özet · kategori kırılımı (halka grafik) · 12 aylık trend · hesap bazında |
+| İşlemler | Gelir/gider CRUD · tarih, kategori, tutar aralığı ve açıklama filtreleri · toplu silme |
+| Kategoriler | Varsayılan iskelet · sabit/değişken ayrımı · kullanımdaysa arşivleme |
+| Bekleyen ödemeler | Planlanan ödeme/alacak · taksit (3/12 ilerleme) · fatura · günlük hatırlatma · tekrar eden ödeme önerileri |
+| Raporlar | Aylık özet · kategori kırılımı (halka grafik) · 12 aylık trend |
 | Bütçe | Kategori bazlı aylık limit · aşım uyarısı · önceki aydan kopyalama |
-| OCR | PDF ekstre → metin katmanı veya OCR → banka bazlı ayrıştırma → onaylı içe aktarım |
 | Veri | JSON dışa/içe aktarım (birleştir veya üzerine yaz) · onaylı sıfırlama |
 | Süper admin | Kullanıcı yönetimi · şifre sıfırlama · işlem günlüğü |
 | Opsiyonel | PWA (ana ekrana ekleme) · Home Assistant bildirimleri |
@@ -27,7 +26,6 @@ erişemeyen** bir süper admin rolü vardır.
 | Backend | Node.js + Express + TypeScript |
 | Veritabanı | SQLite (`node:sqlite` — yerleşik, native derleme yok) |
 | Kimlik doğrulama | JWT (access + refresh), httpOnly cookie, bcrypt |
-| OCR | pdfjs-dist (metin katmanı) → pdftoppm + tesseract.js (fallback) |
 | Zamanlanmış görev | node-cron |
 | Deploy | Docker Compose — tek container |
 
@@ -54,13 +52,13 @@ cp .env.example .env      # JWT_* ve ENCRYPTION_KEY değerlerini MUTLAKA değiş
 docker compose up -d --build
 ```
 
-`http://SUNUCU_IP:4000` adresinde yayına girer. Veritabanı ve yüklenen dosyalar
-`harcama-data` volume'ünde kalıcıdır. Türkçe OCR dil verisi imaja gömülüdür.
+`http://SUNUCU_IP:4000` adresinde yayına girer. Veritabanı `harcama-data`
+volume'ünde kalıcıdır.
 
 Sunucuda 4000 portu doluysa `docker-compose.yml`'i düzenlemeyin (her `git pull`'da
 çakışır) — `.env` içine `HOST_PORT=4001` yazmanız yeterlidir.
 
-`.env` içindeki `DATA_DIR`, `UPLOAD_DIR`, `CLIENT_DIR`, `TESSDATA_DIR` satırları
+`.env` içindeki `DATA_DIR` ve `CLIENT_DIR` satırları
 **yalnızca yerel geliştirme içindir**; Docker'da compose bunları container içi
 değerlerle ezer. Bırakmanız zararsızdır.
 
@@ -107,7 +105,7 @@ server/src/
   middleware/            auth (rol kontrolü), rate limit, hata yönetimi
   routes/                API uçları
   routes/admin/          süper admin uçları (diğerlerinden tamamen ayrı)
-  services/              faiz, zamanlanmış görev, OCR, kripto, Home Assistant
+  services/              zamanlanmış görev, tekrar tespiti, veri aktarımı, kripto, Home Assistant
 client/src/
   components/            yeniden kullanılabilir UI + grafikler
   pages/ · pages/admin/  kullanıcı ve süper admin sayfaları
@@ -118,13 +116,13 @@ client/src/
 ## Testler
 
 ```bash
-npm test        # 192 test, node --test ile
+npm test        # node --test ile
 ```
 
 Ayrı bir test koşucusu veya derleme adımı gerekmez. Kapsam: kuruş aritmetiği ve
 taksit bölme, faiz senaryoları, **veri izolasyonu** (her kullanıcı yalnızca kendi
 verisi), rol ayrımı, token rotasyonu ve yeniden kullanım tespiti, rate limit,
-zamanlanmış görev idempotency'si, OCR ayrıştırma ve mükerrer koruma,
+zamanlanmış görev idempotency'si, eski kurulumdan migration,
 export→reset→import round-trip.
 
 ## Tasarım kuralları
@@ -134,17 +132,17 @@ export→reset→import round-trip.
   taksitlere dağıtılır; toplam daima korunur.
 - Tarihler veritabanında `YYYY-MM-DD` metni; ekranda `gg.aa.yyyy`. Tarih
   aritmetiği metin üzerinden yapılır — saat dilimi kaynaklı gün kaymaları olmaz.
-- **Hesap bakiyesi her zaman işlemlerden türetilir.** Ayrı bir "güncel bakiye"
-  sütunu tutulmaz. Kredi kartında ekstre ayrı bir kayıttır; fark varsa kullanıcıya
-  mutabakat uyarısı gösterilir, sessizce biri diğerinin lehine çözülmez.
-- **Transferler gelir/gider sayılmaz.** İki satır olarak yazılır ve tüm rapor,
-  bütçe ve toplam sorgularından dışlanır.
+- **İşlem bir hesaba bağlı değildir.** Banka, hesap ve kart ekstresi takibi
+  yoktur; işlem tarih + tutar + gelir/gider + kategori + açıklamadan ibarettir.
+- **Harcama, yapıldığı anda gider olarak girilir** (kartla da olsa). Kart
+  borcunu ya da krediyi ödemek ikinci bir gider değildir; çift sayımı önlemek
+  için borç ödemeleri gelir/gider tablosuna yazılmaz.
 - Her tablo `user_id` içerir ve **her sorgu** oturum sahibinin id'siyle
   filtrelenir. Başkasının kaydına erişim 403 değil **404** döner — kaydın var
   olup olmadığı sızdırılmaz.
-- Kategori ve hesap silinmez, **arşivlenir** (geçmiş işlemlerin izi kaybolmasın).
-  Cascade silme yalnızca bankaya ve kullanıcı hesabına özeldir, her ikisinde de
-  etkisi önceden gösterilip onaylanır.
+- Kullanımdaki kategori silinmez, **arşivlenir** (geçmiş işlemlerin izi
+  kaybolmasın). Kullanıcı silinince tüm verisi de silinir; etkisi önceden
+  gösterilip onaylanır.
 - Uygulama ilk açıldığında örnek/demo veri **oluşturulmaz**; boş durum ekranları
   gösterilir. Yeni kullanıcıda yalnızca varsayılan kategori iskeleti kurulur.
 
@@ -158,16 +156,12 @@ export→reset→import round-trip.
 - Süper admin bir şifreyi sıfırlayıp o kullanıcı olarak giriş yapabilir — bu, rol
   ayrımının kaçınılmaz sınırıdır. Mitigasyon: işlem audit log'a yazılır ve
   kullanıcı ilk girişte şifresini değiştirmek zorundadır.
-- OCR yüklemesi için ayrı ve dar bir rate limit vardır (taranmış bir PDF
-  saniyelerce CPU yer).
-- `sample_ekstre/` dizini `.gitignore`'dadır: gerçek banka ekstreleri kişisel
-  finansal veridir.
 
 ## Opsiyonel özellikler
 
 **PWA** — Ana ekrana eklenip uygulama gibi açılır; uygulama kabuğu önbelleğe
 alınır. Tam offline veri senkronizasyonu kapsam dışıdır ve `/api` yanıtları asla
-önbelleğe alınmaz (bayat bakiye göstermek, hiç göstermemekten kötüdür). Kurulum
+önbelleğe alınmaz (bayat veri göstermek, hiç göstermemekten kötüdür). Kurulum
 HTTPS gerektirir (`localhost` istisna).
 
 **Home Assistant** — Ayarlar → Home Assistant bölümünden sunucu adresi, uzun
