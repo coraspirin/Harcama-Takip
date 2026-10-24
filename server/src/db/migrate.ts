@@ -22,12 +22,26 @@ export function runMigrations(db: DatabaseSync): void {
     )
   `);
 
-  const applied = new Set(
-    db
-      .prepare('SELECT id FROM schema_migrations')
-      .all()
-      .map((row) => Number((row as { id: number }).id)),
-  );
+  const appliedRows = db.prepare('SELECT id, name FROM schema_migrations').all() as {
+    id: number;
+    name: string;
+  }[];
+
+  // Koddaki listeyle uyusmayan bir kayit, veritabaninin baska bir semaya
+  // (or. hesap/OCR iceren eski tasarima) ait oldugunu gosterir. Uzerine
+  // migration calistirmak yarim kalmis, tutarsiz bir sema uretirdi.
+  const known = new Map(migrations.map((m) => [m.id, m.name]));
+  const foreign = appliedRows.filter((row) => known.get(Number(row.id)) !== row.name);
+  if (foreign.length > 0) {
+    const list = foreign.map((row) => `${row.id} - ${row.name}`).join(', ');
+    throw new Error(
+      `Veritabani bu surumun semasiyla uyusmuyor (taninmayan migration: ${list}). ` +
+        'Eski tasarimdan kalmis olabilir; veritabani dosyasini (Docker kurulumunda ' +
+        'harcama-data volume\'unu) silip uygulamayi yeniden baslatin.',
+    );
+  }
+
+  const applied = new Set(appliedRows.map((row) => Number(row.id)));
 
   const pending = migrations
     .filter((m) => !applied.has(m.id))

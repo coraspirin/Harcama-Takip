@@ -406,34 +406,11 @@ describe('veri disa/ice aktarim', () => {
     assert.ok((afterOther.body['transactions']?.length ?? 0) > 0);
   });
 
-  test('surum 1 yedegi okunur: hesaplar yok sayilir, transferler gelir/gider olur', async () => {
-    const eski = await createUserAndLogin(server, 'eskiyedek');
-
-    const res = await eski.post<{ result: { transactions: number; categories: number } }>(
-      '/api/data/import',
-      {
-        mode: 'replace',
-        data: {
-          schemaVersion: 1,
-          banks: [{ id: 1, name: 'Eski Banka', monthlyInterestBp: 300, taxesIncluded: true }],
-          accounts: [{ id: 1, bankId: 1, name: 'Vadesiz', type: 'bank', openingBalanceKurus: 0, archived: false }],
-          categories: [{ id: 7, name: 'Market', kind: 'expense', isDefault: true, archived: false }],
-          transactions: [
-            { accountId: 1, categoryId: 7, type: 'expense', amountKurus: 5000, date: '2026-07-01', description: 'Market', transferGroupId: null, source: 'ocr' },
-            { accountId: 1, categoryId: null, type: 'transfer_out', amountKurus: 2000, date: '2026-07-02', description: 'Nakit', transferGroupId: 'g1', source: 'manual' },
-          ],
-          cardStatements: [],
-          budgets: [],
-        },
-      },
-    );
-    assert.equal(res.status, 200, JSON.stringify(res.body));
-    assert.equal(res.body.result.transactions, 2);
-
-    const list = await eski.get<{ transactions: { type: string; categoryName: string | null }[] }>(
-      '/api/transactions',
-    );
-    assert.deepEqual(list.body.transactions.map((t) => t.type).sort(), ['expense', 'expense']);
-    assert.ok(list.body.transactions.some((t) => t.categoryName === 'Market'));
+  test('eski tasarimin (surum 1) yedegi reddedilir', async () => {
+    const res = await user.post('/api/data/import', {
+      mode: 'merge',
+      data: { schemaVersion: 1, accounts: [], transactions: [] },
+    });
+    assert.equal(res.status, 400);
   });
 });

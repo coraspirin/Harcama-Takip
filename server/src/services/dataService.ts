@@ -7,11 +7,8 @@ import { isoDateSchema, yearMonthSchema } from '../lib/validation.ts';
  * Disa/ice aktarim semasi. Surum numarasi, ileride alan degistiginde eski
  * yedeklerin nasil okunacagina karar verebilmek icin dosyaya yazilir.
  *
- * Surum 2: hesap/banka/ekstre kalkti, kategoriye "nature" eklendi, genel
- * limit icin butcenin categoryId'si bos olabilir.
- *
- * Surum 1 yedekleri de okunur: banka, hesap ve ekstre alanlari yok sayilir
- * (zod bilinmeyen anahtarlari atar), islemler hesapsiz olarak aktarilir.
+ * Surum 2 ev muhasebesi tasarimidir. Surum 1 (hesap/banka/ekstre iceren eski
+ * tasarim) yedekleri kabul edilmez.
  */
 export const EXPORT_SCHEMA_VERSION = 2;
 
@@ -26,18 +23,11 @@ const categorySchema = z.object({
 
 const transactionSchema = z.object({
   categoryId: z.number().int().nullable(),
-  // Surum 1'de transfer bacaklari olabilir; para yonune gore gelir/gider olur.
-  type: z
-    .enum(['income', 'expense', 'transfer_in', 'transfer_out'])
-    .transform((t) => (t === 'transfer_in' ? 'income' : t === 'transfer_out' ? 'expense' : t)),
+  type: z.enum(['income', 'expense']),
   amountKurus: z.number().int().positive(),
   date: isoDateSchema,
   description: z.string().max(500).nullable(),
-  // Surum 1'deki 'ocr' kaynagi artik yok; elle girilmis sayilir.
-  source: z
-    .enum(['manual', 'ocr', 'scheduled'])
-    .default('manual')
-    .transform((s) => (s === 'ocr' ? 'manual' : s)),
+  source: z.enum(['manual', 'scheduled']).default('manual'),
 });
 
 const budgetSchema = z.object({
@@ -50,7 +40,7 @@ const budgetSchema = z.object({
 const MAX_ROWS = 100_000;
 
 export const importPayloadSchema = z.object({
-  schemaVersion: z.number().int().min(1).max(EXPORT_SCHEMA_VERSION),
+  schemaVersion: z.literal(EXPORT_SCHEMA_VERSION),
   categories: z.array(categorySchema).max(MAX_ROWS).default([]),
   transactions: z.array(transactionSchema).max(MAX_ROWS).default([]),
   budgets: z.array(budgetSchema).max(MAX_ROWS).default([]),

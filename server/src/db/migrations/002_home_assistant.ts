@@ -1,7 +1,7 @@
 import type { Migration } from '../migrate.ts';
 
-export const migration007HomeAssistant: Migration = {
-  id: 7,
+export const migration002HomeAssistant: Migration = {
+  id: 2,
   name: 'home_assistant',
   sql: `
     -- Kullanici basina Home Assistant baglanti ayarlari.

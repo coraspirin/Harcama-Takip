@@ -55,6 +55,17 @@ docker compose up -d --build
 `http://SUNUCU_IP:4000` adresinde yayına girer. Veritabanı `harcama-data`
 volume'ünde kalıcıdır.
 
+**Eski (hesap/OCR içeren) sürümden geçiş:** Veritabanı şeması baştan yazıldı ve
+eski veri taşınmaz. Eski bir volume ile açılırsa uygulama başlamaz ve
+veritabanının sıfırlanmasını ister. Sunucuda bir kez:
+
+```bash
+docker compose down
+docker volume ls | grep harcama-data          # tam adı bulun (<proje>_harcama-data)
+docker volume rm <proje>_harcama-data
+docker compose up -d --build                  # /kurulum ekranı yeniden açılır
+```
+
 Sunucuda 4000 portu doluysa `docker-compose.yml`'i düzenlemeyin (her `git pull`'da
 çakışır) — `.env` içine `HOST_PORT=4001` yazmanız yeterlidir.
 

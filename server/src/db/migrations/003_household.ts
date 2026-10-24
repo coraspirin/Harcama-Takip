@@ -1,53 +1,11 @@
 import type { Migration } from '../migrate.ts';
-import { DEFAULT_CATEGORIES } from '../defaultCategories.ts';
 
-const sqlText = (value: string) => `'${value.replace(/'/g, "''")}'`;
-
-const defaultCategoryRows = DEFAULT_CATEGORIES.map(
-  (c) => `SELECT ${sqlText(c.name)} AS name, ${sqlText(c.kind)} AS kind, ${sqlText(c.nature)} AS nature`,
-).join('\n      UNION ALL ');
-
-export const migration014Household: Migration = {
-  id: 14,
+export const migration003Household: Migration = {
+  id: 3,
   name: 'household',
   sql: `
-    -- EV MUHASEBESINE GECIS.
-    --
-    -- Banka, hesap, kredi karti ekstresi ve OCR ile ekstre okuma tamamen
-    -- kaldirildi. Islem artik bir hesaba bagli degildir: tarih + tutar +
+    -- Ev muhasebesi semasi. Islem bir hesaba bagli degildir: tarih + tutar +
     -- gelir/gider + kategori + aciklama.
-    --
-    -- 002-006 ve 008-013 arasi migration dosyalari silindi (007 Home
-    -- Assistant ayarlaridir, kalir). Bu migration iki durumda da ayni sonuca
-    -- ulasir:
-    --   * yeni kurulum: 001 ve 007'den sonra buraya gelinir, DROP'lar bos
-    --     gecer;
-    --   * eski kurulum: silinen migration'larin tablolari dusurulur.
-    -- Kullanici verisini korumak gerekmiyordu (kullanici karari); users,
-    -- refresh_tokens, audit_logs, app_meta ve ha_settings korunur.
-    --
-    -- Cocuk tablolar once dusurulur: foreign_keys acikken ebeveyni once
-    -- dusurmek kisit hatasi verir.
-    DROP TABLE IF EXISTS ocr_unread_lines;
-    DROP TABLE IF EXISTS ocr_draft_lines;
-    DROP TABLE IF EXISTS ocr_imports;
-    DROP TABLE IF EXISTS label_category_map;
-    DROP TABLE IF EXISTS transfer_match_rejections;
-    DROP TABLE IF EXISTS match_settings;
-    DROP TABLE IF EXISTS recurrence_rejections;
-    DROP TABLE IF EXISTS notifications;
-    DROP TABLE IF EXISTS scheduled_occurrences;
-    DROP TABLE IF EXISTS scheduled_items;
-    DROP TABLE IF EXISTS budgets;
-    DROP TABLE IF EXISTS card_statements;
-    DROP TABLE IF EXISTS transactions;
-    DROP TABLE IF EXISTS categories;
-    DROP TABLE IF EXISTS accounts;
-    DROP TABLE IF EXISTS banks;
-
-    -- 007 kayitta KALMALI: silinirse bir sonraki acilista ha_settings yeniden
-    -- olusturulmaya calisilir ve uygulama baslamaz.
-    DELETE FROM schema_migrations WHERE id BETWEEN 2 AND 13 AND id <> 7;
 
     CREATE TABLE categories (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,15 +147,5 @@ export const migration014Household: Migration = {
 
     CREATE UNIQUE INDEX idx_recurrence_rejections
       ON recurrence_rejections(user_id, signature);
-
-    -- Kategorileri dusurdugumuz icin mevcut kullanicilara varsayilan iskelet
-    -- yeniden eklenir; aksi halde kategorisiz kalirlar.
-    INSERT INTO categories (user_id, name, kind, nature, is_default)
-    SELECT u.id, d.name, d.kind, d.nature, 1
-      FROM users u
-     CROSS JOIN (
-      ${defaultCategoryRows}
-     ) d
-     WHERE u.role = 'user';
   `,
 };

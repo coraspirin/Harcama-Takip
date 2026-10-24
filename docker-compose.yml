@@ -9,7 +9,7 @@ services:
       # yerine HOST_PORT=4001 yazmak yeterli -- git pull ile catisma cikmaz.
       - '${HOST_PORT:-4000}:4000'
     volumes:
-      # SQLite veritabani + yuklenen ekstreler kalici olarak burada tutulur.
+      # SQLite veritabani kalici olarak burada tutulur.
       - harcama-data:/data
     env_file:
       # Sirlar (.env) imaja gomulmez, calisma aninda okunur.
