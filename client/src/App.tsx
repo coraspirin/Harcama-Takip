@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard.tsx';
 import Islemler from './pages/Islemler.tsx';
 import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
+import Borclar from './pages/Borclar.tsx';
 import Raporlar from './pages/Raporlar.tsx';
 import ZamanlanmisSayfa from './pages/ZamanlanmisSayfa.tsx';
 import Kullanicilar from './pages/admin/Kullanicilar.tsx';
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="planlanan" element={<ZamanlanmisSayfa kind="planned" />} />
         <Route path="taksitler" element={<ZamanlanmisSayfa kind="installment" />} />
         <Route path="faturalar" element={<ZamanlanmisSayfa kind="bill" />} />
+        <Route path="borclar" element={<Borclar />} />
         <Route path="raporlar" element={<Raporlar />} />
         <Route path="kategoriler" element={<Kategoriler />} />
         <Route path="butce" element={<Butce />} />

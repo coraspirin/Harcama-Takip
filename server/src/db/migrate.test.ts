@@ -32,7 +32,7 @@ describe('migration zinciri', () => {
     const db = freshDb();
     runMigrations(db);
 
-    assert.deepEqual(appliedIds(db), [1, 2, 3]);
+    assert.deepEqual(appliedIds(db), [1, 2, 3, 4]);
     const tables = tableNames(db);
     for (const table of ['users', 'ha_settings', 'categories', 'transactions', 'budgets']) {
       assert.ok(tables.includes(table), `${table} olmali`);
@@ -49,7 +49,7 @@ describe('migration zinciri', () => {
     const db = freshDb();
     runMigrations(db);
     assert.doesNotThrow(() => runMigrations(db));
-    assert.deepEqual(appliedIds(db), [1, 2, 3]);
+    assert.deepEqual(appliedIds(db), [1, 2, 3, 4]);
     db.close();
   });
 

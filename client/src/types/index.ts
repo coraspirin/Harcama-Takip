@@ -221,3 +221,121 @@ export type DashboardSummary = {
   };
   recentTransactions: Transaction[];
 };
+
+export type DebtKind = 'loan' | 'credit_card' | 'personal';
+export type DebtDirection = 'owe' | 'lent';
+
+export const DEBT_KIND_LABELS: Record<DebtKind, string> = {
+  loan: 'Kredi',
+  credit_card: 'Kredi karti',
+  personal: 'Kisiye borc/alacak',
+};
+
+/**
+ * ends: tahmini bitis ayi var · never: odeme faizi karsilamiyor ·
+ * no_payment: aylik odeme girilmemis · paid: bakiye sifir
+ */
+export type PayoffStatus = 'ends' | 'never' | 'no_payment' | 'paid';
+
+export type PayoffSummary = {
+  status: PayoffStatus;
+  months: number | null;
+  payoffMonth: string | null;
+  totalInterestKurus: number | null;
+  totalPaidKurus: number | null;
+  firstMonthInterestKurus: number;
+};
+
+export type Debt = {
+  id: number;
+  kind: DebtKind;
+  direction: DebtDirection;
+  name: string;
+  counterparty: string | null;
+  originalKurus: number;
+  reportedBalanceKurus: number;
+  balanceDate: string;
+  paidSinceKurus: number;
+  currentBalanceKurus: number;
+  paidTotalKurus: number;
+  paymentCount: number;
+  lastPaymentDate: string | null;
+  monthlyInterestBp: number;
+  taxesIncluded: boolean;
+  monthlyPaymentKurus: number | null;
+  note: string | null;
+  closed: boolean;
+  /** Kapali borclarda null */
+  forecast: PayoffSummary | null;
+};
+
+export type InstallmentDebt = {
+  itemId: number;
+  name: string;
+  remainingKurus: number;
+  remainingCount: number;
+  totalCount: number | null;
+  nextDueDate: string | null;
+  lastDueDate: string | null;
+  monthlyKurus: number | null;
+};
+
+export type DebtListResponse = {
+  debts: Debt[];
+  installments: InstallmentDebt[];
+  totals: {
+    oweKurus: number;
+    lentKurus: number;
+    monthlyPaymentKurus: number;
+    remainingInterestKurus: number;
+    /** Tum borclarin bitecegi tahmini ay; hesaplanamayan borc varsa null */
+    debtFreeMonth: string | null;
+    unknownForecastCount: number;
+  };
+};
+
+export type DebtPayment = {
+  id: number;
+  debtId: number;
+  date: string;
+  amountKurus: number;
+  note: string | null;
+};
+
+export type PayoffRow = {
+  month: string;
+  openingKurus: number;
+  interestKurus: number;
+  paymentKurus: number;
+  closingKurus: number;
+};
+
+export type DebtDetail = {
+  debt: Debt;
+  payments: DebtPayment[];
+  schedule: PayoffRow[];
+  whatIf: {
+    extraKurus: number;
+    base: PayoffSummary;
+    improved: PayoffSummary;
+    monthsSaved: number | null;
+    interestSavedKurus: number | null;
+  };
+};
+
+export type StrategyResult = {
+  strategy: 'avalanche' | 'snowball';
+  status: 'ends' | 'never' | 'paid';
+  months: number | null;
+  payoffMonth: string | null;
+  totalInterestKurus: number | null;
+  order: { id: number; name: string; months: number; payoffMonth: string }[];
+};
+
+export type DebtPlan = {
+  extraKurus: number;
+  startMonth: string;
+  avalanche: StrategyResult;
+  snowball: StrategyResult;
+  baseline: StrategyResult;
+};
