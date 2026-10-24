@@ -476,3 +476,77 @@ describe('abonelikler ve seyrek giderlerin aylik payi', () => {
     assert.equal(res.body.freeKurus, -res.body.pendingExpenseKurus - 110_000);
   });
 });
+
+describe('aboneligin yenilenme ayi', () => {
+  let yenilenen: TestClient;
+
+  /** Bugunden n ay sonraki "YYYY-MM" (Europe/Istanbul). */
+  function monthFromNow(n: number): string {
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Istanbul',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(new Date());
+    const [y, m] = today.split('-').map(Number) as [number, number];
+    const total = y * 12 + (m - 1) + n;
+    return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+  }
+
+  before(async () => {
+    yenilenen = await createUserAndLogin(server, 'yenilenen');
+  });
+
+  test('vadeler yenilenme ayina kadar (dahil) uretilir', async () => {
+    const created = await yenilenen.post<{ item: { id: number; endMonth: string | null } }>(
+      '/api/scheduled',
+      {
+        kind: 'bill',
+        name: 'Spor salonu',
+        period: 'monthly',
+        amountKurus: 150_000,
+        isSubscription: true,
+        startDate: `${monthFromNow(1)}-10`,
+        endMonth: monthFromNow(4),
+      },
+    );
+    assert.equal(created.status, 201);
+    assert.equal(created.body.item.endMonth, monthFromNow(4));
+
+    const dates = (await occurrencesOf(yenilenen, created.body.item.id)).map((o) => o.dueDate);
+    assert.deepEqual(dates, [1, 2, 3, 4].map((n) => `${monthFromNow(n)}-10`));
+  });
+
+  test('gunluk ufuk tazeleme bitis ayini asmaz', async () => {
+    const { extendAllBillHorizons } = await import('../services/scheduledService.ts');
+    extendAllBillHorizons();
+    const items = await yenilenen.get<{ items: { id: number; progress: { total: number } }[] }>(
+      '/api/scheduled?kind=bill',
+    );
+    assert.equal(items.body.items[0]!.progress.total, 4);
+  });
+
+  test('suresi biten abonelik o aydan sonra toplama girmez', async () => {
+    const during = await yenilenen.get<{ subscriptions: { monthlyKurus: number } }>(
+      `/api/scheduled/summary?month=${monthFromNow(4)}`,
+    );
+    assert.equal(during.body.subscriptions.monthlyKurus, 150_000);
+
+    const after = await yenilenen.get<{ subscriptions: { monthlyKurus: number } }>(
+      `/api/scheduled/summary?month=${monthFromNow(5)}`,
+    );
+    assert.equal(after.body.subscriptions.monthlyKurus, 0);
+  });
+
+  test('yenilenme ayi ilk vadeden once olamaz', async () => {
+    const res = await yenilenen.post('/api/scheduled', {
+      kind: 'bill',
+      name: 'Gecersiz',
+      period: 'monthly',
+      amountKurus: 1000,
+      isSubscription: true,
+      startDate: `${monthFromNow(3)}-01`,
+      endMonth: monthFromNow(2),
+    });
+    assert.equal(res.status, 400);
+  });
+});

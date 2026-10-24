@@ -57,6 +57,7 @@ function serializeItem(row: ScheduledItemWithProgress) {
     nextDueDate: row.next_due_date,
     remainingKurus: row.remaining_kurus,
     isSubscription: row.is_subscription === 1,
+    endMonth: row.end_month,
   };
 }
 
@@ -96,6 +97,8 @@ const createSchema = z
     period: z.enum(BILL_PERIODS).nullable().default(null),
     // Abonelik: sabit tutarli fatura
     isSubscription: z.boolean().default(false),
+    // Fatura/abonelik: vadeler bu aya kadar (dahil) uretilir
+    endMonth: yearMonthSchema.nullable().default(null),
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'planned' && value.amountKurus === null) {
@@ -114,6 +117,13 @@ const createSchema = z
     }
     if (value.isSubscription && value.amountKurus === null) {
       ctx.addIssue({ code: 'custom', path: ['amountKurus'], message: 'Abonelik icin tutar zorunlu' });
+    }
+    if (value.endMonth !== null) {
+      if (value.kind !== 'bill') {
+        ctx.addIssue({ code: 'custom', path: ['endMonth'], message: 'Bitis ayi yalnizca fatura ve abonelikte secilir' });
+      } else if (value.endMonth < value.startDate.slice(0, 7)) {
+        ctx.addIssue({ code: 'custom', path: ['endMonth'], message: 'Yenilenme ayi ilk vadeden once olamaz' });
+      }
     }
     if (value.kind === 'bill' && value.period === null) {
       ctx.addIssue({ code: 'custom', path: ['period'], message: 'Fatura periyodu zorunlu' });
@@ -147,7 +157,7 @@ scheduledRouter.get(
     const today = todayIso();
     const month = req.query.month ? yearMonthSchema.parse(req.query.month) : toYearMonth(today);
 
-    const bills = listRecurringBills(user.id);
+    const bills = listRecurringBills(user.id, month);
 
     const subscriptions = bills
       .filter((b) => b.is_subscription === 1 && b.amount_kurus !== null)

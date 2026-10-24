@@ -143,6 +143,8 @@ export type ScheduledItem = {
   remainingKurus: number;
   /** Abonelik: sabit tutarli fatura */
   isSubscription: boolean;
+  /** Fatura/abonelik: vadelerin uretildigi son ay (dahil); null = suresiz */
+  endMonth: string | null;
 };
 
 export type Occurrence = {

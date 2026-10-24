@@ -5,10 +5,11 @@ import { migration003Household } from './003_household.ts';
 import { migration004Debts } from './004_debts.ts';
 import { migration005Subscriptions } from './005_subscriptions.ts';
 import { migration006Savings } from './006_savings.ts';
+import { migration007BillEndMonth } from './007_bill_end_month.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
- *   1. yeni bir dosya olustur (or. 007_closings.ts)
+ *   1. yeni bir dosya olustur (or. 008_closings.ts)
  *   2. asagidaki diziye SIRAYLA ekle
  * Uygulanmis bir migration'in SQL'i asla degistirilmez; duzeltme yeni bir
  * migration ile yapilir.
@@ -20,4 +21,5 @@ export const migrations: Migration[] = [
   migration004Debts,
   migration005Subscriptions,
   migration006Savings,
+  migration007BillEndMonth,
 ];

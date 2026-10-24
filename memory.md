@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-10-25 02:48 | Aboneliğe yenilenme ayı: 007_bill_end_month migration'ı scheduled_items'a end_month (YYYY-MM, dahil; NULL = süresiz) ekledi. Vadeler bu aya kadar üretiliyor, günlük ufuk tazeleme de aşmıyor; süresi biten abonelik sonraki aylarda abonelik toplamına ve aylık paya girmiyor. Bekleyen ödemeler → Abonelikler formunda "Yenilenme ayı" alanı ve kaç ödeme oluşacağı önizlemesi; kartta "yenilenme <ay>". 263 test geçiyor.
+
 - 2026-10-24 17:38 | Sunucuya (192.168.61.114, /DATA/AppData/harcama-takip) kuruldu: eski klasör harcama-takip.bak-20261024-1537 olarak yedeklendi, yeni sürüm git archive ile kopyalandı, mevcut .env korunup UPLOAD_DIR/TESSDATA_DIR satırları silindi. Sabit Docker subnet'i (172.30.7.0/24) sunucudaki soyagaci ağıyla çakıştığı için docker-compose'da DOCKER_SUBNET ile ayarlanabilir yapıldı (varsayılan aynı); sunucuda 172.31.7.0/24. Container sağlıklı, http://192.168.61.114:4001 kurulum ekranında.
 
 - 2026-10-24 17:19 | Faz H (uyarılar, ay kapanışı, takvim): günlük taramaya runInsightScan eklendi — limit %80 ve aşım (eşik başına ayda bir), anormal harcama (kategori, son 6 ayın en az 3 aylık ortalamasının 1,5 katı ve ortalama ≥200 TL), önceki ayın kapanış özeti (sunucu 1'inde kapalı olsa da sonraki taramada bir kez); hepsi dedupe_key ile idempotent, HA'ya da gider. closingService (kayıt saklanmaz, anlık hesap) ve /api/reports/closings; Raporlar'a "Ay kapanışları" sekmesi. /api/calendar ve Takvim sayfası: gün gün gelir/gider, bekleyen ödemeler (gecikenler bugüne taşınır), ay başından net akış ve sıkışık günler; mobilde liste görünümü. README özellik tablosu güncellendi. 259 test geçiyor. Planın tüm fazları (A, C, B, E, G, F, D, H) tamamlandı.

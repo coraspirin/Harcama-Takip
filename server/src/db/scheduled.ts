@@ -25,6 +25,8 @@ export type ScheduledItemRow = {
   active: number;
   /** Abonelik: sabit tutarli fatura */
   is_subscription: number;
+  /** Fatura/abonelik: vadelerin uretilecegi son ay (dahil); NULL = suresiz */
+  end_month: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -114,6 +116,7 @@ export type CreateScheduledItemInput = {
   amountKurus: number | null;
   startDate: string;
   isSubscription?: boolean;
+  endMonth?: string | null;
 };
 
 export function insertScheduledItem(userId: number, input: CreateScheduledItemInput): number {
@@ -122,8 +125,8 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
       `INSERT INTO scheduled_items
          (user_id, kind, name, direction, category_id, counterparty, description,
           total_amount_kurus, installment_count, period, amount_kurus, start_date,
-          is_subscription)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          is_subscription, end_month)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
@@ -139,6 +142,7 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
       input.amountKurus,
       input.startDate,
       input.isSubscription ? 1 : 0,
+      input.endMonth ?? null,
     );
   return Number(result.lastInsertRowid);
 }
@@ -352,10 +356,11 @@ export type RecurringBillRow = {
 };
 
 /**
- * Aktif faturalar ve abonelikler; aylik pay ve abonelik toplami icin.
- * Tahmini tutari olmayan faturada son odenen tutar kullanilir.
+ * Verilen ayda hala suren aktif faturalar ve abonelikler; aylik pay ve
+ * abonelik toplami icin. Tahmini tutari olmayan faturada son odenen tutar
+ * kullanilir.
  */
-export function listRecurringBills(userId: number): RecurringBillRow[] {
+export function listRecurringBills(userId: number, month: string): RecurringBillRow[] {
   return getDb()
     .prepare(
       `SELECT i.id, i.name, i.period, i.is_subscription, i.amount_kurus, i.start_date,
@@ -368,9 +373,10 @@ export function listRecurringBills(userId: number): RecurringBillRow[] {
                ORDER BY o.due_date DESC LIMIT 1) AS last_paid_kurus
        FROM scheduled_items i
        WHERE i.user_id = ? AND i.kind = 'bill' AND i.active = 1 AND i.period IS NOT NULL
+         AND (i.end_month IS NULL OR i.end_month >= ?)
        ORDER BY i.name COLLATE NOCASE`,
     )
-    .all(userId) as RecurringBillRow[];
+    .all(userId, month) as RecurringBillRow[];
 }
 
 export function listActiveBills(): ScheduledItemRow[] {

@@ -22,6 +22,8 @@ export type ScheduledInput = {
   period?: BillPeriod | null;
   /** Yalnizca faturada: sabit tutarli abonelik */
   isSubscription?: boolean;
+  /** Yalnizca faturada: vadeler bu aya kadar (dahil) uretilir */
+  endMonth?: string | null;
 };
 
 export const scheduledService = {

@@ -20,7 +20,7 @@ import type { RecurrenceSuggestion } from '../services/matching.ts';
 import { ConfirmDialog, Modal } from './ui/Modal.tsx';
 import { MoneyInput } from './MoneyInput.tsx';
 import { Money } from './Money.tsx';
-import { formatDate, todayIso } from '../lib/format.ts';
+import { formatDate, formatYearMonth, todayIso } from '../lib/format.ts';
 
 /** Sekme: zamanlanmis kayit turu veya abonelik (sabit tutarli fatura). */
 export type ScheduledView = ScheduledKind | 'subscription';
@@ -67,6 +67,16 @@ const COPY: Record<ScheduledView, Copy> = {
       'Dizi platformu, muzik, spor salonu, telefon hatti gibi sabit tutarli odemelerinizi ekleyin; aylik ve yillik toplamini gorun.',
   },
 };
+
+const PERIOD_STEP: Record<BillPeriod, number> = { monthly: 1, quarterly: 3, yearly: 12 };
+
+/** Ilk vadeden yenilenme ayina kadar (dahil) kac odeme olusacagi. */
+function countPayments(startDate: string, period: BillPeriod, endMonth: string): number {
+  const [sy, sm] = startDate.split('-').map(Number) as [number, number];
+  const [ey, em] = endMonth.split('-').map(Number) as [number, number];
+  const span = ey * 12 + em - (sy * 12 + sm);
+  return span < 0 ? 0 : Math.floor(span / PERIOD_STEP[period]) + 1;
+}
 
 function statusTone(occurrence: Occurrence, today: string): string {
   if (occurrence.status === 'confirmed') return 'text-emerald-600';
@@ -122,6 +132,7 @@ export function ZamanlanmisListe({
   const [totalAmountKurus, setTotalAmountKurus] = useState<number | null>(null);
   const [installmentCount, setInstallmentCount] = useState('12');
   const [period, setPeriod] = useState<BillPeriod>('monthly');
+  const [endMonth, setEndMonth] = useState('');
 
   // --- vade tutari girisi ---
   const [occurrenceAmount, setOccurrenceAmount] = useState<number | null>(null);
@@ -137,6 +148,7 @@ export function ZamanlanmisListe({
     setTotalAmountKurus(null);
     setInstallmentCount('12');
     setPeriod('monthly');
+    setEndMonth('');
     setError(null);
     setFormOpen(true);
   }
@@ -172,7 +184,12 @@ export function ZamanlanmisListe({
           totalAmountKurus,
           installmentCount: Number(installmentCount),
         }),
-        ...(kind === 'bill' && { period, amountKurus, isSubscription }),
+        ...(kind === 'bill' && {
+          period,
+          amountKurus,
+          isSubscription,
+          endMonth: isSubscription && endMonth ? endMonth : null,
+        }),
       });
       setFormOpen(false);
       await items.reload();
@@ -435,6 +452,21 @@ export function ZamanlanmisListe({
             required
           />
 
+          {isSubscription && (
+            <TextField
+              label="Yenilenme ayi"
+              type="month"
+              value={endMonth}
+              min={startDate.slice(0, 7)}
+              onChange={(e) => setEndMonth(e.target.value)}
+              hint={
+                endMonth
+                  ? `${formatYearMonth(startDate.slice(0, 7))} – ${formatYearMonth(endMonth)} arasi ${countPayments(startDate, period, endMonth)} odeme olusur (yenilenme ayi dahil).`
+                  : 'Istege bagli. Secerseniz odeme bu aya kadar tekrarlanir; bos ise suresiz devam eder.'
+              }
+            />
+          )}
+
           <SelectField
             label="Kategori"
             value={categoryId ?? ''}
@@ -575,6 +607,7 @@ function ScheduledCard({
             {[
               kind === 'installment' && `${item.progress.confirmed}/${item.progress.total} taksit`,
               kind === 'bill' && item.period && BILL_PERIOD_LABELS[item.period],
+              item.endMonth && `yenilenme ${formatYearMonth(item.endMonth)}`,
               item.categoryName,
               item.counterparty,
             ]

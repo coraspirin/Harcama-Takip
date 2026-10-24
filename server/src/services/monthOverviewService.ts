@@ -62,7 +62,7 @@ export function getMonthOverview(userId: number, month: YearMonth, today: IsoDat
     month < toYearMonth(today)
       ? 0
       : calculateReserve(
-          listRecurringBills(userId).map((b) => ({
+          listRecurringBills(userId, month).map((b) => ({
             id: b.id,
             name: b.name,
             period: b.period,

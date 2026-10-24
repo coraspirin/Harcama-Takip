@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection.ts';
-import { addMonths, todayIso } from '../lib/date.ts';
+import { addMonths, todayIso, toYearMonth } from '../lib/date.ts';
 import { splitInstallments } from '../lib/money.ts';
 import { badRequest, conflict, notFound } from '../lib/errors.ts';
 import {
@@ -67,7 +67,14 @@ export function createScheduledItemWithOccurrences(
       });
     } else {
       if (input.period === null) throw badRequest('Fatura icin periyot zorunlu');
-      generateBillOccurrences(userId, itemId, input.startDate, input.period, input.amountKurus);
+      generateBillOccurrences(
+        userId,
+        itemId,
+        input.startDate,
+        input.period,
+        input.amountKurus,
+        input.endMonth ?? null,
+      );
     }
 
     db.exec('COMMIT');
@@ -79,8 +86,9 @@ export function createScheduledItemWithOccurrences(
 }
 
 /**
- * Faturanin vadelerini ufka kadar doldurur. Zaten var olan vadeler benzersiz
- * indeks sayesinde atlanir, bu yuzden gonul rahatligiyla tekrar cagrilabilir.
+ * Faturanin vadelerini ufka (ve varsa bitis ayina, dahil) kadar doldurur.
+ * Zaten var olan vadeler benzersiz indeks sayesinde atlanir, bu yuzden gonul
+ * rahatligiyla tekrar cagrilabilir.
  */
 export function generateBillOccurrences(
   userId: number,
@@ -88,6 +96,7 @@ export function generateBillOccurrences(
   startDate: string,
   period: BillPeriod,
   estimatedAmountKurus: number | null,
+  endMonth: string | null = null,
 ): number {
   const step = PERIOD_MONTHS[period];
   const horizon = addMonths(todayIso(), BILL_HORIZON_MONTHS);
@@ -103,6 +112,7 @@ export function generateBillOccurrences(
   let created = 0;
   // Ust sinir: sonsuz donguye karsi guvenlik
   for (let i = 0; cursor <= horizon && i < 200; i++) {
+    if (endMonth !== null && toYearMonth(cursor) > endMonth) break;
     insertOccurrence(userId, itemId, cursor, estimatedAmountKurus, null, null);
     created++;
     cursor = addMonths(cursor, step);
@@ -122,6 +132,7 @@ export function extendAllBillHorizons(): number {
       bill.start_date,
       bill.period,
       bill.amount_kurus,
+      bill.end_month,
     );
   }
   return total;
