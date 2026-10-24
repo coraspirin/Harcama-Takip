@@ -476,7 +476,7 @@ export default function Borclar() {
             <section className="mb-6">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-700">Taksitler</h2>
-                <Link to="/taksitler" className="text-sm font-medium text-brand-600 hover:underline">
+                <Link to="/bekleyen?sekme=taksit" className="text-sm font-medium text-brand-600 hover:underline">
                   Taksitlere git
                 </Link>
               </div>

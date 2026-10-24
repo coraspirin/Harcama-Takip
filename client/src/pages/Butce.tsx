@@ -12,6 +12,7 @@ import { ConfirmDialog, Modal } from '../components/ui/Modal.tsx';
 import { MoneyInput } from '../components/MoneyInput.tsx';
 import { Money } from '../components/Money.tsx';
 import { MonthPicker, currentYearMonth } from '../components/MonthPicker.tsx';
+import { formatTRY } from '../lib/format.ts';
 
 /** Formdaki hedef secimi: genel limit veya bir kategori id'si. */
 const GENERAL = 'general';
@@ -122,7 +123,13 @@ function MonthStatus({ overview }: { overview: MonthOverview }) {
         label="Serbest para"
         kurus={free}
         tone={free < 0 ? 'text-red-600' : 'text-emerald-600'}
-        note={free < 0 ? 'Bu gidisle ay acikla kapanir' : 'Ay sonuna kadar harcanabilir'}
+        note={
+          overview.reserveKurus > 0
+            ? `Yillik giderler icin ${formatTRY(overview.reserveKurus)} kenara ayrildiktan sonra`
+            : free < 0
+              ? 'Bu gidisle ay acikla kapanir'
+              : 'Ay sonuna kadar harcanabilir'
+        }
       />
     </div>
   );
@@ -154,11 +161,14 @@ export default function Butce() {
   );
 
   /**
-   * Genel limit onerisi: beklenen gelirden bekleyen odemeler dusuldukten sonra
-   * kalan, yani bu ay harcamaya ayrilabilecek en yuksek tutar.
+   * Genel limit onerisi: beklenen gelirden bekleyen odemeler ve yillik
+   * giderlerin aylik payi dusuldukten sonra kalan, yani bu ay harcamaya
+   * ayrilabilecek en yuksek tutar.
    */
   const suggestedGeneralKurus = overview.data
-    ? overview.data.expectedIncomeKurus - overview.data.pendingExpenseKurus
+    ? overview.data.expectedIncomeKurus -
+      overview.data.pendingExpenseKurus -
+      overview.data.reserveKurus
     : null;
 
   function openCreate(initialTarget?: string) {
@@ -350,7 +360,7 @@ export default function Butce() {
                       <>
                         {' '}
                         Oneri: <Money kurus={suggestedGeneralKurus} /> (beklenen gelir − bekleyen
-                        odemeler).
+                        odemeler − kenara ayrilacak pay).
                       </>
                     )}
                   </p>
@@ -482,7 +492,7 @@ export default function Butce() {
           {target === GENERAL && suggestedGeneralKurus !== null && suggestedGeneralKurus > 0 && (
             <p className="text-xs text-slate-500">
               Oneri: <Money kurus={suggestedGeneralKurus} /> — bu ayin beklenen gelirinden bekleyen
-              odemeler dusulmus hali.
+              odemeler ve yillik giderlerin aylik payi dusulmus hali.
             </p>
           )}
 

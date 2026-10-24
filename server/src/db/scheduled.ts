@@ -23,6 +23,8 @@ export type ScheduledItemRow = {
   amount_kurus: number | null;
   start_date: string;
   active: number;
+  /** Abonelik: sabit tutarli fatura */
+  is_subscription: number;
   created_at: string;
   updated_at: string;
 };
@@ -111,6 +113,7 @@ export type CreateScheduledItemInput = {
   period: BillPeriod | null;
   amountKurus: number | null;
   startDate: string;
+  isSubscription?: boolean;
 };
 
 export function insertScheduledItem(userId: number, input: CreateScheduledItemInput): number {
@@ -118,8 +121,9 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
     .prepare(
       `INSERT INTO scheduled_items
          (user_id, kind, name, direction, category_id, counterparty, description,
-          total_amount_kurus, installment_count, period, amount_kurus, start_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          total_amount_kurus, installment_count, period, amount_kurus, start_date,
+          is_subscription)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
@@ -134,6 +138,7 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
       input.period,
       input.amountKurus,
       input.startDate,
+      input.isSubscription ? 1 : 0,
     );
   return Number(result.lastInsertRowid);
 }
@@ -333,6 +338,39 @@ export function lastOccurrenceDate(userId: number, itemId: number): string | nul
     )
     .get(userId, itemId) as { d: string | null };
   return row.d;
+}
+
+export type RecurringBillRow = {
+  id: number;
+  name: string;
+  period: BillPeriod;
+  is_subscription: number;
+  amount_kurus: number | null;
+  start_date: string;
+  next_due_date: string | null;
+  last_paid_kurus: number | null;
+};
+
+/**
+ * Aktif faturalar ve abonelikler; aylik pay ve abonelik toplami icin.
+ * Tahmini tutari olmayan faturada son odenen tutar kullanilir.
+ */
+export function listRecurringBills(userId: number): RecurringBillRow[] {
+  return getDb()
+    .prepare(
+      `SELECT i.id, i.name, i.period, i.is_subscription, i.amount_kurus, i.start_date,
+              (SELECT MIN(o.due_date) FROM scheduled_occurrences o
+               WHERE o.scheduled_item_id = i.id AND o.user_id = i.user_id
+                 AND o.status = 'pending') AS next_due_date,
+              (SELECT o.amount_kurus FROM scheduled_occurrences o
+               WHERE o.scheduled_item_id = i.id AND o.user_id = i.user_id
+                 AND o.status = 'confirmed'
+               ORDER BY o.due_date DESC LIMIT 1) AS last_paid_kurus
+       FROM scheduled_items i
+       WHERE i.user_id = ? AND i.kind = 'bill' AND i.active = 1 AND i.period IS NOT NULL
+       ORDER BY i.name COLLATE NOCASE`,
+    )
+    .all(userId) as RecurringBillRow[];
 }
 
 export function listActiveBills(): ScheduledItemRow[] {

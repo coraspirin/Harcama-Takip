@@ -51,7 +51,7 @@ describe('tekrar eden odeme onerileri', () => {
     assert.equal(res.status, 200);
     const netflix = res.body.suggestions.find((s) => s.signature === 'netflix abone');
     assert.ok(netflix, JSON.stringify(res.body));
-    assert.equal(netflix.kind, 'planned');
+    assert.equal(netflix.kind, 'subscription');
     assert.equal(netflix.amountKurus, 19_990);
     assert.equal(netflix.occurrences, 3);
   });

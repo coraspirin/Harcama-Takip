@@ -8,13 +8,17 @@ import { foldTurkish } from '../lib/text.ts';
  *   a) EKSTRENIN KENDI YAZDIGI taksit imzasi ("03/03 TAKSIT") - en guvenilir,
  *      sira ve toplam dogrudan okunur.
  *   b) Istatistiksel tekrar - ayni imzali islemler aylik araliklarla tekrar
- *      ediyorsa fatura/planlanan odeme onerilir.
+ *      ediyorsa fatura veya abonelik onerilir.
  *
  * Hicbir oneri kendiliginden kayit olusturmaz: zamanlanmis kayitlar bildirim
  * uretir ve onaysiz olusmasi gurultu yaratirdi.
  */
 
-export type RecurrenceKind = 'installment' | 'bill' | 'planned';
+/**
+ * installment: aciklamada taksit ilerlemesi yaziyor · bill: tutar her ay
+ * degisiyor · subscription: her ay ayni tutar (abonelik).
+ */
+export type RecurrenceKind = 'installment' | 'bill' | 'subscription';
 
 export type RecurrenceSuggestion = {
   signature: string;
@@ -149,7 +153,7 @@ export function detectRecurrences(userId: number): RecurrenceSuggestion[] {
       ? 'installment'
       : amountVaries
         ? 'bill'
-        : 'planned';
+        : 'subscription';
 
     const last = group[group.length - 1]!;
 

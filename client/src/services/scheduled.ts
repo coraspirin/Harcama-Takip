@@ -5,6 +5,7 @@ import type {
   Occurrence,
   ScheduledItem,
   ScheduledKind,
+  ScheduledSummary,
 } from '../types/index.ts';
 
 export type ScheduledInput = {
@@ -19,6 +20,8 @@ export type ScheduledInput = {
   totalAmountKurus?: number | null;
   installmentCount?: number | null;
   period?: BillPeriod | null;
+  /** Yalnizca faturada: sabit tutarli abonelik */
+  isSubscription?: boolean;
 };
 
 export const scheduledService = {
@@ -26,6 +29,9 @@ export const scheduledService = {
     api
       .get<{ items: ScheduledItem[] }>(`/api/scheduled${kind ? `?kind=${kind}` : ''}`)
       .then((r) => r.items),
+
+  summary: (month?: string) =>
+    api.get<ScheduledSummary>(`/api/scheduled/summary${month ? `?month=${month}` : ''}`),
 
   upcoming: (days = 30) =>
     api.get<{ today: string; occurrences: Occurrence[]; overdueCount: number }>(

@@ -366,3 +366,113 @@ describe('veri izolasyonu ve silme', () => {
     );
   });
 });
+
+describe('abonelikler ve seyrek giderlerin aylik payi', () => {
+  type Summary = {
+    subscriptions: {
+      items: { name: string; monthlyKurus: number }[];
+      monthlyKurus: number;
+      yearlyKurus: number;
+    };
+    reserve: {
+      items: { name: string; monthlyShareKurus: number; dueThisMonth: boolean }[];
+      monthlyKurus: number;
+      unknownCount: number;
+    };
+  };
+
+  let abone: TestClient;
+
+  before(async () => {
+    abone = await createUserAndLogin(server, 'aboneci');
+  });
+
+  test('abonelik tutarsiz olusturulamaz', async () => {
+    const res = await abone.post('/api/scheduled', {
+      kind: 'bill',
+      name: 'Dizi platformu',
+      period: 'monthly',
+      isSubscription: true,
+      startDate: '2030-01-05',
+    });
+    assert.equal(res.status, 400);
+  });
+
+  test('yalnizca fatura abonelik olabilir', async () => {
+    const res = await abone.post('/api/scheduled', {
+      kind: 'planned',
+      name: 'Gecersiz',
+      amountKurus: 1000,
+      isSubscription: true,
+      startDate: '2030-01-05',
+    });
+    assert.equal(res.status, 400);
+  });
+
+  test('abonelik toplami aylik ve yillik karsilikla doner', async () => {
+    const created = await abone.post<{ item: { isSubscription: boolean } }>('/api/scheduled', {
+      kind: 'bill',
+      name: 'Dizi platformu',
+      period: 'monthly',
+      amountKurus: 19_990,
+      isSubscription: true,
+      startDate: '2030-01-05',
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.item.isSubscription, true);
+
+    await abone.post('/api/scheduled', {
+      kind: 'bill',
+      name: 'Bulut depolama',
+      period: 'yearly',
+      amountKurus: 120_000,
+      isSubscription: true,
+      startDate: '2030-06-01',
+    });
+
+    const res = await abone.get<Summary>('/api/scheduled/summary?month=2030-01');
+    assert.equal(res.status, 200);
+    assert.equal(res.body.subscriptions.items.length, 2);
+    // 19.990 + 120.000/12
+    assert.equal(res.body.subscriptions.monthlyKurus, 29_990);
+    assert.equal(res.body.subscriptions.yearlyKurus, 29_990 * 12);
+  });
+
+  test('yillik kalemin payi kenara ayrilir, vadesi gelen ayda ayrilmaz', async () => {
+    await abone.post('/api/scheduled', {
+      kind: 'bill',
+      name: 'Kasko',
+      period: 'yearly',
+      amountKurus: 1_200_000,
+      startDate: '2030-03-10',
+    });
+
+    const january = await abone.get<Summary>('/api/scheduled/summary?month=2030-01');
+    // Bulut depolama 10.000 + kasko 100.000; aylik abonelik paya girmez
+    assert.equal(january.body.reserve.monthlyKurus, 110_000);
+
+    const march = await abone.get<Summary>('/api/scheduled/summary?month=2030-03');
+    const kasko = march.body.reserve.items.find((i) => i.name === 'Kasko');
+    assert.equal(kasko?.dueThisMonth, true);
+    assert.equal(march.body.reserve.monthlyKurus, 10_000, 'mart: yalnizca bulut depolama');
+  });
+
+  test('tutari bilinmeyen fatura sayilir ama paya girmez', async () => {
+    await abone.post('/api/scheduled', {
+      kind: 'bill',
+      name: 'Dogalgaz',
+      period: 'quarterly',
+      startDate: '2030-02-15',
+    });
+    const res = await abone.get<Summary>('/api/scheduled/summary?month=2030-01');
+    assert.equal(res.body.reserve.unknownCount, 1);
+  });
+
+  test('aylik pay ay durumundaki serbest paradan dusulur', async () => {
+    const res = await abone.get<{ reserveKurus: number; freeKurus: number; pendingExpenseKurus: number }>(
+      '/api/budgets/overview?month=2030-01',
+    );
+    assert.equal(res.body.reserveKurus, 110_000);
+    assert.equal(res.body.freeKurus, -res.body.pendingExpenseKurus - 110_000);
+  });
+});

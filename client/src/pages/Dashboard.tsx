@@ -240,7 +240,7 @@ export default function Dashboard() {
               footer={
                 data.overview.incomeIsEstimate
                   ? 'Gelir tahmini (onceki aylarin ortalamasi)'
-                  : 'Beklenen gelir − harcanan − bekleyen odemeler'
+                  : 'Beklenen gelir − harcanan − bekleyen odemeler − kenara ayrilacak'
               }
             >
               <Money kurus={data.overview.freeKurus} signed />
@@ -278,7 +278,7 @@ export default function Dashboard() {
                     : `Onumuzdeki ${UPCOMING_DAYS} gun`
                 }
                 actions={
-                  <Link to="/planlanan" className="text-sm font-medium text-brand-600 hover:underline">
+                  <Link to="/bekleyen" className="text-sm font-medium text-brand-600 hover:underline">
                     Tumu
                   </Link>
                 }

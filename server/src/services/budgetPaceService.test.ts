@@ -137,3 +137,17 @@ describe('serbest para', () => {
     assert.equal(free.freeKurus, -200_000);
   });
 });
+
+describe('serbest para ve kenara ayirma', () => {
+  test('seyrek giderlerin aylik payi serbest paradan dusulur', () => {
+    const free = calculateFreeMoney({
+      actualIncomeKurus: 5_000_000,
+      pendingIncomeKurus: 0,
+      averageIncomeKurus: 0,
+      spentKurus: 2_000_000,
+      pendingExpenseKurus: 500_000,
+      reserveKurus: 100_000,
+    });
+    assert.equal(free.freeKurus, 2_400_000);
+  });
+});

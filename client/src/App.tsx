@@ -14,7 +14,7 @@ import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
 import Borclar from './pages/Borclar.tsx';
 import Raporlar from './pages/Raporlar.tsx';
-import ZamanlanmisSayfa from './pages/ZamanlanmisSayfa.tsx';
+import BekleyenOdemeler from './pages/BekleyenOdemeler.tsx';
 import Kullanicilar from './pages/admin/Kullanicilar.tsx';
 import IslemGunlugu from './pages/admin/IslemGunlugu.tsx';
 
@@ -74,9 +74,11 @@ function AppRoutes() {
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="islemler" element={<Islemler />} />
-        <Route path="planlanan" element={<ZamanlanmisSayfa kind="planned" />} />
-        <Route path="taksitler" element={<ZamanlanmisSayfa kind="installment" />} />
-        <Route path="faturalar" element={<ZamanlanmisSayfa kind="bill" />} />
+        <Route path="bekleyen" element={<BekleyenOdemeler />} />
+        {/* Eski adresler: yer imleri ve bildirim baglantilari bozulmasin */}
+        <Route path="planlanan" element={<Navigate to="/bekleyen?sekme=planlanan" replace />} />
+        <Route path="taksitler" element={<Navigate to="/bekleyen?sekme=taksit" replace />} />
+        <Route path="faturalar" element={<Navigate to="/bekleyen?sekme=fatura" replace />} />
         <Route path="borclar" element={<Borclar />} />
         <Route path="raporlar" element={<Raporlar />} />
         <Route path="kategoriler" element={<Kategoriler />} />

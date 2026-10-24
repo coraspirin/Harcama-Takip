@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.ts';
 import { requireUser, currentUser } from '../middleware/auth.ts';
 import { badRequest, notFound } from '../lib/errors.ts';
-import { idParamSchema, isoDateSchema, positiveKurusSchema } from '../lib/validation.ts';
-import { addDays, todayIso } from '../lib/date.ts';
+import { idParamSchema, isoDateSchema, positiveKurusSchema, yearMonthSchema } from '../lib/validation.ts';
+import { addDays, todayIso, toYearMonth } from '../lib/date.ts';
 import { categoryExists } from '../db/categories.ts';
 import {
   BILL_PERIODS,
@@ -14,6 +14,7 @@ import {
   findOccurrence,
   findScheduledItem,
   listOccurrences,
+  listRecurringBills,
   listScheduledItems,
   listUpcomingOccurrences,
   updateOccurrenceAmount,
@@ -26,6 +27,7 @@ import {
   createScheduledItemWithOccurrences,
   unconfirmOccurrence,
 } from '../services/scheduledService.ts';
+import { calculateReserve, monthlyEquivalent } from '../services/reserveService.ts';
 
 export const scheduledRouter: Router = Router();
 
@@ -54,6 +56,7 @@ function serializeItem(row: ScheduledItemWithProgress) {
     },
     nextDueDate: row.next_due_date,
     remainingKurus: row.remaining_kurus,
+    isSubscription: row.is_subscription === 1,
   };
 }
 
@@ -91,6 +94,8 @@ const createSchema = z
     installmentCount: z.number().int().min(2).max(120).nullable().default(null),
     // bill
     period: z.enum(BILL_PERIODS).nullable().default(null),
+    // Abonelik: sabit tutarli fatura
+    isSubscription: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'planned' && value.amountKurus === null) {
@@ -103,6 +108,12 @@ const createSchema = z
       if (value.installmentCount === null) {
         ctx.addIssue({ code: 'custom', path: ['installmentCount'], message: 'Taksit sayisi zorunlu' });
       }
+    }
+    if (value.isSubscription && value.kind !== 'bill') {
+      ctx.addIssue({ code: 'custom', path: ['isSubscription'], message: 'Yalnizca fatura abonelik olabilir' });
+    }
+    if (value.isSubscription && value.amountKurus === null) {
+      ctx.addIssue({ code: 'custom', path: ['amountKurus'], message: 'Abonelik icin tutar zorunlu' });
     }
     if (value.kind === 'bill' && value.period === null) {
       ctx.addIssue({ code: 'custom', path: ['period'], message: 'Fatura periyodu zorunlu' });
@@ -122,6 +133,54 @@ scheduledRouter.get(
       : undefined;
 
     res.json({ items: listScheduledItems(user.id, kind).map(serializeItem) });
+  }),
+);
+
+/**
+ * Abonelik toplami ve seyrek giderlerin aylik payi. Faturada tahmini tutar
+ * yoksa son odenen tutar kullanilir.
+ */
+scheduledRouter.get(
+  '/summary',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const today = todayIso();
+    const month = req.query.month ? yearMonthSchema.parse(req.query.month) : toYearMonth(today);
+
+    const bills = listRecurringBills(user.id);
+
+    const subscriptions = bills
+      .filter((b) => b.is_subscription === 1 && b.amount_kurus !== null)
+      .map((b) => ({
+        id: b.id,
+        name: b.name,
+        period: b.period,
+        amountKurus: b.amount_kurus!,
+        monthlyKurus: monthlyEquivalent(b.amount_kurus!, b.period),
+        nextDueDate: b.next_due_date,
+      }));
+    const subscriptionMonthly = subscriptions.reduce((sum, s) => sum + s.monthlyKurus, 0);
+
+    const reserve = calculateReserve(
+      bills.map((b) => ({
+        id: b.id,
+        name: b.name,
+        period: b.period,
+        amountKurus: b.amount_kurus ?? b.last_paid_kurus,
+        startDate: b.start_date,
+      })),
+      month,
+    );
+
+    res.json({
+      month,
+      subscriptions: {
+        items: subscriptions,
+        monthlyKurus: subscriptionMonthly,
+        yearlyKurus: subscriptionMonthly * 12,
+      },
+      reserve,
+    });
   }),
 );
 

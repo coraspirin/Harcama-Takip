@@ -1,8 +1,9 @@
 import { addMonthsToYearMonth, monthRange, toYearMonth, type IsoDate, type YearMonth } from '../lib/date.ts';
 import { sumTransactions } from '../db/transactions.ts';
 import { monthlyTotals } from '../db/reports.ts';
-import { sumPendingOccurrences } from '../db/scheduled.ts';
+import { listRecurringBills, sumPendingOccurrences } from '../db/scheduled.ts';
 import { calculateFreeMoney } from './budgetPaceService.ts';
+import { calculateReserve } from './reserveService.ts';
 
 /** Ortalama gelir icin geriye bakilan ay sayisi. */
 export const INCOME_AVERAGE_MONTHS = 3;
@@ -17,6 +18,8 @@ export type MonthOverview = {
   spentKurus: number;
   pendingExpenseKurus: number;
   unknownAmountCount: number;
+  /** Uc aylik / yillik giderler icin bu ay kenara ayrilacak pay */
+  reserveKurus: number;
   freeKurus: number;
 };
 
@@ -51,12 +54,28 @@ export function getMonthOverview(userId: number, month: YearMonth, today: IsoDat
 
   const averageIncomeKurus = averageIncome(userId, month, INCOME_AVERAGE_MONTHS);
 
+  // Gecmis bir ay icin kenara ayirma anlamsizdir; o ay kapandi.
+  const reserveKurus =
+    month < toYearMonth(today)
+      ? 0
+      : calculateReserve(
+          listRecurringBills(userId).map((b) => ({
+            id: b.id,
+            name: b.name,
+            period: b.period,
+            amountKurus: b.amount_kurus ?? b.last_paid_kurus,
+            startDate: b.start_date,
+          })),
+          month,
+        ).monthlyKurus;
+
   const free = calculateFreeMoney({
     actualIncomeKurus: actual.incomeKurus,
     pendingIncomeKurus: pending.incomeKurus,
     averageIncomeKurus,
     spentKurus: actual.expenseKurus,
     pendingExpenseKurus: pending.expenseKurus,
+    reserveKurus,
   });
 
   return {
@@ -69,6 +88,7 @@ export function getMonthOverview(userId: number, month: YearMonth, today: IsoDat
     spentKurus: actual.expenseKurus,
     pendingExpenseKurus: pending.expenseKurus,
     unknownAmountCount: pending.unknownAmountCount,
+    reserveKurus,
     freeKurus: free.freeKurus,
   };
 }

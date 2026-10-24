@@ -11,16 +11,19 @@ import {
   type ScheduledItem,
   type ScheduledKind,
 } from '../types/index.ts';
-import { Button } from '../components/ui/Button.tsx';
-import { SelectField, TextField } from '../components/ui/Field.tsx';
-import { Alert } from '../components/ui/Alert.tsx';
-import { Card, EmptyState, PageHeader } from '../components/ui/Card.tsx';
-import { TekrarOnerileri } from '../components/TekrarOnerileri.tsx';
+import { Button } from './ui/Button.tsx';
+import { SelectField, TextField } from './ui/Field.tsx';
+import { Alert } from './ui/Alert.tsx';
+import { Card, EmptyState } from './ui/Card.tsx';
+import { TekrarOnerileri } from './TekrarOnerileri.tsx';
 import type { RecurrenceSuggestion } from '../services/matching.ts';
-import { ConfirmDialog, Modal } from '../components/ui/Modal.tsx';
-import { MoneyInput } from '../components/MoneyInput.tsx';
-import { Money } from '../components/Money.tsx';
+import { ConfirmDialog, Modal } from './ui/Modal.tsx';
+import { MoneyInput } from './MoneyInput.tsx';
+import { Money } from './Money.tsx';
 import { formatDate, todayIso } from '../lib/format.ts';
+
+/** Sekme: zamanlanmis kayit turu veya abonelik (sabit tutarli fatura). */
+export type ScheduledView = ScheduledKind | 'subscription';
 
 type Copy = {
   title: string;
@@ -30,7 +33,7 @@ type Copy = {
   emptyDescription: string;
 };
 
-const COPY: Record<ScheduledKind, Copy> = {
+const COPY: Record<ScheduledView, Copy> = {
   planned: {
     title: 'Planlanan odemeler',
     description: 'Gelecekte yapilacak odemeler ve beklenen alacaklar',
@@ -55,6 +58,14 @@ const COPY: Record<ScheduledKind, Copy> = {
     emptyDescription:
       'Elektrik, su, internet gibi duzenli faturalarinizi tanimlayin; her donem icin odenecek kayit otomatik acilir.',
   },
+  subscription: {
+    title: 'Abonelikler',
+    description: 'Her donem ayni tutarda tekrar eden odemeler',
+    addLabel: 'Abonelik ekle',
+    emptyTitle: 'Abonelik yok',
+    emptyDescription:
+      'Dizi platformu, muzik, spor salonu, telefon hatti gibi sabit tutarli odemelerinizi ekleyin; aylik ve yillik toplamini gorun.',
+  },
 };
 
 function statusTone(occurrence: Occurrence, today: string): string {
@@ -70,11 +81,27 @@ function statusLabel(occurrence: Occurrence, today: string): string {
   return 'Bekliyor';
 }
 
-export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
-  const copy = COPY[kind];
+export function ZamanlanmisListe({
+  view,
+  onChanged,
+}: {
+  view: ScheduledView;
+  /** Kayit eklenip silindiginde ust sayfadaki ozetin tazelenmesi icin */
+  onChanged?: () => void;
+}) {
+  const copy = COPY[view];
+  const kind: ScheduledKind = view === 'subscription' ? 'bill' : view;
+  const isSubscription = view === 'subscription';
   const today = todayIso();
 
-  const items = useAsync(() => scheduledService.list(kind), [kind]);
+  // Abonelikler ve faturalar ayni turdedir; bayrakla ayrilir.
+  const items = useAsync(
+    () =>
+      scheduledService
+        .list(kind)
+        .then((rows) => (kind === 'bill' ? rows.filter((r) => r.isSubscription === isSubscription) : rows)),
+    [kind, isSubscription],
+  );
   const categories = useAsync(() => categoryService.list(), []);
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -145,10 +172,11 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
           totalAmountKurus,
           installmentCount: Number(installmentCount),
         }),
-        ...(kind === 'bill' && { period, amountKurus }),
+        ...(kind === 'bill' && { period, amountKurus, isSubscription }),
       });
       setFormOpen(false);
       await items.reload();
+      onChanged?.();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Kaydedilemedi');
     } finally {
@@ -168,6 +196,7 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
       );
       setDeleting(null);
       await items.reload();
+      onChanged?.();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Silinemedi');
     } finally {
@@ -238,16 +267,13 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
 
   return (
     <>
-      <PageHeader
-        title={copy.title}
-        description={copy.description}
-        actions={
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4" aria-hidden />
-            {copy.addLabel}
-          </Button>
-        }
-      />
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-500">{copy.description}</p>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4" aria-hidden />
+          {copy.addLabel}
+        </Button>
+      </div>
 
       {(items.error || error) && (
         <div className="mb-4">
@@ -260,7 +286,7 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
         </div>
       )}
 
-      <TekrarOnerileri kind={kind} onUse={useSuggestion} />
+      {view !== 'planned' && <TekrarOnerileri kind={view} onUse={useSuggestion} />}
 
       {!items.loading && list.length === 0 ? (
         <Card>
@@ -317,7 +343,13 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={
-              kind === 'bill' ? 'Ornek: Elektrik' : kind === 'installment' ? 'Ornek: Telefon' : ''
+              isSubscription
+                ? 'Ornek: Dizi platformu'
+                : kind === 'bill'
+                  ? 'Ornek: Elektrik'
+                  : kind === 'installment'
+                    ? 'Ornek: Telefon'
+                    : ''
             }
             autoFocus
             required
@@ -369,12 +401,22 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
                   </option>
                 ))}
               </SelectField>
-              <MoneyInput
-                label="Tahmini tutar"
-                valueKurus={amountKurus}
-                onChangeKurus={setAmountKurus}
-                hint="Istege bagli. Her donem gercek tutari kendiniz girersiniz."
-              />
+              {isSubscription ? (
+                <MoneyInput
+                  label="Tutar"
+                  valueKurus={amountKurus}
+                  onChangeKurus={setAmountKurus}
+                  hint="Her donem odenen sabit tutar"
+                  required
+                />
+              ) : (
+                <MoneyInput
+                  label="Tahmini tutar"
+                  valueKurus={amountKurus}
+                  onChangeKurus={setAmountKurus}
+                  hint="Istege bagli. Uc aylik / yillik faturada aylik pay bununla hesaplanir; bos ise son odenen tutar kullanilir."
+                />
+              )}
             </>
           ) : (
             <MoneyInput
@@ -386,7 +428,7 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
           )}
 
           <TextField
-            label={kind === 'installment' ? 'Ilk taksit tarihi' : 'Vade tarihi'}
+            label={kind === 'installment' ? 'Ilk taksit tarihi' : kind === 'bill' ? 'Ilk vade tarihi' : 'Vade tarihi'}
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
@@ -453,7 +495,7 @@ export default function ZamanlanmisSayfa({ kind }: { kind: ScheduledKind }) {
             onChange={(e) => setOccurrenceDate(e.target.value)}
           />
           <Alert tone="info">
-            Onayladiginizda hesabiniza gercek bir islem kaydi yazilir ve raporlara dahil edilir.
+            Onayladiginizda gercek bir gider kaydi yazilir ve raporlara dahil edilir.
           </Alert>
           {error && <Alert tone="error">{error}</Alert>}
         </div>

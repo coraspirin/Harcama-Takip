@@ -75,6 +75,8 @@ export type MonthOverview = {
   pendingExpenseKurus: number;
   /** Tutari henuz girilmemis bekleyen vadeler */
   unknownAmountCount: number;
+  /** Uc aylik / yillik giderler icin bu ay kenara ayrilacak pay */
+  reserveKurus: number;
   freeKurus: number;
 };
 
@@ -137,6 +139,8 @@ export type ScheduledItem = {
   progress: { total: number; confirmed: number; pending: number };
   nextDueDate: string | null;
   remainingKurus: number;
+  /** Abonelik: sabit tutarli fatura */
+  isSubscription: boolean;
 };
 
 export type Occurrence = {
@@ -352,4 +356,34 @@ export type DebtPlan = {
   avalanche: StrategyResult;
   snowball: StrategyResult;
   baseline: StrategyResult;
+};
+
+export type ScheduledSummary = {
+  month: string;
+  subscriptions: {
+    items: {
+      id: number;
+      name: string;
+      period: BillPeriod;
+      amountKurus: number;
+      monthlyKurus: number;
+      nextDueDate: string | null;
+    }[];
+    monthlyKurus: number;
+    yearlyKurus: number;
+  };
+  /** Seyrek (uc aylik / yillik) giderlerin aylik payi */
+  reserve: {
+    items: {
+      id: number;
+      name: string;
+      period: BillPeriod;
+      amountKurus: number;
+      monthlyShareKurus: number;
+      /** Vadesi bu ay: tutar zaten bekleyen odemelerde, pay ayrilmaz */
+      dueThisMonth: boolean;
+    }[];
+    monthlyKurus: number;
+    unknownCount: number;
+  };
 };

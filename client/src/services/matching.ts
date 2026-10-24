@@ -2,7 +2,8 @@ import { api } from './api.ts';
 
 export type RecurrenceSuggestion = {
   signature: string;
-  kind: 'installment' | 'bill' | 'planned';
+  /** subscription: her ay ayni tutar · bill: tutar degisken · installment: taksit */
+  kind: 'installment' | 'bill' | 'subscription';
   name: string;
   occurrences: number;
   amountKurus: number;
