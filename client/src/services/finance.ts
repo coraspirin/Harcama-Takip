@@ -5,7 +5,9 @@ import type {
   CategoryReport,
   Category,
   DashboardSummary,
+  CalendarMonth,
   ForecastReport,
+  MonthClosing,
   ImportResult,
   MonthOverview,
   MonthlyReport,
@@ -108,6 +110,8 @@ export const reportService = {
     api.get<CategoryReport>(`/api/reports/categories?from=${from}&to=${to}&kind=${kind}`),
   trend: (to: string, months = 12) =>
     api.get<TrendReport>(`/api/reports/trend?to=${to}&months=${months}`),
+  closings: (count = 6) =>
+    api.get<{ closings: MonthClosing[] }>(`/api/reports/closings?count=${count}`).then((r) => r.closings),
   forecast: (basis: 3 | 6 | 12, cutKurus = 0) =>
     api.get<ForecastReport>(`/api/reports/forecast?basis=${basis}&cut=${cutKurus}`),
 };
@@ -115,4 +119,8 @@ export const reportService = {
 export const dashboardService = {
   summary: (month?: string) =>
     api.get<DashboardSummary>(`/api/dashboard/summary${month ? `?month=${month}` : ''}`),
+};
+
+export const calendarService = {
+  month: (month: string) => api.get<CalendarMonth>(`/api/calendar?month=${month}`),
 };

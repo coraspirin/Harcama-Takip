@@ -22,6 +22,7 @@ import { homeAssistantRouter } from './routes/homeAssistant.ts';
 import { dashboardRouter } from './routes/dashboard.ts';
 import { debtsRouter } from './routes/debts.ts';
 import { savingsRouter } from './routes/savings.ts';
+import { calendarRouter } from './routes/calendar.ts';
 
 export type CreateAppOptions = {
   /**
@@ -88,6 +89,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/debts', debtsRouter);
   app.use('/api/savings', savingsRouter);
+  app.use('/api/calendar', calendarRouter);
   app.use('/api/matching', matchingRouter);
   app.use('/api/settings/home-assistant', homeAssistantRouter);
 

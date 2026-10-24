@@ -253,3 +253,18 @@ export function pendingInstallmentsByMonth(userId: number): Map<string, number> 
     .all(userId) as { month: string; total: number }[];
   return new Map(rows.map((r) => [r.month, Number(r.total)]));
 }
+
+/** Bir ayda borclara yapilan odemeler ve alacak tahsilatlari. */
+export function debtPaymentsInMonth(userId: number, month: string): { oweKurus: number; lentKurus: number } {
+  const row = getDb()
+    .prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN d.direction = 'owe'  THEN p.amount_kurus ELSE 0 END), 0) AS owe,
+         COALESCE(SUM(CASE WHEN d.direction = 'lent' THEN p.amount_kurus ELSE 0 END), 0) AS lent
+       FROM debt_payments p
+       JOIN debts d ON d.id = p.debt_id AND d.user_id = p.user_id
+       WHERE p.user_id = ? AND substr(p.date, 1, 7) = ?`,
+    )
+    .get(userId, month) as { owe: number; lent: number };
+  return { oweKurus: Number(row.owe), lentKurus: Number(row.lent) };
+}

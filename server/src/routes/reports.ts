@@ -16,6 +16,7 @@ import {
 import { currentBalanceKurus, listDebts, pendingInstallmentsByMonth } from '../db/debts.ts';
 import { buildForecast } from '../services/forecastService.ts';
 import { getSavingsOverview } from '../services/savingsOverviewService.ts';
+import { getMonthClosing } from '../services/closingService.ts';
 
 export const reportsRouter: Router = Router();
 
@@ -201,5 +202,23 @@ reportsRouter.get(
     });
 
     res.json({ basis: q.basis, startMonth, hasHistory: history.length > 0, ...forecast });
+  }),
+);
+
+/**
+ * Son `count` kapanmis ayin ozeti (icinde bulunulan ay haric). Kayit
+ * saklanmaz; her istekte islemlerden hesaplanir.
+ */
+reportsRouter.get(
+  '/closings',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const count = z.coerce.number().int().min(1).max(24).default(6).parse(req.query.count ?? 6);
+    const current = toYearMonth(todayIso());
+
+    const closings = Array.from({ length: count }, (_, i) =>
+      getMonthClosing(user.id, addMonthsToYearMonth(current, -(i + 1))),
+    );
+    res.json({ closings });
   }),
 );

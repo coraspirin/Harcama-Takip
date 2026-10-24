@@ -477,3 +477,42 @@ export type ForecastReport = {
     interestSavedKurus: number | null;
   } | null;
 };
+
+export type MonthClosing = {
+  month: string;
+  hasData: boolean;
+  incomeKurus: number;
+  expenseKurus: number;
+  netKurus: number;
+  limit: { limitKurus: number; spentKurus: number; kept: boolean } | null;
+  exceededCategories: string[];
+  savedKurus: number;
+  debtPaidKurus: number;
+  topCategory: { name: string; totalKurus: number } | null;
+};
+
+export type CalendarDay = {
+  date: string;
+  incomeKurus: number;
+  expenseKurus: number;
+  pending: {
+    id: number;
+    name: string;
+    direction: 'income' | 'expense';
+    amountKurus: number | null;
+    dueDate: string;
+    overdue: boolean;
+  }[];
+  /** Ay basindan bu gunun sonuna kadar net akis (gerceklesen + bekleyen) */
+  cumulativeKurus: number;
+  /** Net akis eksiye dustu */
+  tight: boolean;
+};
+
+export type CalendarMonth = {
+  month: string;
+  today: string;
+  days: CalendarDay[];
+  tightDayCount: number;
+  endCumulativeKurus: number;
+};

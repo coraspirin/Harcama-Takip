@@ -10,6 +10,7 @@ import { KategoriDagilimi } from '../components/charts/KategoriDagilimi.tsx';
 import { AylikTrend } from '../components/charts/AylikTrend.tsx';
 import { formatYearMonth } from '../lib/format.ts';
 import { GidisatRaporu } from '../components/GidisatRaporu.tsx';
+import { AyKapanislari } from '../components/AyKapanislari.tsx';
 
 function ChangeNote({ percent, invert = false }: { percent: number | null; invert?: boolean }) {
   if (percent === null) {
@@ -39,7 +40,7 @@ const TREND_MONTHS = 12;
 export default function Raporlar() {
   const [month, setMonth] = useState(currentYearMonth());
   const [breakdownKind, setBreakdownKind] = useState<'expense' | 'income'>('expense');
-  const [view, setView] = useState<'monthly' | 'forecast'>('monthly');
+  const [view, setView] = useState<'monthly' | 'forecast' | 'closings'>('monthly');
 
   const monthly = useAsync(() => reportService.monthly(month), [month]);
   const trend = useAsync(() => reportService.trend(month, TREND_MONTHS), [month]);
@@ -63,6 +64,7 @@ export default function Raporlar() {
           [
             ['monthly', 'Aylik rapor'],
             ['forecast', 'Gidisat'],
+            ['closings', 'Ay kapanislari'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -81,6 +83,8 @@ export default function Raporlar() {
 
       {view === 'forecast' ? (
         <GidisatRaporu />
+      ) : view === 'closings' ? (
+        <AyKapanislari />
       ) : (
         <>
           {/* Tek filtre satiri: asagidaki tum grafikleri ayni dilime gore yeniler */}

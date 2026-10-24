@@ -9,11 +9,16 @@ erişemeyen** bir süper admin rolü vardır.
 
 | Alan | Kapsam |
 | --- | --- |
+| Özet | Bu ay gelir/gider · serbest para · günlük harcanabilir · yaklaşan ödemeler · borç özeti |
 | İşlemler | Gelir/gider CRUD · tarih, kategori, tutar aralığı ve açıklama filtreleri · toplu silme |
 | Kategoriler | Varsayılan iskelet · sabit/değişken ayrımı · kullanımdaysa arşivleme |
-| Bekleyen ödemeler | Planlanan ödeme/alacak · taksit (3/12 ilerleme) · fatura · günlük hatırlatma · tekrar eden ödeme önerileri |
-| Raporlar | Aylık özet · kategori kırılımı (halka grafik) · 12 aylık trend |
-| Bütçe | Kategori bazlı aylık limit · aşım uyarısı · önceki aydan kopyalama |
+| Bekleyen ödemeler | Planlanan ödeme/alacak · fatura · abonelik · taksit (3/12 ilerleme) · yıllık giderlerin aylık payı · tekrar eden ödeme önerileri |
+| Bütçe | Genel ve kategori bazlı aylık limit · günlük harcanabilir tutar · ay sonu tahmini · serbest para |
+| Borçlar | Kredi, kredi kartı, kişilere borç/alacak · bitme tahmini (KKDF + BSMV dahil faiz) · fazladan ödeme etkisi · çığ/kartopu |
+| Birikimler | Hedefler · aylık gereken tutar · ulaşma tahmini · acil durum fonu önerisi |
+| Takvim | Gün gün gelir ve ödemeler · nakdin sıkıştığı günler |
+| Raporlar | Aylık özet · kategori kırılımı · 12 aylık trend · gidişat tahmini ("ayda X az harcarsam") · ay kapanışları |
+| Uyarılar | Vade hatırlatma · limit %80/%100 · anormal harcama · ay kapanış özeti (uygulama içi + Home Assistant) |
 | Veri | JSON dışa/içe aktarım (birleştir veya üzerine yaz) · onaylı sıfırlama |
 | Süper admin | Kullanıcı yönetimi · şifre sıfırlama · işlem günlüğü |
 | Opsiyonel | PWA (ana ekrana ekleme) · Home Assistant bildirimleri |
@@ -116,7 +121,8 @@ server/src/
   middleware/            auth (rol kontrolü), rate limit, hata yönetimi
   routes/                API uçları
   routes/admin/          süper admin uçları (diğerlerinden tamamen ayrı)
-  services/              zamanlanmış görev, tekrar tespiti, veri aktarımı, kripto, Home Assistant
+  services/              tahminler (borç, birikim, gidişat, limit hızı), uyarılar, zamanlanmış görev,
+                         tekrar tespiti, veri aktarımı, kripto, Home Assistant
 client/src/
   components/            yeniden kullanılabilir UI + grafikler
   pages/ · pages/admin/  kullanıcı ve süper admin sayfaları
@@ -143,6 +149,11 @@ export→reset→import round-trip.
   taksitlere dağıtılır; toplam daima korunur.
 - Tarihler veritabanında `YYYY-MM-DD` metni; ekranda `gg.aa.yyyy`. Tarih
   aritmetiği metin üzerinden yapılır — saat dilimi kaynaklı gün kaymaları olmaz.
+- **Borç ödemesi ve birikim gider değildir.** Ayrı tablolarda tutulur; nakit
+  akışında (serbest para, gidişat) ayrı satır olarak düşülür.
+- **Tahminler "tahmini"dir.** Borç faizi aylık işletilir (bankalar günlük
+  işletir), gidişat geçmiş ayların ortalamasını ileri taşır. Ekranda her zaman
+  belirtilir.
 - **İşlem bir hesaba bağlı değildir.** Banka, hesap ve kart ekstresi takibi
   yoktur; işlem tarih + tutar + gelir/gider + kategori + açıklamadan ibarettir.
 - **Harcama, yapıldığı anda gider olarak girilir** (kartla da olsa). Kart

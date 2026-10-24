@@ -14,6 +14,7 @@ import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
 import Borclar from './pages/Borclar.tsx';
 import Birikimler from './pages/Birikimler.tsx';
+import Takvim from './pages/Takvim.tsx';
 import Raporlar from './pages/Raporlar.tsx';
 import BekleyenOdemeler from './pages/BekleyenOdemeler.tsx';
 import Kullanicilar from './pages/admin/Kullanicilar.tsx';
@@ -82,6 +83,7 @@ function AppRoutes() {
         <Route path="faturalar" element={<Navigate to="/bekleyen?sekme=fatura" replace />} />
         <Route path="borclar" element={<Borclar />} />
         <Route path="birikimler" element={<Birikimler />} />
+        <Route path="takvim" element={<Takvim />} />
         <Route path="raporlar" element={<Raporlar />} />
         <Route path="kategoriler" element={<Kategoriler />} />
         <Route path="butce" element={<Butce />} />

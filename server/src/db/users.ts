@@ -102,3 +102,12 @@ export function deleteUser(id: number): void {
   // Kullaniciya bagli tum veri ON DELETE CASCADE ile birlikte silinir.
   getDb().prepare('DELETE FROM users WHERE id = ?').run(id);
 }
+
+/** Zamanlanmis gorevler icin: aktif normal kullanicilarin id'leri. */
+export function listActiveRegularUserIds(): number[] {
+  return (
+    getDb()
+      .prepare("SELECT id FROM users WHERE role = 'user' AND is_active = 1 ORDER BY id")
+      .all() as { id: number }[]
+  ).map((r) => Number(r.id));
+}

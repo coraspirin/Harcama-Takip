@@ -9,6 +9,7 @@ import { listEnabledHaSettings, recordHaResult } from '../db/haSettings.ts';
 import { extendAllBillHorizons } from './scheduledService.ts';
 import { decryptSecret } from './cryptoService.ts';
 import { sendNotification } from './haNotificationService.ts';
+import { runInsightScan, type InsightResult } from './alertService.ts';
 
 /** Vadesine bu kadar gun kala uyari uretilir. */
 export const REMINDER_DAYS_AHEAD = 3;
@@ -16,6 +17,7 @@ export const REMINDER_DAYS_AHEAD = 3;
 export type ScanResult = {
   notificationsCreated: number;
   billOccurrencesCreated: number;
+  insights: InsightResult;
 };
 
 /**
@@ -124,7 +126,10 @@ export function runDailyScan(): ScanResult {
     if (created) notificationsCreated++;
   }
 
-  return { notificationsCreated, billOccurrencesCreated };
+  // Limit, anormal harcama ve ay kapanisi uyarilari
+  const insights = runInsightScan(today);
+
+  return { notificationsCreated, billOccurrencesCreated, insights };
 }
 
 let task: cron.ScheduledTask | null = null;
@@ -144,8 +149,10 @@ export function startScheduler(): void {
           const result = runDailyScan();
           purgeExpiredTokens();
           console.log(
-            `[scheduler] gunluk tarama: ${result.notificationsCreated} bildirim, ` +
-              `${result.billOccurrencesCreated} yeni fatura vadesi`,
+            `[scheduler] gunluk tarama: ${result.notificationsCreated} vade bildirimi, ` +
+              `${result.billOccurrencesCreated} yeni fatura vadesi, ` +
+              `${result.insights.budgetAlerts} limit, ${result.insights.anomalyAlerts} anormal harcama, ` +
+              `${result.insights.closingAlerts} ay kapanisi uyarisi`,
           );
 
           // HA gonderimi ayri try icinde: basarisiz olsa da yukaridaki
