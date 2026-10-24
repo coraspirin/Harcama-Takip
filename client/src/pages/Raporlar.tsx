@@ -9,6 +9,7 @@ import { MonthPicker, currentYearMonth } from '../components/MonthPicker.tsx';
 import { KategoriDagilimi } from '../components/charts/KategoriDagilimi.tsx';
 import { AylikTrend } from '../components/charts/AylikTrend.tsx';
 import { formatYearMonth } from '../lib/format.ts';
+import { GidisatRaporu } from '../components/GidisatRaporu.tsx';
 
 function ChangeNote({ percent, invert = false }: { percent: number | null; invert?: boolean }) {
   if (percent === null) {
@@ -38,6 +39,7 @@ const TREND_MONTHS = 12;
 export default function Raporlar() {
   const [month, setMonth] = useState(currentYearMonth());
   const [breakdownKind, setBreakdownKind] = useState<'expense' | 'income'>('expense');
+  const [view, setView] = useState<'monthly' | 'forecast'>('monthly');
 
   const monthly = useAsync(() => reportService.monthly(month), [month]);
   const trend = useAsync(() => reportService.trend(month, TREND_MONTHS), [month]);
@@ -48,86 +50,118 @@ export default function Raporlar() {
 
   return (
     <>
-      <PageHeader title="Raporlar" description="Aylik ozet, kategori kirilimi ve trend" />
+      <PageHeader
+        title="Raporlar"
+        description="Aylik ozet, kategori kirilimi, trend ve gidisat tahmini"
+      />
 
-      {/* Tek filtre satiri: asagidaki tum grafikleri ayni dilime gore yeniler */}
-      <div className="mb-4">
-        <MonthPicker value={month} onChange={setMonth} />
+      <div
+        role="tablist"
+        className="mb-4 inline-flex gap-1 rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-200"
+      >
+        {(
+          [
+            ['monthly', 'Aylik rapor'],
+            ['forecast', 'Gidisat'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={view === key}
+            onClick={() => setView(key)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+              view === key ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {(monthly.error || trend.error) && (
-        <div className="mb-4">
-          <Alert tone="error">{monthly.error ?? trend.error}</Alert>
-        </div>
-      )}
+      {view === 'forecast' ? (
+        <GidisatRaporu />
+      ) : (
+        <>
+          {/* Tek filtre satiri: asagidaki tum grafikleri ayni dilime gore yeniler */}
+          <div className="mb-4">
+            <MonthPicker value={month} onChange={setMonth} />
+          </div>
 
-      {/* Yeniden yuklemede iskelet yerine onceki icerik soluk tutulur - siçrama olmaz */}
-      <div className={monthly.loading && data ? 'opacity-60 transition-opacity' : ''}>
-        {data && (
-          <div className="mb-6 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <p className="text-sm text-slate-500">Gelir</p>
-              <p className="mt-1 text-2xl font-semibold text-emerald-600">
-                <Money kurus={data.totals.incomeKurus} />
-              </p>
-              <p className="mt-1">
-                <ChangeNote percent={data.previous.incomeChangePercent} />
-              </p>
+          {(monthly.error || trend.error) && (
+            <div className="mb-4">
+              <Alert tone="error">{monthly.error ?? trend.error}</Alert>
             </div>
+          )}
 
-            <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <p className="text-sm text-slate-500">Gider</p>
-              <p className="mt-1 text-2xl font-semibold text-red-600">
-                <Money kurus={data.totals.expenseKurus} />
-              </p>
-              <p className="mt-1">
-                <ChangeNote percent={data.previous.expenseChangePercent} invert />
-              </p>
-            </div>
+          {/* Yeniden yuklemede iskelet yerine onceki icerik soluk tutulur - siçrama olmaz */}
+          <div className={monthly.loading && data ? 'opacity-60 transition-opacity' : ''}>
+            {data && (
+              <div className="mb-6 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                  <p className="text-sm text-slate-500">Gelir</p>
+                  <p className="mt-1 text-2xl font-semibold text-emerald-600">
+                    <Money kurus={data.totals.incomeKurus} />
+                  </p>
+                  <p className="mt-1">
+                    <ChangeNote percent={data.previous.incomeChangePercent} />
+                  </p>
+                </div>
 
-            <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <p className="text-sm text-slate-500">Net</p>
-              <p className="mt-1 text-2xl font-semibold">
-                <Money kurus={data.totals.netKurus} signed />
-              </p>
-              <p className="mt-1 text-xs text-slate-400">Gelir eksi gider</p>
+                <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                  <p className="text-sm text-slate-500">Gider</p>
+                  <p className="mt-1 text-2xl font-semibold text-red-600">
+                    <Money kurus={data.totals.expenseKurus} />
+                  </p>
+                  <p className="mt-1">
+                    <ChangeNote percent={data.previous.expenseChangePercent} invert />
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                  <p className="text-sm text-slate-500">Net</p>
+                  <p className="mt-1 text-2xl font-semibold">
+                    <Money kurus={data.totals.netKurus} signed />
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">Gelir eksi gider</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-6">
+              <Card
+                title={`Kategori dagilimi — ${formatYearMonth(month)}`}
+                actions={
+                  <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
+                    {(['expense', 'income'] as const).map((kind) => (
+                      <button
+                        key={kind}
+                        onClick={() => setBreakdownKind(kind)}
+                        className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                          breakdownKind === kind
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {kind === 'expense' ? 'Gider' : 'Gelir'}
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                <KategoriDagilimi items={breakdown} />
+              </Card>
+
+              <Card
+                title="Aylik trend"
+                description={`Son ${TREND_MONTHS} ay — islem olmayan aylar sifir gosterilir`}
+              >
+                {trend.data && <AylikTrend series={trend.data.series} />}
+              </Card>
             </div>
           </div>
-        )}
-
-        <div className="space-y-6">
-          <Card
-            title={`Kategori dagilimi — ${formatYearMonth(month)}`}
-            actions={
-              <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
-                {(['expense', 'income'] as const).map((kind) => (
-                  <button
-                    key={kind}
-                    onClick={() => setBreakdownKind(kind)}
-                    className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                      breakdownKind === kind
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {kind === 'expense' ? 'Gider' : 'Gelir'}
-                  </button>
-                ))}
-              </div>
-            }
-          >
-            <KategoriDagilimi items={breakdown} />
-          </Card>
-
-          <Card
-            title="Aylik trend"
-            description={`Son ${TREND_MONTHS} ay — islem olmayan aylar sifir gosterilir`}
-          >
-            {trend.data && <AylikTrend series={trend.data.series} />}
-          </Card>
-
-        </div>
-      </div>
+        </>
+      )}
     </>
   );
 }

@@ -185,3 +185,89 @@ describe('veri izolasyonu', () => {
     assert.equal(res.body.totals.incomeKurus, 0, 'baskasinin verisi sizmamali');
   });
 });
+
+describe('gidisat tahmini', () => {
+  function monthsAgo(n: number): string {
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Istanbul',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(new Date());
+    const [y, m] = today.split('-').map(Number) as [number, number];
+    const total = y * 12 + (m - 1) - n;
+    return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+  }
+
+  type Forecast = {
+    hasHistory: boolean;
+    averages: { months: number; incomeKurus: number; fixedExpenseKurus: number; variableExpenseKurus: number };
+    monthlyFreeCashKurus: number;
+    projection: { month: string; debtKurus: number; cashKurus: number }[];
+    end: { debtKurus: number; cashKurus: number };
+    direction: string;
+    scenario: { monthsSaved: number | null; interestSavedKurus: number | null } | null;
+  };
+
+  test('gecmis ortalamasi ileri tasinir, borc ve birikim plani dusulur', async () => {
+    const tahminci = await createUserAndLogin(server, 'tahminci');
+    const categories = await tahminci.get<{ categories: { id: number; name: string }[] }>(
+      '/api/categories',
+    );
+    const kira = categories.body.categories.find((c) => c.name === 'Kira')!;
+    const market = categories.body.categories.find((c) => c.name === 'Market')!;
+
+    for (const n of [1, 2]) {
+      const month = monthsAgo(n);
+      await tahminci.post('/api/transactions', { type: 'income', amountKurus: 5_000_000, date: `${month}-01` });
+      await tahminci.post('/api/transactions', {
+        type: 'expense', categoryId: kira.id, amountKurus: 2_000_000, date: `${month}-02`,
+      });
+      await tahminci.post('/api/transactions', {
+        type: 'expense', categoryId: market.id, amountKurus: 1_000_000, date: `${month}-10`,
+      });
+    }
+    // Bu ayin yarim verisi ortalamaya girmemeli
+    await tahminci.post('/api/transactions', {
+      type: 'expense', categoryId: market.id, amountKurus: 9_000_000, date: `${monthsAgo(0)}-01`,
+    });
+
+    await tahminci.post('/api/debts', {
+      kind: 'credit_card',
+      name: 'Kart',
+      balanceKurus: 2_000_000,
+      monthlyInterestBp: 400,
+      taxesIncluded: true,
+      monthlyPaymentKurus: 300_000,
+    });
+    await tahminci.post('/api/savings', { name: 'Tatil', targetKurus: 1_000_000, monthlyPlanKurus: 200_000 });
+
+    const res = await tahminci.get<Forecast>('/api/reports/forecast?basis=3');
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.hasHistory, true);
+    assert.equal(res.body.averages.months, 2);
+    assert.equal(res.body.averages.incomeKurus, 5_000_000);
+    assert.equal(res.body.averages.fixedExpenseKurus, 2_000_000);
+    assert.equal(res.body.averages.variableExpenseKurus, 1_000_000);
+    // 2.000.000 net - 300.000 kart - 200.000 birikim
+    assert.equal(res.body.monthlyFreeCashKurus, 1_500_000);
+    assert.equal(res.body.projection.length, 12);
+    assert.ok(res.body.end.debtKurus < 2_000_000);
+    assert.equal(res.body.direction, 'improving');
+    assert.equal(res.body.scenario, null);
+
+    const withCut = await tahminci.get<Forecast>('/api/reports/forecast?basis=3&cut=200000');
+    assert.ok(withCut.body.scenario);
+    assert.ok((withCut.body.scenario.monthsSaved ?? 0) > 0);
+    assert.ok((withCut.body.scenario.interestSavedKurus ?? 0) > 0);
+  });
+
+  test('gecersiz baz ay reddedilir', async () => {
+    assert.equal((await user.get('/api/reports/forecast?basis=5')).status, 400);
+  });
+
+  test('gecmis veri yoksa hasHistory false', async () => {
+    const yeni = await createUserAndLogin(server, 'yenigelen');
+    const res = await yeni.get<Forecast>('/api/reports/forecast');
+    assert.equal(res.body.hasHistory, false);
+  });
+});

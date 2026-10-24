@@ -5,6 +5,7 @@ import type {
   CategoryReport,
   Category,
   DashboardSummary,
+  ForecastReport,
   ImportResult,
   MonthOverview,
   MonthlyReport,
@@ -107,6 +108,8 @@ export const reportService = {
     api.get<CategoryReport>(`/api/reports/categories?from=${from}&to=${to}&kind=${kind}`),
   trend: (to: string, months = 12) =>
     api.get<TrendReport>(`/api/reports/trend?to=${to}&months=${months}`),
+  forecast: (basis: 3 | 6 | 12, cutKurus = 0) =>
+    api.get<ForecastReport>(`/api/reports/forecast?basis=${basis}&cut=${cutKurus}`),
 };
 
 export const dashboardService = {

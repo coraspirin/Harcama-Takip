@@ -441,3 +441,39 @@ export type SavingsOverview = {
     comfortableKurus: number;
   };
 };
+
+export type ProjectionPoint = {
+  month: string;
+  /** O ayin odemelerinden sonra kalan toplam borc (taksitler dahil) */
+  debtKurus: number;
+  /** O aya kadar biriken nakit (eksi ise acik) */
+  cashKurus: number;
+};
+
+export type ForecastReport = {
+  basis: number;
+  startMonth: string;
+  hasHistory: boolean;
+  averages: {
+    months: number;
+    incomeKurus: number;
+    fixedExpenseKurus: number;
+    variableExpenseKurus: number;
+    netKurus: number;
+  };
+  monthlyDebtPaymentKurus: number;
+  savingsPlanKurus: number;
+  monthlyFreeCashKurus: number;
+  projection: ProjectionPoint[];
+  start: { debtKurus: number };
+  end: { debtKurus: number; cashKurus: number };
+  direction: 'improving' | 'worsening' | 'flat';
+  scenario: {
+    cutKurus: number;
+    projection: ProjectionPoint[];
+    debtFreeMonth: string | null;
+    baselineDebtFreeMonth: string | null;
+    monthsSaved: number | null;
+    interestSavedKurus: number | null;
+  } | null;
+};

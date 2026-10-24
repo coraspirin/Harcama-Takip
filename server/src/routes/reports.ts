@@ -9,9 +9,13 @@ import { percentChange } from '../lib/money.ts';
 import { sumTransactions } from '../db/transactions.ts';
 import {
   categoryBreakdown,
+  monthlyNatureTotals,
   monthlyTotals,
   type CategoryBreakdownRow,
 } from '../db/reports.ts';
+import { currentBalanceKurus, listDebts, pendingInstallmentsByMonth } from '../db/debts.ts';
+import { buildForecast } from '../services/forecastService.ts';
+import { getSavingsOverview } from '../services/savingsOverviewService.ts';
 
 export const reportsRouter: Router = Router();
 
@@ -135,5 +139,67 @@ reportsRouter.get(
     });
 
     res.json({ from: fromMonth, to: toMonth, series });
+  }),
+);
+
+const forecastQuerySchema = z.object({
+  basis: z.coerce.number().int().refine((v) => [3, 6, 12].includes(v), 'basis 3, 6 veya 12 olmali').default(6),
+  cut: z.coerce.number().int().min(0).max(1_000_000_000_00).default(0),
+});
+
+/**
+ * Gidisat: son `basis` tam ayin ortalamasi 12 ay ileri tasinir. Icinde
+ * bulunulan ay yarim oldugu icin ortalamaya girmez; projeksiyon gelecek
+ * aydan baslar.
+ *
+ * `cut`: ayda bu kadar az harcanip borca yatirilirsa borclar ne zaman biter.
+ */
+reportsRouter.get(
+  '/forecast',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const q = forecastQuerySchema.parse(req.query);
+    const today = todayIso();
+    const current = toYearMonth(today);
+
+    const history = monthlyNatureTotals(
+      user.id,
+      addMonthsToYearMonth(current, -q.basis),
+      addMonthsToYearMonth(current, -1),
+    ).map((r) => ({
+      month: r.year_month,
+      incomeKurus: Number(r.income_kurus),
+      fixedExpenseKurus: Number(r.fixed_expense_kurus),
+      variableExpenseKurus: Number(r.variable_expense_kurus),
+    }));
+
+    const debts = listDebts(user.id)
+      .filter((d) => d.direction === 'owe')
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        balanceKurus: currentBalanceKurus(d),
+        monthlyInterestBp: d.monthly_interest_bp,
+        taxesIncluded: d.taxes_included === 1,
+        minPaymentKurus: d.monthly_payment_kurus ?? 0,
+      }));
+
+    const startMonth = addMonthsToYearMonth(current, 1);
+    // Bu ayin (henuz odenmemis) taksitleri de kalan borca dahil; projeksiyon
+    // gelecek aydan basladigi icin bu ayinkiler baslangic borcunda kalir.
+    const installmentsByMonth = pendingInstallmentsByMonth(user.id);
+    const installmentRemainingKurus = [...installmentsByMonth.values()].reduce((a, b) => a + b, 0);
+
+    const forecast = buildForecast({
+      history,
+      debts,
+      installmentsByMonth,
+      installmentRemainingKurus,
+      savingsPlanKurus: getSavingsOverview(user.id, today).totals.monthlyPlanKurus,
+      startMonth,
+      cutKurus: q.cut,
+    });
+
+    res.json({ basis: q.basis, startMonth, hasHistory: history.length > 0, ...forecast });
   }),
 );

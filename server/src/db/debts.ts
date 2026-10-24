@@ -239,3 +239,17 @@ export function listInstallmentDebts(userId: number): InstallmentDebtRow[] {
     )
     .all(userId) as InstallmentDebtRow[];
 }
+
+/** Bekleyen taksitlerin ay bazinda toplami (gidisat tahmini icin). */
+export function pendingInstallmentsByMonth(userId: number): Map<string, number> {
+  const rows = getDb()
+    .prepare(
+      `SELECT substr(o.due_date, 1, 7) AS month, SUM(o.amount_kurus) AS total
+       FROM scheduled_occurrences o
+       JOIN scheduled_items i ON i.id = o.scheduled_item_id AND i.user_id = o.user_id
+       WHERE o.user_id = ? AND o.status = 'pending' AND i.kind = 'installment' AND i.active = 1
+       GROUP BY month`,
+    )
+    .all(userId) as { month: string; total: number }[];
+  return new Map(rows.map((r) => [r.month, Number(r.total)]));
+}
