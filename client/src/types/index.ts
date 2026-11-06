@@ -147,6 +147,8 @@ export type ScheduledItem = {
   endMonth: string | null;
   /** Listede kalir ama butceye (toplamlar, pay, borc, islem) yansimaz */
   excludeFromBudget: boolean;
+  /** Vadesi gelince onay beklemeden odendi sayilir */
+  autoConfirm: boolean;
 };
 
 export type Occurrence = {

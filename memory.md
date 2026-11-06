@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-06 16:55 | Abonelikte "Günü gelince otomatik ödendi say": 009_auto_confirm migration'ı scheduled_items'a auto_confirm ekledi. Günlük tarama (hatırlatmalardan önce) vadesi gelmiş (bugün dahil) bekleyen vadeleri confirmOccurrence ile ödendi yapar, işlem tarihi = vade; tutarı olmayan vade atlanır. Oluştururken veya PATCH /api/scheduled/:id/auto-confirm ile açılınca geçmiş bekleyen vadeler hemen kapanır (confirmedCount döner). Yalnızca fatura türünde kabul edilir; arayüzde abonelik formunda ve açılan kartta checkbox, kartta "otomatik ödenir" etiketi. 271 test geçiyor.
+
 - 2026-11-06 16:52 | Sunucuya (192.168.61.114, /DATA/AppData/harcama-takip) d6a5480 yüklendi: git archive | ssh tar ile kopyalandı (.env, logo ve harcama-data volume'ü korundu), docker compose up -d --build; container healthy, :4001 yanıt veriyor.
 
 - 2026-11-06 16:50 | İşlemler sayfasına "Aylık / Tümü" seçici eklendi; sayfa varsayılan olarak Aylık (içinde bulunulan ay) açılıyor, MonthPicker ile ay değiştirilebiliyor. Aylık modda filtre panelindeki tarih alanları gizli; "Tümü"de eski tarih filtresi kullanılıyor. Boş durum metni aylık moda göre güncellendi.

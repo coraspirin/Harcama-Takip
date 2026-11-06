@@ -655,3 +655,134 @@ describe('butceye yansimayan kayit', () => {
     assert.equal(res.status, 404);
   });
 });
+
+describe('otomatik odenen abonelik', () => {
+  let oto: TestClient;
+
+  /** Bugunden n ay onceki/sonraki ayin 1'i (Europe/Istanbul). */
+  function firstOfMonth(n: number): string {
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Istanbul',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(new Date());
+    const [y, m] = today.split('-').map(Number) as [number, number];
+    const total = y * 12 + (m - 1) + n;
+    return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}-01`;
+  }
+
+  type AutoItem = { id: number; autoConfirm: boolean };
+
+  before(async () => {
+    oto = await createUserAndLogin(server, 'otomatik');
+  });
+
+  test('olustururken aciksa vadesi gelmis vadeler hemen odendi olur, gelecektekiler bekler', async () => {
+    const created = await oto.post<{ item: AutoItem }>('/api/scheduled', {
+      kind: 'bill',
+      name: 'Muzik',
+      period: 'monthly',
+      amountKurus: 6_000,
+      isSubscription: true,
+      startDate: firstOfMonth(-2),
+      autoConfirm: true,
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.item.autoConfirm, true);
+
+    const occ = await occurrencesOf(oto, created.body.item.id);
+    // -2, -1 ve bu ayin 1'i (bugun veya gecmis) odendi; sonraki ay bekliyor
+    assert.deepEqual(
+      occ.slice(0, 4).map((o) => o.status),
+      ['confirmed', 'confirmed', 'confirmed', 'pending'],
+    );
+    assert.ok(occ[0]!.transactionId !== null, 'islem kaydi olusmali');
+
+    const tx = await oto.get<{ transactions: { date: string; amountKurus: number }[] }>(
+      '/api/transactions',
+    );
+    assert.equal(tx.body.transactions.length, 3);
+    assert.ok(tx.body.transactions.some((t) => t.date === firstOfMonth(-2)), 'tarih = vade');
+  });
+
+  test('sonradan acilinca gecmis vadeler kapanir, kapatilinca yenileri beklemede kalir', async () => {
+    const created = await oto.post<{ item: AutoItem }>('/api/scheduled', {
+      kind: 'bill',
+      name: 'Dizi',
+      period: 'monthly',
+      amountKurus: 10_000,
+      isSubscription: true,
+      startDate: firstOfMonth(-1),
+    });
+    const id = created.body.item.id;
+    assert.equal(created.body.item.autoConfirm, false);
+    assert.equal((await occurrencesOf(oto, id))[0]!.status, 'pending');
+
+    const on = await oto.patch<{ item: AutoItem; confirmedCount: number }>(
+      `/api/scheduled/${id}/auto-confirm`,
+      { autoConfirm: true },
+    );
+    assert.equal(on.status, 200);
+    assert.equal(on.body.item.autoConfirm, true);
+    assert.equal(on.body.confirmedCount, 2);
+
+    const off = await oto.patch<{ item: AutoItem; confirmedCount: number }>(
+      `/api/scheduled/${id}/auto-confirm`,
+      { autoConfirm: false },
+    );
+    assert.equal(off.body.item.autoConfirm, false);
+    assert.equal(off.body.confirmedCount, 0);
+  });
+
+  test('gunluk tarama vadesi gelen otomatik vadeyi odendi yapar; tutarsiz fatura atlanir', async () => {
+    const sub = await oto.post<{ item: AutoItem }>('/api/scheduled', {
+      kind: 'bill',
+      name: 'Bulut depolama',
+      period: 'monthly',
+      amountKurus: 3_000,
+      isSubscription: true,
+      startDate: firstOfMonth(-1),
+    });
+    const bill = await oto.post<{ item: AutoItem }>('/api/scheduled', {
+      kind: 'bill',
+      name: 'Su',
+      period: 'monthly',
+      startDate: firstOfMonth(-1),
+    });
+
+    // Ayari tarama oncesine dogrudan yaz: tarama tetiklemeli, PATCH degil
+    const { getDb } = await import('../db/connection.ts');
+    getDb()
+      .prepare('UPDATE scheduled_items SET auto_confirm = 1 WHERE id IN (?, ?)')
+      .run(sub.body.item.id, bill.body.item.id);
+
+    const { runDailyScan } = await import('../services/scheduler.ts');
+    const result = runDailyScan();
+    assert.ok(result.autoConfirmed >= 2);
+
+    const subOcc = await occurrencesOf(oto, sub.body.item.id);
+    assert.equal(subOcc[0]!.status, 'confirmed');
+    const billOcc = await occurrencesOf(oto, bill.body.item.id);
+    assert.equal(billOcc[0]!.status, 'pending', 'tutari bilinmeyen fatura elle onaylanir');
+
+    assert.equal(runDailyScan().autoConfirmed, 0, 'ikinci tarama tekrar onaylamaz');
+  });
+
+  test('taksitte secilemez, baskasinin kaydinda degistirilemez', async () => {
+    const res = await oto.post('/api/scheduled', {
+      kind: 'installment',
+      name: 'Telefon',
+      totalAmountKurus: 120_000,
+      installmentCount: 12,
+      startDate: firstOfMonth(1),
+      autoConfirm: true,
+    });
+    assert.equal(res.status, 400);
+
+    const items = await oto.get<{ items: { id: number }[] }>('/api/scheduled?kind=bill');
+    const foreign = await other.patch(`/api/scheduled/${items.body.items[0]!.id}/auto-confirm`, {
+      autoConfirm: true,
+    });
+    assert.equal(foreign.status, 404);
+  });
+});

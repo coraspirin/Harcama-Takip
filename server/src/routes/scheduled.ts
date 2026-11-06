@@ -11,6 +11,7 @@ import {
   SCHEDULED_KINDS,
   countConfirmedOccurrences,
   deleteScheduledItem,
+  setAutoConfirm,
   setExcludeFromBudget,
   findOccurrence,
   findScheduledItem,
@@ -24,6 +25,7 @@ import {
   type ScheduledItemWithProgress,
 } from '../db/scheduled.ts';
 import {
+  autoConfirmDueOccurrences,
   confirmOccurrence,
   createScheduledItemWithOccurrences,
   unconfirmOccurrence,
@@ -60,6 +62,7 @@ function serializeItem(row: ScheduledItemWithProgress) {
     isSubscription: row.is_subscription === 1,
     endMonth: row.end_month,
     excludeFromBudget: row.exclude_from_budget === 1,
+    autoConfirm: row.auto_confirm === 1,
   };
 }
 
@@ -104,6 +107,8 @@ const createSchema = z
     endMonth: yearMonthSchema.nullable().default(null),
     // Listede kalir ama butceye yansimaz
     excludeFromBudget: z.boolean().default(false),
+    // Vadesi gelince onay beklemeden odendi sayilir (fatura/abonelik)
+    autoConfirm: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'planned' && value.amountKurus === null) {
@@ -129,6 +134,9 @@ const createSchema = z
       } else if (value.endMonth < value.startDate.slice(0, 7)) {
         ctx.addIssue({ code: 'custom', path: ['endMonth'], message: 'Yenilenme ayi ilk vadeden once olamaz' });
       }
+    }
+    if (value.autoConfirm && value.kind !== 'bill') {
+      ctx.addIssue({ code: 'custom', path: ['autoConfirm'], message: 'Otomatik odeme yalnizca fatura ve abonelikte secilir' });
     }
     if (value.kind === 'bill' && value.period === null) {
       ctx.addIssue({ code: 'custom', path: ['period'], message: 'Fatura periyodu zorunlu' });
@@ -228,6 +236,8 @@ scheduledRouter.post(
     }
 
     const id = createScheduledItemWithOccurrences(user.id, input);
+    // Gecmis tarihli ilk vade varsa hemen odendi sayilir
+    if (input.autoConfirm) autoConfirmDueOccurrences(todayIso(), { userId: user.id, itemId: id });
     const created = findScheduledItem(user.id, id);
     if (!created) throw notFound('Kayit olusturuldu ancak okunamadi');
 
@@ -256,6 +266,31 @@ scheduledRouter.patch(
 
     const updated = findScheduledItem(user.id, id);
     res.json({ item: updated ? serializeItem(updated) : null });
+  }),
+);
+
+/**
+ * Otomatik odeme ayari. Acildiginda vadesi gelmis bekleyen vadeler hemen
+ * odendi yapilir; sonrakiler gunluk taramada kapanir.
+ */
+scheduledRouter.patch(
+  '/:id/auto-confirm',
+  asyncHandler(async (req, res) => {
+    const user = currentUser(req);
+    const id = idParamSchema.parse(req.params.id);
+    const { autoConfirm } = z.object({ autoConfirm: z.boolean() }).parse(req.body);
+
+    const item = findScheduledItem(user.id, id);
+    if (!item) throw notFound('Kayit bulunamadi');
+    if (item.kind !== 'bill') throw badRequest('Otomatik odeme yalnizca fatura ve abonelikte secilir');
+
+    setAutoConfirm(user.id, id, autoConfirm);
+    const confirmedCount = autoConfirm
+      ? autoConfirmDueOccurrences(todayIso(), { userId: user.id, itemId: id })
+      : 0;
+
+    const updated = findScheduledItem(user.id, id);
+    res.json({ item: updated ? serializeItem(updated) : null, confirmedCount });
   }),
 );
 

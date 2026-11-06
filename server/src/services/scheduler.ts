@@ -6,7 +6,7 @@ import { createNotification, listUnsentToHa, markSentToHa } from '../db/notifica
 import { listAllUpcomingOccurrences } from '../db/scheduled.ts';
 import { purgeExpiredTokens } from '../db/sessions.ts';
 import { listEnabledHaSettings, recordHaResult } from '../db/haSettings.ts';
-import { extendAllBillHorizons } from './scheduledService.ts';
+import { autoConfirmDueOccurrences, extendAllBillHorizons } from './scheduledService.ts';
 import { decryptSecret } from './cryptoService.ts';
 import { sendNotification } from './haNotificationService.ts';
 import { runInsightScan, type InsightResult } from './alertService.ts';
@@ -17,6 +17,7 @@ export const REMINDER_DAYS_AHEAD = 3;
 export type ScanResult = {
   notificationsCreated: number;
   billOccurrencesCreated: number;
+  autoConfirmed: number;
   insights: InsightResult;
 };
 
@@ -85,6 +86,10 @@ export function runDailyScan(): ScanResult {
 
   const billOccurrencesCreated = extendAllBillHorizons();
 
+  // Otomatik odenen abonelikler hatirlatmadan once kapatilir; vadesi gelmis
+  // ama zaten odenmis bir kayit icin "bugun" uyarisi uretilmez.
+  const autoConfirmed = autoConfirmDueOccurrences(today);
+
   let notificationsCreated = 0;
 
   for (const occurrence of listAllUpcomingOccurrences(horizon)) {
@@ -129,7 +134,7 @@ export function runDailyScan(): ScanResult {
   // Limit, anormal harcama ve ay kapanisi uyarilari
   const insights = runInsightScan(today);
 
-  return { notificationsCreated, billOccurrencesCreated, insights };
+  return { notificationsCreated, billOccurrencesCreated, autoConfirmed, insights };
 }
 
 let task: cron.ScheduledTask | null = null;

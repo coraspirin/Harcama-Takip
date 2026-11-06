@@ -134,6 +134,7 @@ export function ZamanlanmisListe({
   const [period, setPeriod] = useState<BillPeriod>('monthly');
   const [endMonth, setEndMonth] = useState('');
   const [excludeFromBudget, setExcludeFromBudget] = useState(false);
+  const [autoConfirm, setAutoConfirm] = useState(false);
 
   // --- vade tutari girisi ---
   const [occurrenceAmount, setOccurrenceAmount] = useState<number | null>(null);
@@ -151,6 +152,7 @@ export function ZamanlanmisListe({
     setPeriod('monthly');
     setEndMonth('');
     setExcludeFromBudget(false);
+    setAutoConfirm(false);
     setError(null);
     setFormOpen(true);
   }
@@ -192,6 +194,7 @@ export function ZamanlanmisListe({
           amountKurus,
           isSubscription,
           endMonth: isSubscription && endMonth ? endMonth : null,
+          autoConfirm: isSubscription && autoConfirm,
         }),
       });
       setFormOpen(false);
@@ -281,6 +284,23 @@ export function ZamanlanmisListe({
     }
   }
 
+  async function handleAutoConfirmToggle(item: ScheduledItem, value: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await scheduledService.setAutoConfirm(item.id, value);
+      if (res.confirmedCount > 0) {
+        setNotice(`Vadesi gelmis ${res.confirmedCount} odeme odendi olarak isaretlendi.`);
+      }
+      await items.reload();
+      onChanged?.();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Kaydedilemedi');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleUnconfirm(occurrence: Occurrence) {
     setBusy(true);
     setError(null);
@@ -351,6 +371,7 @@ export function ZamanlanmisListe({
               onConfirm={handleConfirm}
               onUnconfirm={handleUnconfirm}
               onBudgetToggle={(exclude) => handleBudgetToggle(item, exclude)}
+              onAutoConfirmToggle={(value) => handleAutoConfirmToggle(item, value)}
             />
           ))}
         </div>
@@ -485,6 +506,23 @@ export function ZamanlanmisListe({
             />
           )}
 
+          {isSubscription && (
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={autoConfirm}
+                onChange={(e) => setAutoConfirm(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+              />
+              <span>
+                Gunu gelince otomatik odendi say
+                <span className="block text-xs text-slate-500">
+                  Karttan otomatik cekilen abonelikler icin. Vade gunu geldiginde onayinizi beklemeden odendi sayilir ve islem kaydi vade tarihiyle olusur. Ilk vade gecmis bir tarihse o vadeler de hemen odendi olur.
+                </span>
+              </span>
+            </label>
+          )}
+
           {kind !== 'planned' && (
             <label className="flex items-start gap-2 text-sm text-slate-700">
               <input
@@ -604,6 +642,7 @@ function ScheduledCard({
   onConfirm,
   onUnconfirm,
   onBudgetToggle,
+  onAutoConfirmToggle,
 }: {
   item: ScheduledItem;
   kind: ScheduledKind;
@@ -615,6 +654,7 @@ function ScheduledCard({
   onConfirm: (occurrence: Occurrence) => void;
   onUnconfirm: (occurrence: Occurrence) => void;
   onBudgetToggle: (exclude: boolean) => void;
+  onAutoConfirmToggle: (value: boolean) => void;
 }) {
   const occurrences = useAsync(
     () => (expanded ? scheduledService.occurrences(item.id) : Promise.resolve([])),
@@ -642,6 +682,11 @@ function ScheduledCard({
             {item.excludeFromBudget && (
               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 ring-1 ring-amber-200">
                 butce disi
+              </span>
+            )}
+            {item.autoConfirm && (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 ring-1 ring-emerald-200">
+                otomatik odenir
               </span>
             )}
           </div>
@@ -702,6 +747,23 @@ function ScheduledCard({
 
       {expanded && (
         <div className="border-t border-slate-100 px-4 py-3">
+          {item.isSubscription && (
+            <label className="mb-3 flex items-start gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={item.autoConfirm}
+                disabled={busy}
+                onChange={(e) => onAutoConfirmToggle(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+              />
+              <span>
+                Gunu gelince otomatik odendi say
+                <span className="block text-xs text-slate-500">
+                  Acarsaniz vadesi gelmis bekleyen odemeler de hemen odendi olur.
+                </span>
+              </span>
+            </label>
+          )}
           {kind !== 'planned' && (
             <label className="mb-3 flex items-start gap-2 text-sm text-slate-600">
               <input

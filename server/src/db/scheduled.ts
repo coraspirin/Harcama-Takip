@@ -29,6 +29,8 @@ export type ScheduledItemRow = {
   end_month: string | null;
   /** Listede kalir ama butceye (toplamlar, pay, borc, islem) yansimaz */
   exclude_from_budget: number;
+  /** Vadesi gelince onay beklemeden odendi sayilir */
+  auto_confirm: number;
   created_at: string;
   updated_at: string;
 };
@@ -121,6 +123,7 @@ export type CreateScheduledItemInput = {
   isSubscription?: boolean;
   endMonth?: string | null;
   excludeFromBudget?: boolean;
+  autoConfirm?: boolean;
 };
 
 export function insertScheduledItem(userId: number, input: CreateScheduledItemInput): number {
@@ -129,8 +132,8 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
       `INSERT INTO scheduled_items
          (user_id, kind, name, direction, category_id, counterparty, description,
           total_amount_kurus, installment_count, period, amount_kurus, start_date,
-          is_subscription, end_month, exclude_from_budget)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          is_subscription, end_month, exclude_from_budget, auto_confirm)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
@@ -148,6 +151,7 @@ export function insertScheduledItem(userId: number, input: CreateScheduledItemIn
       input.isSubscription ? 1 : 0,
       input.endMonth ?? null,
       input.excludeFromBudget ? 1 : 0,
+      input.autoConfirm ? 1 : 0,
     );
   return Number(result.lastInsertRowid);
 }
@@ -194,6 +198,42 @@ export function setExcludeFromBudget(userId: number, id: number, exclude: boolea
        WHERE user_id = ? AND id = ?`,
     )
     .run(exclude ? 1 : 0, userId, id);
+}
+
+/** Vadesi gelen odemenin otomatik "odendi" sayilip sayilmayacagi. */
+export function setAutoConfirm(userId: number, id: number, autoConfirm: boolean): void {
+  getDb()
+    .prepare(
+      `UPDATE scheduled_items SET auto_confirm = ?, updated_at = datetime('now')
+       WHERE user_id = ? AND id = ?`,
+    )
+    .run(autoConfirm ? 1 : 0, userId, id);
+}
+
+/**
+ * Otomatik onayli kayitlarin vadesi gelmis (bugun dahil) bekleyen vadeleri.
+ * userId/itemId verilirse yalnizca o kullanici/kayit.
+ */
+export function listDueAutoConfirmOccurrences(
+  today: string,
+  filter: { userId?: number; itemId?: number } = {},
+): { id: number; user_id: number }[] {
+  return getDb()
+    .prepare(
+      `SELECT o.id, o.user_id
+       FROM scheduled_occurrences o
+       JOIN scheduled_items i ON i.id = o.scheduled_item_id AND i.user_id = o.user_id
+       WHERE o.status = 'pending' AND o.due_date <= ? AND i.active = 1 AND i.auto_confirm = 1
+         AND (? IS NULL OR o.user_id = ?) AND (? IS NULL OR i.id = ?)
+       ORDER BY o.due_date, o.id`,
+    )
+    .all(
+      today,
+      filter.userId ?? null,
+      filter.userId ?? null,
+      filter.itemId ?? null,
+      filter.itemId ?? null,
+    ) as { id: number; user_id: number }[];
 }
 
 export function deleteScheduledItem(userId: number, id: number): boolean {

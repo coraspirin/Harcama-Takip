@@ -26,6 +26,8 @@ export type ScheduledInput = {
   endMonth?: string | null;
   /** Listede kalir ama butceye yansimaz */
   excludeFromBudget?: boolean;
+  /** Yalnizca faturada: vadesi gelince onay beklemeden odendi sayilir */
+  autoConfirm?: boolean;
 };
 
 export const scheduledService = {
@@ -65,6 +67,12 @@ export const scheduledService = {
     api
       .patch<{ item: ScheduledItem }>(`/api/scheduled/${id}/budget`, { excludeFromBudget })
       .then((r) => r.item),
+
+  setAutoConfirm: (id: number, autoConfirm: boolean) =>
+    api.patch<{ item: ScheduledItem; confirmedCount: number }>(
+      `/api/scheduled/${id}/auto-confirm`,
+      { autoConfirm },
+    ),
 
   remove: (id: number) =>
     api.delete<{ deleted: boolean; keptTransactions: number }>(`/api/scheduled/${id}`),

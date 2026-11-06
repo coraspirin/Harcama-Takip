@@ -13,6 +13,7 @@ import {
   insertScheduledItem,
   lastOccurrenceDate,
   listActiveBills,
+  listDueAutoConfirmOccurrences,
   setOccurrenceStatus,
   type BillPeriod,
   type CreateScheduledItemInput,
@@ -188,6 +189,27 @@ export function confirmOccurrence(userId: number, occurrenceId: number, input: C
     db.exec('ROLLBACK');
     throw err;
   }
+}
+
+/**
+ * Otomatik onayli kayitlarin vadesi gelmis bekleyen vadelerini "odendi" yapar
+ * (islem tarihi = vade tarihi). Tutari bilinmeyen vade atlanir; kullanici
+ * onu elle onaylar. Gunluk taramadan ve ayar acildiginda cagrilir.
+ */
+export function autoConfirmDueOccurrences(
+  today: string,
+  filter: { userId?: number; itemId?: number } = {},
+): number {
+  let confirmed = 0;
+  for (const occurrence of listDueAutoConfirmOccurrences(today, filter)) {
+    try {
+      confirmOccurrence(occurrence.user_id, occurrence.id, {});
+      confirmed++;
+    } catch {
+      // Tutar yok veya bu arada onaylanmis: elle onaya birakilir.
+    }
+  }
+  return confirmed;
 }
 
 /** Onayi geri alir: olusturulan islem silinir, vade tekrar bekliyor olur. */

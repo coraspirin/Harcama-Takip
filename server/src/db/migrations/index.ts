@@ -7,6 +7,7 @@ import { migration005Subscriptions } from './005_subscriptions.ts';
 import { migration006Savings } from './006_savings.ts';
 import { migration007BillEndMonth } from './007_bill_end_month.ts';
 import { migration008ExcludeFromBudget } from './008_exclude_from_budget.ts';
+import { migration009AutoConfirm } from './009_auto_confirm.ts';
 
 /**
  * Migration listesi. Yeni migration eklerken:
@@ -24,4 +25,5 @@ export const migrations: Migration[] = [
   migration006Savings,
   migration007BillEndMonth,
   migration008ExcludeFromBudget,
+  migration009AutoConfirm,
 ];
