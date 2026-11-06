@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-06 16:52 | Sunucuya (192.168.61.114, /DATA/AppData/harcama-takip) d6a5480 yüklendi: git archive | ssh tar ile kopyalandı (.env, logo ve harcama-data volume'ü korundu), docker compose up -d --build; container healthy, :4001 yanıt veriyor.
+
 - 2026-11-06 16:50 | İşlemler sayfasına "Aylık / Tümü" seçici eklendi; sayfa varsayılan olarak Aylık (içinde bulunulan ay) açılıyor, MonthPicker ile ay değiştirilebiliyor. Aylık modda filtre panelindeki tarih alanları gizli; "Tümü"de eski tarih filtresi kullanılıyor. Boş durum metni aylık moda göre güncellendi.
 
 - 2026-10-25 02:56 | "Bütçeye yansıtma" seçeneği: 008_exclude_from_budget migration'ı scheduled_items'a exclude_from_budget ekledi. İşaretli fatura/abonelik/taksit listede ve takvimde görünür ama bekleyen toplamlara (serbest para), aylık paya, abonelik toplamına, taksit borcuna/gidişata ve takvim net akışına girmez; onaylanınca işlem kaydı oluşmaz (yalnızca ödendi işaretlenir). Ekleme formunda checkbox, kartta "bütçe dışı" etiketi, açılan kartta sonradan değiştirme (PATCH /api/scheduled/:id/budget). 267 test geçiyor.
