@@ -15,17 +15,31 @@ import { Card, EmptyState, PageHeader } from '../components/ui/Card.tsx';
 import { ConfirmDialog, Modal } from '../components/ui/Modal.tsx';
 import { MoneyInput } from '../components/MoneyInput.tsx';
 import { Money, SignedAmount } from '../components/Money.tsx';
+import { MonthPicker, currentYearMonth } from '../components/MonthPicker.tsx';
 import { formatDate, todayIso } from '../lib/format.ts';
 
 const PAGE_SIZE = 50;
+
+/** "2026-11" -> { from: "2026-11-01", to: "2026-11-30" } */
+function monthRange(ym: string): { from: string; to: string } {
+  const [y, m] = ym.split('-').map(Number) as [number, number];
+  const lastDay = new Date(y, m, 0).getDate();
+  return { from: `${ym}-01`, to: `${ym}-${String(lastDay).padStart(2, '0')}` };
+}
 
 export default function Islemler() {
   const categories = useAsync(() => categoryService.list(), []);
 
   const [filters, setFilters] = useState<TransactionQuery>({ page: 1, pageSize: PAGE_SIZE });
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Sayfa ilk acildiginda bu ayin islemleri gosterilir; "Tumu" ile tarih filtresine gecilir.
+  const [period, setPeriod] = useState<'monthly' | 'all'>('monthly');
+  const [month, setMonth] = useState(currentYearMonth());
 
-  const query = useMemo(() => ({ ...filters }), [filters]);
+  const query = useMemo(
+    () => (period === 'monthly' ? { ...filters, ...monthRange(month) } : { ...filters }),
+    [filters, period, month],
+  );
   const list = useAsync(() => transactionService.list(query), [query]);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -137,9 +151,19 @@ export default function Islemler() {
     setFilters((prev) => ({ ...prev, ...patch, page: 1 }));
   }
 
+  function changePeriod(next: 'monthly' | 'all') {
+    setPeriod(next);
+    setFilters((prev) => ({ ...prev, from: undefined, to: undefined, page: 1 }));
+  }
+
+  function changeMonth(next: string) {
+    setMonth(next);
+    setFilters((prev) => ({ ...prev, page: 1 }));
+  }
+
   const activeFilterCount = [
-    filters.from,
-    filters.to,
+    period === 'all' && filters.from,
+    period === 'all' && filters.to,
     filters.categoryId,
     filters.kind,
     filters.search,
@@ -169,21 +193,52 @@ export default function Islemler() {
         }
       />
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div
+          role="tablist"
+          className="inline-flex gap-1 rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-200"
+        >
+          {(
+            [
+              ['monthly', 'Aylik'],
+              ['all', 'Tumu'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={period === key}
+              onClick={() => changePeriod(key)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                period === key ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {period === 'monthly' && <MonthPicker value={month} onChange={changeMonth} />}
+      </div>
+
       {filtersOpen && (
         <Card className="mb-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <TextField
-              label="Baslangic tarihi"
-              type="date"
-              value={filters.from ?? ''}
-              onChange={(e) => updateFilter({ from: e.target.value || undefined })}
-            />
-            <TextField
-              label="Bitis tarihi"
-              type="date"
-              value={filters.to ?? ''}
-              onChange={(e) => updateFilter({ to: e.target.value || undefined })}
-            />
+            {period === 'all' && (
+              <>
+                <TextField
+                  label="Baslangic tarihi"
+                  type="date"
+                  value={filters.from ?? ''}
+                  onChange={(e) => updateFilter({ from: e.target.value || undefined })}
+                />
+                <TextField
+                  label="Bitis tarihi"
+                  type="date"
+                  value={filters.to ?? ''}
+                  onChange={(e) => updateFilter({ to: e.target.value || undefined })}
+                />
+              </>
+            )}
             <SelectField
               label="Tur"
               value={filters.kind ?? ''}
@@ -290,11 +345,19 @@ export default function Islemler() {
         {!list.loading && transactions.length === 0 ? (
           <EmptyState
             icon={ArrowLeftRight}
-            title={activeFilterCount > 0 ? 'Filtreye uyan islem yok' : 'Henuz islem yok'}
+            title={
+              activeFilterCount > 0
+                ? 'Filtreye uyan islem yok'
+                : period === 'monthly'
+                  ? 'Bu ayda islem yok'
+                  : 'Henuz islem yok'
+            }
             description={
               activeFilterCount > 0
                 ? 'Filtreleri gevseterek tekrar deneyin.'
-                : 'Ilk gelir veya gider kaydinizi ekleyerek baslayin.'
+                : period === 'monthly'
+                  ? 'Baska bir aya gecin, "Tumu" ile tum islemleri gorun ya da yeni kayit ekleyin.'
+                  : 'Ilk gelir veya gider kaydinizi ekleyerek baslayin.'
             }
             action={
               activeFilterCount === 0 ? (

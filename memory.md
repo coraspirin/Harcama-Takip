@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-06 16:50 | İşlemler sayfasına "Aylık / Tümü" seçici eklendi; sayfa varsayılan olarak Aylık (içinde bulunulan ay) açılıyor, MonthPicker ile ay değiştirilebiliyor. Aylık modda filtre panelindeki tarih alanları gizli; "Tümü"de eski tarih filtresi kullanılıyor. Boş durum metni aylık moda göre güncellendi.
+
 - 2026-10-25 02:56 | "Bütçeye yansıtma" seçeneği: 008_exclude_from_budget migration'ı scheduled_items'a exclude_from_budget ekledi. İşaretli fatura/abonelik/taksit listede ve takvimde görünür ama bekleyen toplamlara (serbest para), aylık paya, abonelik toplamına, taksit borcuna/gidişata ve takvim net akışına girmez; onaylanınca işlem kaydı oluşmaz (yalnızca ödendi işaretlenir). Ekleme formunda checkbox, kartta "bütçe dışı" etiketi, açılan kartta sonradan değiştirme (PATCH /api/scheduled/:id/budget). 267 test geçiyor.
 
 - 2026-10-25 02:48 | Aboneliğe yenilenme ayı: 007_bill_end_month migration'ı scheduled_items'a end_month (YYYY-MM, dahil; NULL = süresiz) ekledi. Vadeler bu aya kadar üretiliyor, günlük ufuk tazeleme de aşmıyor; süresi biten abonelik sonraki aylarda abonelik toplamına ve aylık paya girmiyor. Bekleyen ödemeler → Abonelikler formunda "Yenilenme ayı" alanı ve kaç ödeme oluşacağı önizlemesi; kartta "yenilenme <ay>". 263 test geçiyor.
