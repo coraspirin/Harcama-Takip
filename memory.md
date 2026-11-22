@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 01:27 | TODO.md eklendi (proje incelemesinden iyileştirme listesi: .env.example, Docker USER node, CI, frontend testleri, ESLint/Prettier, Node sürümü sabitleme, prompt.md arşivi, loglama, health check, SSRF, ürün fikirleri). Otomatik DB yedeği maddesi çıkarıldı: yedek Docker seviyesinde alınıyor.
+
 - 2026-11-06 16:58 | Sunucuya 1598244 yüklendi (git archive | ssh tar, docker compose up -d --build); 009_auto_confirm migration'ı uygulandı, container healthy, :4001 yanıt veriyor.
 
 - 2026-11-06 16:55 | Abonelikte "Günü gelince otomatik ödendi say": 009_auto_confirm migration'ı scheduled_items'a auto_confirm ekledi. Günlük tarama (hatırlatmalardan önce) vadesi gelmiş (bugün dahil) bekleyen vadeleri confirmOccurrence ile ödendi yapar, işlem tarihi = vade; tutarı olmayan vade atlanır. Oluştururken veya PATCH /api/scheduled/:id/auto-confirm ile açılınca geçmiş bekleyen vadeler hemen kapanır (confirmedCount döner). Yalnızca fatura türünde kabul edilir; arayüzde abonelik formunda ve açılan kartta checkbox, kartta "otomatik ödenir" etiketi. 271 test geçiyor.
