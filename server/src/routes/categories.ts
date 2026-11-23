@@ -57,11 +57,9 @@ categoriesRouter.post(
       throw conflict('Bu isimde bir kategori zaten var');
     }
 
-    res
-      .status(201)
-      .json({
-        category: serializeCategory(createCategory(user.id, input.name, input.kind, input.nature)),
-      });
+    res.status(201).json({
+      category: serializeCategory(createCategory(user.id, input.name, input.kind, input.nature)),
+    });
   }),
 );
 
