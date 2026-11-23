@@ -26,7 +26,7 @@ function getKey(): Buffer {
       500,
       'ENCRYPTION_KEY_INVALID',
       'ENCRYPTION_KEY gecerli degil. 32 baytlik base64 bir anahtar olmali. ' +
-        "Uretmek icin: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+        'Uretmek icin: openssl rand -base64 32',
     );
   }
 

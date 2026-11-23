@@ -125,6 +125,7 @@ değiştirilmesi gerekenler:
 | `JWT_REFRESH_SECRET` | Refresh token sırrı (access'ten farklı olmalı) |
 | `ENCRYPTION_KEY` | Home Assistant token'ının AES-256-GCM anahtarı, base64 32 bayt |
 | `COOKIE_SECURE` | HTTPS arkasındaysanız `true` |
+| `LOG_LEVEL` | Log seviyesi: `fatal`, `error`, `warn`, `info` (varsayılan), `debug`, `trace`, `silent` |
 
 Üretim modunda (`NODE_ENV=production`) bu değerler varsayılanda bırakılırsa
 uygulama **açılmaz**. `.env` `.gitignore` içindedir.

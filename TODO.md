@@ -33,8 +33,8 @@ işaretlenir ve memory.md'ye loglanır.
 
 ## 🟡 Düşük öncelik
 
-- [ ] **Yapılandırılmış loglama** (pino); zamanlanmış görev sonunda özet satırı
-- [ ] **Health check'i genişlet**: veritabanı erişimi + son zamanlanmış taramanın zamanı ve sonucu
+- [x] **Yapılandırılmış loglama** (pino); zamanlanmış görev sonunda özet satırı
+- [x] **Health check'i genişlet**: veritabanı erişimi + son zamanlanmış taramanın zamanı ve sonucu
 - [ ] **Home Assistant adresi için SSRF sınırı**: admin tarafında izinli host listesi (opsiyonel; kullanıcılar güvenilir)
 - [ ] **Rapor performansı**: yavaşlık görülürse aylık özetleri önbelleğe al (index'ler şu an yeterli)
 

@@ -10,6 +10,8 @@ import { autoConfirmDueOccurrences, extendAllBillHorizons } from './scheduledSer
 import { decryptSecret } from './cryptoService.ts';
 import { sendNotification } from './haNotificationService.ts';
 import { runInsightScan, type InsightResult } from './alertService.ts';
+import { logger } from '../lib/logger.ts';
+import { setLastScan } from './scanStatus.ts';
 
 /** Vadesine bu kadar gun kala uyari uretilir. */
 export const REMINDER_DAYS_AHEAD = 3;
@@ -137,6 +139,70 @@ export function runDailyScan(): ScanResult {
   return { notificationsCreated, billOccurrencesCreated, autoConfirmed, insights };
 }
 
+export type ScheduledScanDeps = {
+  scan: () => ScanResult;
+  purgeTokens: () => number;
+  dispatchHa: () => Promise<number>;
+};
+
+const defaultDeps: ScheduledScanDeps = {
+  scan: runDailyScan,
+  purgeTokens: purgeExpiredTokens,
+  dispatchHa: dispatchHomeAssistantNotifications,
+};
+
+/**
+ * Cron callback'inin govdesi (test edilebilsin diye ayri). Asla firlatmaz:
+ * zamanlanmis gorevdeki hata sunucuyu dusurmemeli.
+ *
+ * Tarama basarili sayilir; HA gonderimi basarisiz olsa bile (HA yalnizca ek
+ * cikis kanali) durum ok:true kalir ve ozet satirina haError:true yazilir.
+ * Log satirlarina yalnizca sayaclar girer; kullanici verisi girmez.
+ */
+export async function runScheduledScan(deps: Partial<ScheduledScanDeps> = {}): Promise<void> {
+  const { scan, purgeTokens, dispatchHa } = { ...defaultDeps, ...deps };
+  const startedAt = Date.now();
+  const at = new Date(startedAt).toISOString();
+
+  try {
+    const result = scan();
+    const tokensPurged = purgeTokens();
+
+    // HA gonderimi ayri try icinde: basarisiz olsa da yukaridaki
+    // uygulama-ici bildirimler yerinde kalir.
+    let haSent = 0;
+    let haError = false;
+    try {
+      haSent = await dispatchHa();
+    } catch (err) {
+      haError = true;
+      logger.warn({ event: 'daily_scan_ha', err }, 'Home Assistant gonderimi basarisiz');
+    }
+
+    const durationMs = Date.now() - startedAt;
+    setLastScan({ at, ok: true, durationMs });
+    logger.info(
+      {
+        event: 'daily_scan',
+        durationMs,
+        notificationsCreated: result.notificationsCreated,
+        billOccurrencesCreated: result.billOccurrencesCreated,
+        autoConfirmed: result.autoConfirmed,
+        budgetAlerts: result.insights.budgetAlerts,
+        anomalyAlerts: result.insights.anomalyAlerts,
+        closingAlerts: result.insights.closingAlerts,
+        haSent,
+        haError,
+        tokensPurged,
+      },
+      'gunluk tarama tamamlandi',
+    );
+  } catch (err) {
+    setLastScan({ at, ok: false, durationMs: Date.now() - startedAt });
+    logger.error({ event: 'daily_scan', err }, 'gunluk tarama basarisiz');
+  }
+}
+
 let task: cron.ScheduledTask | null = null;
 
 /**
@@ -149,35 +215,12 @@ export function startScheduler(): void {
   task = cron.schedule(
     '0 8 * * *',
     () => {
-      void (async () => {
-        try {
-          const result = runDailyScan();
-          purgeExpiredTokens();
-          console.log(
-            `[scheduler] gunluk tarama: ${result.notificationsCreated} vade bildirimi, ` +
-              `${result.billOccurrencesCreated} yeni fatura vadesi, ` +
-              `${result.insights.budgetAlerts} limit, ${result.insights.anomalyAlerts} anormal harcama, ` +
-              `${result.insights.closingAlerts} ay kapanisi uyarisi`,
-          );
-
-          // HA gonderimi ayri try icinde: basarisiz olsa da yukaridaki
-          // uygulama-ici bildirimler yerinde kalir.
-          try {
-            const sent = await dispatchHomeAssistantNotifications();
-            if (sent > 0) console.log(`[scheduler] ${sent} bildirim Home Assistant'a iletildi`);
-          } catch (err) {
-            console.error('[scheduler] Home Assistant gonderimi basarisiz:', err);
-          }
-        } catch (err) {
-          // Zamanlanmis gorevdeki hata sunucuyu dusurmemeli
-          console.error('[scheduler] gunluk tarama basarisiz:', err);
-        }
-      })();
+      void runScheduledScan();
     },
     { timezone: env.TZ },
   );
 
-  console.log(`[scheduler] gunluk tarama 08:00 (${env.TZ}) icin planlandi`);
+  logger.info({ event: 'scheduler_started', tz: env.TZ }, 'gunluk tarama 08:00 icin planlandi');
 }
 
 export function stopScheduler(): void {

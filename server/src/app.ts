@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { env } from './config/env.ts';
 import { apiNotFoundHandler, errorHandler } from './middleware/error.ts';
+import { requestLogger } from './middleware/requestLogger.ts';
 import { healthRouter } from './routes/health.ts';
 import { setupRouter } from './routes/setup.ts';
 import { authRouter } from './routes/auth.ts';
@@ -66,6 +67,9 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
       crossOriginEmbedderPolicy: false,
     }),
   );
+
+  // Istek logu: body/cookie parse edilmeden once baslar, /api/health loglanmaz.
+  app.use(requestLogger);
 
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: false, limit: '2mb' }));

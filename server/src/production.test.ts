@@ -35,6 +35,7 @@ before(async () => {
   process.env.JWT_ACCESS_SECRET = 'uretim-testi-access-sirri-en-az-otuziki-karakter';
   process.env.JWT_REFRESH_SECRET = 'uretim-testi-refresh-sirri-en-az-otuziki-karakter';
   process.env.COOKIE_SECURE = 'false';
+  process.env.LOG_LEVEL = 'silent';
 
   const { createApp } = await import('./app.ts');
   const app = createApp();

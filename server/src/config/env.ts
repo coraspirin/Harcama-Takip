@@ -44,12 +44,16 @@ const schema = z.object({
     .transform((v) => v === 'true'),
 
   TZ: z.string().default('Europe/Istanbul'),
+
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 
 const parsed = schema.safeParse(process.env);
 
 if (!parsed.success) {
   const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`);
+  // Logger env.ts'e baglidir (logger env.LOG_LEVEL okur); dogrulama basarisizken
+  // logger kurulamaz ve dongusel bagimlilik olusur, bu yuzden burada console kalir.
   console.error('Ortam degiskenleri gecersiz:\n' + issues.join('\n'));
   process.exit(1);
 }

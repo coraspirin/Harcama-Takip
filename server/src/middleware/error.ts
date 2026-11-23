@@ -2,6 +2,7 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import { env } from '../config/env.ts';
+import { logger } from '../lib/logger.ts';
 
 function ensureError(err: unknown): unknown {
   return err ? err : new Error('Bilinmeyen hata');
@@ -49,7 +50,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
 
   // Beklenmeyen hata: istemciye ic detay sizdirmayiz, sunucuya tam log dusuruz.
-  console.error('[error]', err);
+  logger.error({ event: 'unhandled_error', err }, 'beklenmeyen hata');
   res.status(500).json({
     error: {
       code: 'INTERNAL_ERROR',

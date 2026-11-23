@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { migrations } from './migrations/index.ts';
+import { logger } from '../lib/logger.ts';
 
 export type Migration = {
   /** Sirali ve benzersiz. Uygulandiktan sonra ASLA degistirilmez. */
@@ -56,7 +57,10 @@ export function runMigrations(db: DatabaseSync): void {
         migration.name,
       );
       db.exec('COMMIT');
-      console.log(`[db] migration uygulandi: ${migration.id} - ${migration.name}`);
+      logger.info(
+        { event: 'migration', id: migration.id, name: migration.name },
+        'migration uygulandi',
+      );
     } catch (err) {
       db.exec('ROLLBACK');
       throw new Error(

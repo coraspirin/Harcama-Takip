@@ -1,4 +1,5 @@
 import { env } from './config/env.ts';
+import { logger } from './lib/logger.ts';
 import { createApp } from './app.ts';
 import { closeDb, getDb } from './db/connection.ts';
 import { purgeExpiredTokens } from './db/sessions.ts';
@@ -13,7 +14,8 @@ getDb();
 
 // Suresi coktan dolmus refresh token kayitlarini temizle.
 const purged = purgeExpiredTokens();
-if (purged > 0) console.log(`[server] ${purged} suresi dolmus oturum kaydi temizlendi`);
+if (purged > 0)
+  logger.info({ event: 'tokens_purged', purged }, 'suresi dolmus oturum kayitlari temizlendi');
 
 const app = createApp();
 
@@ -21,12 +23,15 @@ const app = createApp();
 startScheduler();
 
 const server = app.listen(env.PORT, () => {
-  console.log(`[server] http://localhost:${env.PORT} (${env.NODE_ENV}, TZ=${env.TZ})`);
-  console.log(`[server] veri dizini: ${env.DATA_DIR}`);
+  logger.info(
+    { event: 'server_started', port: env.PORT, nodeEnv: env.NODE_ENV, tz: env.TZ },
+    'sunucu dinlemede',
+  );
+  logger.info({ event: 'data_dir', dataDir: env.DATA_DIR }, 'veri dizini');
 });
 
 function shutdown(signal: string): void {
-  console.log(`[server] ${signal} alindi, kapaniyor...`);
+  logger.info({ event: 'shutdown', signal }, 'kapatma sinyali alindi');
   stopScheduler();
   server.close(() => {
     closeDb();
