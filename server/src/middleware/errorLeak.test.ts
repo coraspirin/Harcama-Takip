@@ -6,6 +6,7 @@ import type { Server } from 'node:http';
 import { createApp } from '../app.ts';
 import { createLogger, serializeErr } from '../lib/logger.ts';
 import { AppError } from '../lib/errors.ts';
+import { fetchNotifyTargets } from '../services/haNotificationService.ts';
 
 const SECRET = 'Gizli123!';
 const EMAIL = 'a@b.c';
@@ -234,12 +235,16 @@ test('status alanli ama expose olmayan hata -> 500 + unhandled_error', async () 
       const rows = parseLines(lines());
       assert.ok(rows.some((r) => r.event === 'unhandled_error'));
       assert.ok(!rows.some((r) => r.event === 'client_error'));
+      const req = rows.find(
+        (r) => typeof r.msg === 'string' && r.msg.startsWith('GET /api/__probe'),
+      );
+      assert.equal(req?.errorType, 'INTERNAL_ERROR');
     },
     probeApp((next) => next(Object.assign(new Error('upstream yok'), { status: 404 }))),
   );
 });
 
-test('expose=true + 404 -> 404 NOT_FOUND, client_error satiri, mesaj yok', async () => {
+test('expose=true + 404 -> 404 NOT_FOUND, istek satirinda errorType NOT_FOUND, mesaj yok', async () => {
   await withApp(
     async (url, lines) => {
       const res = await fetch(`${url}/api/__probe`);
@@ -249,10 +254,14 @@ test('expose=true + 404 -> 404 NOT_FOUND, client_error satiri, mesaj yok', async
       assert.ok(!body.error.message.includes('Bulunamadi'));
       const out = lines();
       assert.ok(!out.includes('Bulunamadi'));
-      const row = parseLines(out).find((r) => r.event === 'client_error');
+      const rows = parseLines(out);
+      assert.ok(!rows.some((r) => r.event === 'client_error'));
+      const row = rows.find(
+        (r) => typeof r.msg === 'string' && r.msg.startsWith('GET /api/__probe'),
+      );
       assert.ok(row);
-      assert.equal(row.type, null);
-      assert.equal(row.status, 404);
+      assert.equal(row.errorType, 'NOT_FOUND');
+      assert.equal((row.res as LogLine).statusCode, 404);
     },
     probeApp((next) => next(Object.assign(new Error('Bulunamadi'), { status: 404, expose: true }))),
   );
@@ -273,7 +282,7 @@ test("next('raw ...') -> 500, log ve yanitta sizinti yok", async () => {
   );
 });
 
-test('bozuk JSON -> client_error satiri type entity.parse.failed, sizinti yok', async () => {
+test('bozuk JSON -> tek istek satiri, errorType entity.parse.failed, sizinti yok', async () => {
   await withApp(async (url, lines) => {
     const res = await fetch(`${url}/api/auth/login`, {
       method: 'POST',
@@ -283,10 +292,14 @@ test('bozuk JSON -> client_error satiri type entity.parse.failed, sizinti yok', 
     assert.equal(res.status, 400);
     const out = lines();
     assert.ok(!out.includes(SECRET), out);
-    const row = parseLines(out).find((r) => r.event === 'client_error');
-    assert.ok(row);
-    assert.equal(row.type, 'entity.parse.failed');
-    assert.equal(row.status, 400);
+    const rows = parseLines(out);
+    assert.equal(rows.length, 1, out);
+    assert.ok(!rows.some((r) => r.event === 'client_error'));
+    const row = rows[0]!;
+    assert.equal(row.level, 40);
+    assert.equal(row.errorType, 'entity.parse.failed');
+    assert.equal((row.res as LogLine).statusCode, 400);
+    assert.equal(row.err, undefined);
   });
 });
 
@@ -310,7 +323,7 @@ test('5xx: pino-http sentetik err satiri yok, unhandled_error stack ile var', as
   );
 });
 
-test('bozuk URL kodlamasi -> 400 BAD_REQUEST, client_error type URIError, unhandled_error yok', async () => {
+test('bozuk URL kodlamasi -> 400 BAD_REQUEST, istek satirinda errorType URIError, unhandled_error yok', async () => {
   await withApp(
     async (url, lines) => {
       const res = await fetch(`${url}/api/__probe/%E0%A4%A`);
@@ -319,13 +332,16 @@ test('bozuk URL kodlamasi -> 400 BAD_REQUEST, client_error type URIError, unhand
       assert.equal(body.error.code, 'BAD_REQUEST');
       const out = lines();
       assert.ok(!out.includes('unhandled_error'), out);
-      const ce = parseLines(out).find((r) => r.event === 'client_error');
-      assert.ok(ce);
-      assert.equal(ce.type, 'URIError');
-      assert.equal(ce.status, 400);
+      const rows = parseLines(out);
+      assert.ok(!rows.some((r) => r.event === 'client_error'));
+      const ce = rows.find((r) => r.errorType === 'URIError');
+      assert.ok(ce, out);
+      assert.equal((ce.res as LogLine).statusCode, 400);
       assert.equal(ce.err, undefined);
       assert.equal(ce.message, undefined);
-      assert.ok(!JSON.stringify(ce).includes('%E0'));
+      // Istek yolu (req.path) zaten satirda; URIError mesaji (decode_param) ise yok.
+      assert.ok(!JSON.stringify({ ...ce, req: undefined, msg: undefined }).includes('%E0'));
+      assert.ok(!out.includes('URI malformed'), out);
     },
     {
       configure: (app) => {
@@ -377,5 +393,80 @@ test("tuzakli Proxy hata route'tan firlatilinca yanit yine 500", async () => {
       assert.equal(res.status, 500);
     },
     probeApp((next) => next(trapErr())),
+  );
+});
+
+test('AppError 4xx ve ZodError -> istek satirinda errorType (kod), mesaj yok', async () => {
+  await withApp(
+    async (url, lines) => {
+      await fetch(`${url}/api/__probe`);
+      const row = parseLines(lines()).find((r) => r.msg === 'GET /api/__probe 401');
+      assert.ok(row, lines());
+      assert.equal(row.errorType, 'UNAUTHORIZED');
+      assert.equal(row.level, 40);
+      assert.ok(!lines().includes('GIZLI-MESAJ'));
+    },
+    probeApp((next) => next(new AppError(401, 'UNAUTHORIZED', 'GIZLI-MESAJ'))),
+  );
+  await withApp(async (url, lines) => {
+    const res = await fetch(`${url}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 5, password: SECRET }),
+    });
+    assert.equal(res.status, 400);
+    const row = parseLines(lines()).find((r) => r.msg === 'POST /api/auth/login 400');
+    assert.ok(row, lines());
+    assert.equal(row.errorType, 'VALIDATION_ERROR');
+    assert.ok(!lines().includes(SECRET));
+  });
+});
+
+test('5xx AppError -> app_error satiri kalir, istek satirina errorType eklenir', async () => {
+  await withApp(
+    async (url, lines) => {
+      await fetch(`${url}/api/__probe`);
+      const rows = parseLines(lines());
+      assert.ok(rows.some((r) => r.event === 'app_error'));
+      const req = rows.find((r) => r.msg === 'GET /api/__probe 502');
+      assert.equal(req?.errorType, 'HA_ERROR');
+    },
+    probeApp((next) => next(new AppError(502, 'HA_ERROR', 'upstream'))),
+  );
+});
+
+test('HA gecersiz JSON yaniti -> 502 HA_ERROR, parse mesaji yanita ve loga girmez', async () => {
+  const realFetch = globalThis.fetch;
+  const localFetch = realFetch;
+  await withApp(
+    async (url, lines) => {
+      globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
+        const target =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (target.startsWith('http://ha.invalid')) {
+          return new Response(`not-json ${SECRET} <html>`, { status: 200 });
+        }
+        return localFetch(input, init);
+      };
+      try {
+        const res = await fetch(`${url}/api/__probe`);
+        const text = await res.text();
+        assert.equal(res.status, 502);
+        assert.equal((JSON.parse(text) as { error: { code: string } }).error.code, 'HA_ERROR');
+        assert.ok(!text.includes(SECRET) && !text.includes('not-json'), text);
+        const out = lines();
+        assert.ok(!out.includes(SECRET), out);
+        assert.ok(out.includes('app_error'));
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+    },
+    {
+      configure: (app) => {
+        app.get('/api/__probe', (_req, _res, next) => {
+          fetchNotifyTargets('http://ha.invalid', 'tok').catch(next);
+        });
+      },
+    },
   );
 });

@@ -88,10 +88,25 @@ async function haFetch(
  */
 export async function fetchNotifyTargets(baseUrl: string, token: string): Promise<HaService[]> {
   const response = await haFetch(baseUrl, token, '/api/services');
-  const domains = (await response.json()) as {
+  let domains: {
     domain: string;
     services: Record<string, { name?: string; description?: string }>;
   }[];
+  try {
+    domains = (await response.json()) as typeof domains;
+  } catch (err) {
+    // V8 JSON mesaji yanit govdesinden parca icerir: mesaj katilmaz, cause verilir.
+    throw new AppError(
+      502,
+      'HA_ERROR',
+      'Home Assistant gecersiz bir yanit dondu (JSON okunamadi).',
+      undefined,
+      { cause: err },
+    );
+  }
+  if (!Array.isArray(domains)) {
+    throw new AppError(502, 'HA_ERROR', 'Home Assistant beklenmeyen bir yanit dondu.');
+  }
 
   const notify = domains.find((d) => d.domain === 'notify');
   if (!notify) return [];

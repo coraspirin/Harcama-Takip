@@ -8,8 +8,14 @@ export class AppError extends Error {
   readonly code: string;
   readonly details: unknown;
 
-  constructor(status: number, code: string, message: string, details?: unknown) {
-    super(message);
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
     this.name = 'AppError';
     this.status = status;
     this.code = code;

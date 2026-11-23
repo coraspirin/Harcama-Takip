@@ -89,9 +89,18 @@ function clientErrorOf(err: Error): (ClientError & { status: number; type: strin
   return null;
 }
 
+/**
+ * Hata turunu istek logu satirina tasimak icin res.locals'a yazar
+ * (requestLogger customProps okur). Yalnizca kisa tur/kod; mesaj/govde ASLA.
+ */
+function setErrorType(res: { locals: Record<string, unknown> }, type: string): void {
+  res.locals.errorType = type.slice(0, 100);
+}
+
 export function createErrorHandler(log: Logger): ErrorRequestHandler {
   return (err: unknown, _req, res, _next) => {
     if (err instanceof AppError) {
+      setErrorType(res, err.code);
       if (err.status >= 500) {
         log.error(
           { event: 'app_error', code: err.code, status: err.status, err },
@@ -105,6 +114,7 @@ export function createErrorHandler(log: Logger): ErrorRequestHandler {
     }
 
     if (err instanceof ZodError) {
+      setErrorType(res, 'VALIDATION_ERROR');
       res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
@@ -118,20 +128,18 @@ export function createErrorHandler(log: Logger): ErrorRequestHandler {
     // Error olmayan deger (next('raw ...')): ham deger loga/yanita girmesin.
     const wrapped = err instanceof Error ? err : new Error('Error olmayan hata degeri');
 
-    // Istemci hatasi: 4xx doner. Log'a err/mesaj girmez; yalnizca tur ve status.
+    // Istemci hatasi: 4xx doner. Ayri log satiri yazilmaz; tur istek satirina
+    // (errorType) eklenir. err/mesaj/govde loga girmez.
     const client = clientErrorOf(wrapped);
     if (client) {
-      log.warn({
-        event: 'client_error',
-        type: client.type === null ? null : client.type.slice(0, 100),
-        status: client.status,
-      });
+      setErrorType(res, client.type ?? client.code);
       res.status(client.status).json({ error: { code: client.code, message: client.message } });
       return;
     }
 
     // Beklenmeyen hata: istemciye ic detay sizdirmayiz, sunucuya log dusuruz
     // (err, logger'in serializeErr'i ile allowlist'e indirgenir).
+    setErrorType(res, 'INTERNAL_ERROR');
     log.error({ event: 'unhandled_error', err: wrapped }, 'beklenmeyen hata');
     res.status(500).json({
       error: {

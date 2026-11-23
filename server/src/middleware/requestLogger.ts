@@ -14,6 +14,8 @@ function pathOf(req: IncomingMessage & { originalUrl?: string }): string {
  * userId yazilir; govde, baslik ve cookie ASLA yazilmaz (serializer'lar
  * varsayilan olarak baslik iceren nesneyi daraltir).
  *
+ * Hata aldiysa errorType (hata kodu/turu) eklenir; ayri hata satiri yazilmaz.
+ *
  * userId, istek BITTIginde okunur; boylece requireAuth'un req.user'i
  * doldurmasindan sonra dogru deger alinir.
  */
@@ -42,9 +44,15 @@ export function createRequestLogger(logger: Logger): RequestHandler {
     },
     customSuccessMessage: (req, res) => `${req.method} ${pathOf(req)} ${res.statusCode}`,
     customErrorMessage: (req, res) => `${req.method} ${pathOf(req)} ${res.statusCode}`,
-    customProps: (req) => {
+    // pino-http res 'finish'te loglar; errorHandler o ana dek res.locals.errorType'i
+    // doldurmustur. Yalnizca kisa tur/kod; mesaj ve govde ASLA.
+    customProps: (req, res) => {
       const userId = (req as { user?: { id: number } }).user?.id;
-      return userId === undefined ? {} : { userId };
+      const errorType = (res as { locals?: { errorType?: unknown } }).locals?.errorType;
+      return {
+        ...(userId === undefined ? {} : { userId }),
+        ...(typeof errorType === 'string' ? { errorType } : {}),
+      };
     },
     // Istek kimligi uretme: kullanilmiyor, satiri sisirmesin.
     genReqId: () => 0,
