@@ -25,7 +25,7 @@ import IslemGunlugu from './pages/admin/IslemGunlugu.tsx';
  * route'lar agacta HIC yer almaz. (Yetki kontrolu ayrica backend'de zorunlu
  * kilinmistir; buradaki ayrim UX icindir, guvenlik siniri degildir.)
  */
-function AppRoutes() {
+export function AppRoutes() {
   const { status, user } = useAuth();
 
   if (status === 'loading') return <FullPageSpinner />;

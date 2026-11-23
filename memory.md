@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 11:23 | Frontend testleri eklendi (Vitest 3 + Testing Library + jsdom, ayrı client/vitest.config.ts, setup src/test/setup.ts): lib/format.test.ts (26), MoneyInput.test.tsx (8; imleç/tutar bozulması regresyonu), App.test.tsx (26; rol bazlı yönlendirme). AppRoutes test için named export yapıldı (davranış değişmedi). Kök npm test artık server + client çalıştırıyor; README test bölümü ve TODO güncellendi.
+
 - 2026-11-23 11:20 | Kod incelemesi düzeltmeleri: lib/cookies.ts readCookie (string olmayan, ör. j: önekli JSON cookie, "cookie yok" sayılır; requireAuth, refresh, logout kullanıyor, bozuk cookie artık 500 vermiyor); asyncHandler falsy reject/throw değerlerini Error'a sarıyor. 3 route + 4 asyncHandler birim testi eklendi.
 
 - 2026-11-23 10:45 | Node 26 sabitlendi (.nvmrc, engines, @types/node 26, README); ESLint 9 flat config (typescript-eslint type-aware, react-hooks, prettier uyumu) ve Prettier (tek tırnak, noktalı virgül, 100 sütun, trailing comma all) eklendi; lint ihlalleri düzeltildi (async handler'larda gereksiz async kaldırıldı/asyncHandler senkron hatayı da yakalıyor, form/handler void sarmalayıcıları, cookie/body tip daraltmaları); node:test için no-floating-promises known-safe istisnası; GitHub Actions CI (lint, format:check, typecheck, test, build) eklendi; TODO'da CI, ESLint+Prettier, Node sürümü maddeleri işaretlendi.

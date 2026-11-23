@@ -151,14 +151,19 @@ client/src/
 ## Testler
 
 ```bash
-npm test        # node --test ile
+npm test                  # server (node --test) + client (Vitest)
+npm test --prefix server  # yalnızca sunucu
+npm test --prefix client  # yalnızca arayüz (Vitest + Testing Library)
 ```
 
-Ayrı bir test koşucusu veya derleme adımı gerekmez. Kapsam: kuruş aritmetiği ve
+Sunucu testleri ayrı bir koşucu veya derleme adımı gerektirmez. Sunucu kapsamı: kuruş aritmetiği ve
 taksit bölme, faiz senaryoları, **veri izolasyonu** (her kullanıcı yalnızca kendi
 verisi), rol ayrımı, token rotasyonu ve yeniden kullanım tespiti, rate limit,
 zamanlanmış görev idempotency'si, eski kurulumdan migration,
 export→reset→import round-trip.
+
+Arayüz testleri (`client/src/**/*.test.ts(x)`): `lib/format.ts` biçimleyicileri,
+`MoneyInput` (imleç/tutar bozulması regresyonu) ve `App.tsx` rol bazlı yönlendirme.
 
 ## Tasarım kuralları
 

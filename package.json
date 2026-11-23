@@ -14,7 +14,7 @@
     "dev:client": "npm run dev --prefix client",
     "build": "npm run build --prefix client && npm run build --prefix server",
     "typecheck": "npm run typecheck --prefix server && npm run typecheck --prefix client",
-    "test": "npm test --prefix server",
+    "test": "npm test --prefix server && npm test --prefix client",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

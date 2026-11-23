@@ -19,7 +19,7 @@ işaretlenir ve memory.md'ye loglanır.
 
 - [x] **CI**: GitHub Actions ile her push'ta `npm run lint`, `format:check`, `typecheck`, `test` ve `build` (`.github/workflows/ci.yml`)
   - Sonra: `git archive | ssh` ile yapılan elle yayını script'e bağla
-- [ ] **Frontend testleri** (Vitest + Testing Library)
+- [x] **Frontend testleri** (Vitest + Testing Library)
   - `MoneyInput.tsx` (imleç/tutar bozulması geçmişte yaşandı)
   - `lib/format.ts` (₺ ve gg.aa.yyyy biçimleri)
   - `App.tsx` rol bazlı yönlendirme (kurulum / giriş / şifre değiştirme / admin / user)
