@@ -12,6 +12,7 @@ import {
   verifyPassword,
   verifyRefreshToken,
 } from '../lib/auth.ts';
+import { readCookie } from '../lib/cookies.ts';
 import { passwordSchema, usernameSchema } from '../lib/validation.ts';
 import { findUserById, findUserByUsername, setUserPassword } from '../db/users.ts';
 import {
@@ -66,7 +67,7 @@ authRouter.post(
   '/refresh',
   refreshLimiter,
   asyncHandler((req, res) => {
-    const token = (req.cookies as Record<string, string | undefined> | undefined)?.[REFRESH_COOKIE];
+    const token = readCookie(req, REFRESH_COOKIE);
     if (!token) throw unauthorized();
 
     const payload = verifyRefreshToken(token);
@@ -113,7 +114,7 @@ authRouter.post(
 authRouter.post(
   '/logout',
   asyncHandler((req, res) => {
-    const token = (req.cookies as Record<string, string | undefined> | undefined)?.[REFRESH_COOKIE];
+    const token = readCookie(req, REFRESH_COOKIE);
     if (token) revokeRefreshToken(hashToken(token));
     clearAuthCookies(res);
     res.json({ ok: true });

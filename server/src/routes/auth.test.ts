@@ -170,3 +170,25 @@ test('yanlis mevcut sifreyle degisiklik reddedilir', async () => {
   assert.equal(res.status, 400);
   assert.equal(res.body.error.code, 'BAD_REQUEST');
 });
+
+test('obje olarak gelen (j:) refresh cookie 500 degil 401 doner', async () => {
+  const client = server.newClient();
+  client.setCookie('ht_rt', encodeURIComponent('j:{"a":1}'));
+  const res = await client.post('/api/auth/refresh');
+  assert.equal(res.status, 401);
+});
+
+test('obje olarak gelen (j:) refresh cookie ile logout 500 degil 200 doner', async () => {
+  const client = server.newClient();
+  client.setCookie('ht_rt', encodeURIComponent('j:{"a":1}'));
+  const res = await client.post<{ ok: boolean }>('/api/auth/logout');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
+});
+
+test('obje olarak gelen (j:) access cookie korumali uca 401 doner', async () => {
+  const client = server.newClient();
+  client.setCookie('ht_at', encodeURIComponent('j:{"a":1}'));
+  const res = await client.get('/api/auth/me');
+  assert.equal(res.status, 401);
+});

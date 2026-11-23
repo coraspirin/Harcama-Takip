@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import { ACCESS_COOKIE, verifyAccessToken } from '../lib/auth.ts';
+import { readCookie } from '../lib/cookies.ts';
 import { AppError, forbidden, unauthorized } from '../lib/errors.ts';
 import { findUserById } from '../db/users.ts';
 import type { Role } from '../types.ts';
@@ -18,7 +19,7 @@ export type RequireAuthOptions = {
  */
 export function requireAuth(options: RequireAuthOptions = {}): RequestHandler {
   return (req, _res, next) => {
-    const token = (req.cookies as Record<string, string | undefined> | undefined)?.[ACCESS_COOKIE];
+    const token = readCookie(req, ACCESS_COOKIE);
     if (!token) return next(unauthorized());
 
     const payload = verifyAccessToken(token);

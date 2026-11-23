@@ -3,6 +3,10 @@ import { ZodError } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import { env } from '../config/env.ts';
 
+function ensureError(err: unknown): unknown {
+  return err ? err : new Error('Bilinmeyen hata');
+}
+
 /**
  * Express 4 async handler'lardan firlayan hatalari kendiliginden yakalamaz.
  * Her async route bu sarmalayiciyla kaydedilir.
@@ -10,10 +14,12 @@ import { env } from '../config/env.ts';
 export function asyncHandler(fn: (...args: Parameters<RequestHandler>) => unknown): RequestHandler {
   return (req, res, next) => {
     // Senkron firlatilan hatalar da (ornegin zod parse) next'e iletilir.
+    // Falsy (undefined/null/0/'') firlatmalar next()'e "hata yok" gibi gider;
+    // bu yuzden Error'a sarilir.
     try {
-      Promise.resolve(fn(req, res, next)).catch(next);
+      Promise.resolve(fn(req, res, next)).catch((err: unknown) => next(ensureError(err)));
     } catch (err) {
-      next(err);
+      next(ensureError(err));
     }
   };
 }
