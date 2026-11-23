@@ -215,7 +215,9 @@ export function startScheduler(): void {
   task = cron.schedule(
     '0 8 * * *',
     () => {
-      void runScheduledScan();
+      runScheduledScan().catch((err: unknown) => {
+        logger.error({ event: 'daily_scan_fatal', err }, 'gunluk tarama beklenmeyen hata');
+      });
     },
     { timezone: env.TZ },
   );

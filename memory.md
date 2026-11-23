@@ -6,6 +6,7 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 11:45 | Güvenlik: bozuk JSON gövdesi loga sızıyordu (body-parser err.body/message/stack). errorHandler artık body-parser/4xx hatalarını 400 INVALID_JSON / 413 PAYLOAD_TOO_LARGE / 415 vb. döner (log yazmaz, pino-http warn satırı yeterli); logger.ts serializeErr (body/raw/rawBody/config/request/response/headers düşer, SyntaxError mesajı gizlenir) + REDACT err.body, *.body; createApp({ logger }) ile testte log yakalanır (errorLeak.test.ts). Scheduler'da runScheduledScan().catch güvenlik ağı. Server npm audit fix: proxy-addr, body-parser, qs, express 4.22.3 güncellendi; kalan: zod, uuid (major).
 - 2026-11-23 11:37 | Yapılandırılmış loglama (pino + pino-http, geliştirmede pino-pretty; LOG_LEVEL env, testte silent; lib/logger.ts redact listesi, err serializer) ve genişletilmiş health check (db + scheduler.lastScan*, DB hatası 503, başarısız tarama 200+degraded; services/scanStatus.ts, runScheduledScan ayrıştırıldı, günlük tarama tek özet satırı) eklendi; console.* logger'a taşındı (env.ts istisna); 9 yeni test; README LOG_LEVEL, TODO işaretlendi.
 
 - 2026-11-23 11:31 | client parseKurus sıkılaştırıldı (string tabanlı, float yok): yalnız virgül her zaman ondalık ('1,005' artık hata), 2'den fazla ondalık hane 'En fazla 2 ondalık hane girilebilir' hatası, birden fazla virgül ve geçersiz binlik gruplaması ('1.2.3,45', '12.34,5') hata. Yalnız nokta davranışı ('1.234' binlik) korundu. MoneyInput sabit mesajı değişmedi. format.test.ts ve MoneyInput.test.tsx güncellendi.

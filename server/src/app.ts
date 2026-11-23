@@ -4,8 +4,9 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { env } from './config/env.ts';
-import { apiNotFoundHandler, errorHandler } from './middleware/error.ts';
-import { requestLogger } from './middleware/requestLogger.ts';
+import type { Logger } from 'pino';
+import { apiNotFoundHandler, createErrorHandler, errorHandler } from './middleware/error.ts';
+import { createRequestLogger, requestLogger } from './middleware/requestLogger.ts';
 import { healthRouter } from './routes/health.ts';
 import { setupRouter } from './routes/setup.ts';
 import { authRouter } from './routes/auth.ts';
@@ -32,6 +33,8 @@ export type CreateAppOptions = {
    * uretim yolunda cagrilmaz.
    */
   configure?: (app: express.Express) => void;
+  /** Yalnizca testlerde: log ciktisini yakalamak icin ozel logger. */
+  logger?: Logger;
 };
 
 export function createApp(options: CreateAppOptions = {}): express.Express {
@@ -69,7 +72,7 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
   );
 
   // Istek logu: body/cookie parse edilmeden once baslar, /api/health loglanmaz.
-  app.use(requestLogger);
+  app.use(options.logger ? createRequestLogger(options.logger) : requestLogger);
 
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: false, limit: '2mb' }));
@@ -132,6 +135,6 @@ export function createApp(options: CreateAppOptions = {}): express.Express {
     });
   }
 
-  app.use(errorHandler);
+  app.use(options.logger ? createErrorHandler(options.logger) : errorHandler);
   return app;
 }

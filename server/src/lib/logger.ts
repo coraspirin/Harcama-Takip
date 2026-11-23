@@ -32,7 +32,40 @@ export const REDACT_PATHS: readonly string[] = [
   '*.accessToken',
   '*.refreshToken',
   '*.ha_token',
+  'err.body',
+  '*.body',
 ];
+
+/** err serilestirmesinde her kosulda dusurulen alanlar (govde/istek/yanit tasiyabilir). */
+const ERR_DROPPED_FIELDS = [
+  'body',
+  'raw',
+  'rawBody',
+  'config',
+  'request',
+  'response',
+  'headers',
+] as const;
+
+/**
+ * Hata serializer'i. Standart pino ciktisindan govde tasiyabilen alanlari
+ * dusurur; JSON parse hatalarinda (V8 mesaji ve stack'i govdenin bir parcasini
+ * icerir) message/stack genel metinle degistirilir.
+ */
+export function serializeErr(err: unknown): unknown {
+  const std = pino.stdSerializers.err(err as Error) as unknown as Record<string, unknown> | null;
+  if (!std || typeof std !== 'object') return std;
+  // Prototip uzerindeki alanlar (ornegin std serializer'in `raw`'i) da dusmeli;
+  // bu yuzden yalnizca kendi alanlari temiz bir nesneye kopyalanir.
+  const out: Record<string, unknown> = { ...std };
+  for (const k of ERR_DROPPED_FIELDS) delete out[k];
+  const type = (err as { type?: unknown } | null)?.type;
+  if (type === 'entity.parse.failed' || err instanceof SyntaxError) {
+    out.message = '[gizlendi: JSON parse hatasi]';
+    delete out.stack;
+  }
+  return out;
+}
 
 /**
  * Logger'i olusturur. Test edilebilmesi icin hedef akis ve seviye disaridan
@@ -42,7 +75,7 @@ export function createLogger(options: { level?: string; stream?: DestinationStre
   const base: LoggerOptions = {
     level: options.level ?? (env.isTest ? 'silent' : env.LOG_LEVEL),
     redact: { paths: [...REDACT_PATHS], censor: '[Redacted]' },
-    serializers: { err: pino.stdSerializers.err },
+    serializers: { err: serializeErr },
   };
 
   if (options.stream) return pino(base, options.stream);
