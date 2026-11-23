@@ -525,3 +525,62 @@ export type CalendarMonth = {
   tightDayCount: number;
   endCumulativeKurus: number;
 };
+
+/** GET /api/reports/yearly - tek bir kategori satiri (gider ve gelir icin ortak). */
+export type YearlyCategoryRow = {
+  categoryId: number | null;
+  categoryName: string;
+  totalKurus: number;
+  sharePercent: number;
+  transactionCount: number;
+  previousYearKurus: number;
+  changePercent: number | null;
+};
+
+export type YearlyMonthRow = {
+  month: string; // YYYY-MM
+  incomeKurus: number;
+  expenseKurus: number;
+  netKurus: number;
+};
+
+export type YearlyReport = {
+  year: number;
+  isCurrentYear: boolean;
+  monthsElapsed: number;
+  totals: {
+    incomeKurus: number;
+    expenseKurus: number;
+    netKurus: number;
+    savingsRatePercent: number | null;
+  };
+  previousYear: { incomeKurus: number; expenseKurus: number; netKurus: number } | null;
+  changePercent: { income: number | null; expense: number | null; net: number | null };
+  months: YearlyMonthRow[];
+  expenseByCategory: YearlyCategoryRow[];
+  incomeByCategory: YearlyCategoryRow[];
+  highlights: {
+    highestExpenseMonth: { month: string; expenseKurus: number } | null;
+    lowestExpenseMonth: { month: string; expenseKurus: number } | null;
+    averageMonthlyExpenseKurus: number;
+    averageMonthlyIncomeKurus: number;
+  };
+  expenseByNature: { fixedKurus: number; variableKurus: number; uncategorizedKurus: number };
+};
+
+/** GET /api/transactions/suggest-category */
+export type CategorySuggestion = {
+  categoryId: number;
+  categoryName: string;
+  /** 0-1 */
+  confidence: number;
+  matchCount: number;
+};
+
+/** GET /api/transactions/recent-categories */
+export type RecentCategory = {
+  categoryId: number;
+  categoryName: string;
+  useCount: number;
+  lastUsedAt: string | null;
+};

@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ArrowLeftRight, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { useFieldValidity } from '../hooks/useFieldValidity.ts';
+import { useCategorySuggestion } from '../hooks/useCategorySuggestion.ts';
+import { useOnTransactionsChanged } from '../hooks/useTransactionsChanged.ts';
 import { categoryService, transactionService, type TransactionQuery } from '../services/finance.ts';
 import { ApiError } from '../services/api.ts';
 import type { Transaction } from '../types/index.ts';
@@ -11,6 +13,7 @@ import { Alert } from '../components/ui/Alert.tsx';
 import { Card, EmptyState, PageHeader } from '../components/ui/Card.tsx';
 import { ConfirmDialog, Modal } from '../components/ui/Modal.tsx';
 import { MoneyInput } from '../components/MoneyInput.tsx';
+import { KategoriOnerileri } from '../components/KategoriOnerileri.tsx';
 import { Money, SignedAmount } from '../components/Money.tsx';
 import { MonthPicker, currentYearMonth } from '../components/MonthPicker.tsx';
 import { formatDate, todayIso } from '../lib/format.ts';
@@ -56,6 +59,23 @@ export default function Islemler() {
   const [description, setDescription] = useState('');
 
   const availableCategories = (categories.data ?? []).filter((c) => c.kind === type);
+  const validCategoryIds = useMemo(
+    () => new Set((categories.data ?? []).filter((c) => c.kind === type).map((c) => c.id)),
+    [categories.data, type],
+  );
+
+  // Baska bir yerden (hizli ekleme) islem eklenince liste guncel kalsin
+  useOnTransactionsChanged(() => void list.reload());
+
+  // Aciklamadan kategori onerisi; duzenlemede mevcut kategori asla otomatik degismez
+  const suggest = useCategorySuggestion({
+    description,
+    type,
+    categoryId,
+    onSelect: useCallback((id: number) => setCategoryId(id), []),
+    validCategoryIds,
+    allowAutoSelect: formOpen && editing === null,
+  });
 
   function openCreate() {
     setEditing(null);
@@ -65,6 +85,7 @@ export default function Islemler() {
     setDate(todayIso());
     setDescription('');
     setError(null);
+    suggest.reset();
     setFormOpen(true);
   }
 
@@ -76,6 +97,7 @@ export default function Islemler() {
     setDate(tx.date);
     setDescription(tx.description ?? '');
     setError(null);
+    suggest.reset();
     setFormOpen(true);
   }
 
@@ -513,7 +535,10 @@ export default function Islemler() {
           <SelectField
             label="Kategori"
             value={categoryId ?? ''}
-            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+            onChange={(e) => {
+              suggest.markManual();
+              setCategoryId(e.target.value ? Number(e.target.value) : null);
+            }}
           >
             <option value="">Kategorisiz</option>
             {availableCategories.map((c) => (
@@ -523,12 +548,20 @@ export default function Islemler() {
             ))}
           </SelectField>
 
-          <TextField
-            label="Aciklama"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Istege bagli"
-          />
+          <div>
+            <TextField
+              label="Aciklama"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Istege bagli"
+            />
+            <KategoriOnerileri
+              suggestions={suggest.suggestions}
+              selectedId={categoryId}
+              autoSelected={suggest.autoSelected}
+              onChoose={suggest.choose}
+            />
+          </div>
 
           {error && <Alert tone="error">{error}</Alert>}
         </div>

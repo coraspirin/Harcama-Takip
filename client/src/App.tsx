@@ -9,6 +9,7 @@ import Giris from './pages/Giris.tsx';
 import SifreDegistir from './pages/SifreDegistir.tsx';
 import Ayarlar from './pages/Ayarlar.tsx';
 import Dashboard from './pages/Dashboard.tsx';
+import HizliEkleSayfasi from './pages/HizliEkleSayfasi.tsx';
 import Islemler from './pages/Islemler.tsx';
 import Kategoriler from './pages/Kategoriler.tsx';
 import Butce from './pages/Butce.tsx';
@@ -75,6 +76,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
+        <Route path="hizli-ekle" element={<HizliEkleSayfasi />} />
         <Route path="islemler" element={<Islemler />} />
         <Route path="bekleyen" element={<BekleyenOdemeler />} />
         {/* Eski adresler: yer imleri ve bildirim baglantilari bozulmasin */}

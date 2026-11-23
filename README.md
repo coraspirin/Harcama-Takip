@@ -10,14 +10,15 @@ erişemeyen** bir süper admin rolü vardır.
 | Alan | Kapsam |
 | --- | --- |
 | Özet | Bu ay gelir/gider · serbest para · günlük harcanabilir · yaklaşan ödemeler · borç özeti |
-| İşlemler | Gelir/gider CRUD · tarih, kategori, tutar aralığı ve açıklama filtreleri · toplu silme |
+| İşlemler | Gelir/gider CRUD · tarih, kategori, tutar aralığı ve açıklama filtreleri · toplu silme · açıklamadan kategori önerisi (geçmiş işlemlere göre) |
+| Hızlı ekleme | Her sayfada sağ alttaki "+" butonu · tutar + son kullanılan kategori chip'leri · "Kaydet ve yeni" · PWA kısayolu (`/hizli-ekle`) |
 | Kategoriler | Varsayılan iskelet · sabit/değişken ayrımı · kullanımdaysa arşivleme |
 | Bekleyen ödemeler | Planlanan ödeme/alacak · fatura · abonelik · taksit (3/12 ilerleme) · yıllık giderlerin aylık payı · tekrar eden ödeme önerileri |
 | Bütçe | Genel ve kategori bazlı aylık limit · günlük harcanabilir tutar · ay sonu tahmini · serbest para |
 | Borçlar | Kredi, kredi kartı, kişilere borç/alacak · bitme tahmini (KKDF + BSMV dahil faiz) · fazladan ödeme etkisi · çığ/kartopu |
 | Birikimler | Hedefler · aylık gereken tutar · ulaşma tahmini · acil durum fonu önerisi |
 | Takvim | Gün gün gelir ve ödemeler · nakdin sıkıştığı günler |
-| Raporlar | Aylık özet · kategori kırılımı · 12 aylık trend · gidişat tahmini ("ayda X az harcarsam") · ay kapanışları |
+| Raporlar | Aylık özet · yıllık özet (önceki yıl karşılaştırması, aylık grafik, kategori listesi, sabit/değişken gider) · kategori kırılımı · 12 aylık trend · gidişat tahmini ("ayda X az harcarsam") · ay kapanışları |
 | Uyarılar | Vade hatırlatma · limit %80/%100 · anormal harcama · ay kapanış özeti (uygulama içi + Home Assistant) |
 | Veri | JSON dışa/içe aktarım (birleştir veya üzerine yaz) · onaylı sıfırlama |
 | Süper admin | Kullanıcı yönetimi · şifre sıfırlama · işlem günlüğü |

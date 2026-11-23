@@ -12,6 +12,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
+import { useOnTransactionsChanged } from '../hooks/useTransactionsChanged.ts';
 import { dashboardService, reportService } from '../services/finance.ts';
 import { scheduledService } from '../services/scheduled.ts';
 import { currentYearMonth } from '../components/MonthPicker.tsx';
@@ -181,6 +182,14 @@ export default function Dashboard() {
   const monthly = useAsync(() => reportService.monthly(month), [month]);
   const trend = useAsync(() => reportService.trend(month, 6), [month]);
   const upcoming = useAsync(() => scheduledService.upcoming(UPCOMING_DAYS), []);
+
+  // Hizli ekleme ile islem eklenince ozet/rapor/trend yenilensin
+  useOnTransactionsChanged(() => {
+    void summary.reload();
+    void monthly.reload();
+    void trend.reload();
+    void upcoming.reload();
+  });
 
   if (summary.error) {
     return (

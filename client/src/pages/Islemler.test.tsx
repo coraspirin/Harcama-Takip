@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Islemler from './Islemler.tsx';
-import { categoryService, transactionService } from '../services/finance.ts';
+import { categoryService, suggestCategory, transactionService } from '../services/finance.ts';
 
 vi.mock('../services/finance.ts', () => ({
   categoryService: { list: vi.fn() },
   transactionService: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() },
+  suggestCategory: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -17,6 +18,7 @@ beforeEach(() => {
     pagination: { page: 1, pageSize: 50, total: 0 },
   });
   vi.mocked(transactionService.create).mockClear();
+  vi.mocked(suggestCategory).mockResolvedValue([]);
 });
 
 async function openForm(user: ReturnType<typeof userEvent.setup>) {

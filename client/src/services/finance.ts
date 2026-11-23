@@ -3,6 +3,7 @@ import type {
   Budget,
   BudgetListResponse,
   CategoryReport,
+  CategorySuggestion,
   Category,
   DashboardSummary,
   CalendarMonth,
@@ -12,9 +13,11 @@ import type {
   MonthOverview,
   MonthlyReport,
   Pagination,
+  RecentCategory,
   TrendReport,
   Totals,
   Transaction,
+  YearlyReport,
 } from '../types/index.ts';
 
 export type TransactionInput = {
@@ -128,3 +131,32 @@ export const dashboardService = {
 export const calendarService = {
   month: (month: string) => api.get<CalendarMonth>(`/api/calendar?month=${month}`),
 };
+
+/** Yillik ozet raporu (12 ay, kategori kirilimi, onceki yil karsilastirmasi). */
+export function getYearlyReport(year: number): Promise<YearlyReport> {
+  return api.get<YearlyReport>(`/api/reports/yearly?year=${year}`);
+}
+
+/** Aciklamadan kategori onerisi (en fazla 3; 2 karakterden kisa aciklamada bos). */
+export function suggestCategory(
+  description: string,
+  type: 'income' | 'expense',
+): Promise<CategorySuggestion[]> {
+  return api
+    .get<{ suggestions: CategorySuggestion[] }>(
+      `/api/transactions/suggest-category${toQueryString({ description, type })}`,
+    )
+    .then((r) => r.suggestions);
+}
+
+/** Son kullanilan kategoriler (hizli islem ekleme icin). */
+export function getRecentCategories(
+  type: 'income' | 'expense',
+  limit = 6,
+): Promise<RecentCategory[]> {
+  return api
+    .get<{ categories: RecentCategory[] }>(
+      `/api/transactions/recent-categories${toQueryString({ type, limit })}`,
+    )
+    .then((r) => r.categories);
+}

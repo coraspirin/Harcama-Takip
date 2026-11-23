@@ -38,6 +38,9 @@ vi.mock('./layouts/AdminLayout.tsx', () => ({
 vi.mock('./pages/Kurulum.tsx', () => ({ default: () => <div>sayfa:Kurulum</div> }));
 vi.mock('./pages/Giris.tsx', () => ({ default: () => <div>sayfa:Giris</div> }));
 vi.mock('./pages/SifreDegistir.tsx', () => ({ default: () => <div>sayfa:SifreDegistir</div> }));
+vi.mock('./components/HizliEkle.tsx', () => ({
+  HizliEkle: ({ open }: { open: boolean }) => (open ? <div>modal:HizliEkle</div> : null),
+}));
 vi.mock('./pages/Ayarlar.tsx', () => ({ default: () => <div>sayfa:Ayarlar</div> }));
 vi.mock('./pages/Dashboard.tsx', () => ({ default: () => <div>sayfa:Dashboard</div> }));
 vi.mock('./pages/Islemler.tsx', () => ({ default: () => <div>sayfa:Islemler</div> }));
@@ -146,12 +149,15 @@ describe('AppRoutes yonlendirme', () => {
   describe('super_admin', () => {
     beforeEach(() => setAuth('authenticated', makeUser({ role: 'super_admin' })));
 
-    it.each(['/', '/islemler', '/giris', '/bilinmeyen'])('%s -> /admin/kullanicilar', (path) => {
-      renderAt(path);
-      expect(konum()).toBe('/admin/kullanicilar');
-      expect(screen.getByText('layout:Admin')).toBeInTheDocument();
-      expect(screen.getByText('sayfa:Kullanicilar')).toBeInTheDocument();
-    });
+    it.each(['/', '/islemler', '/giris', '/bilinmeyen', '/hizli-ekle'])(
+      '%s -> /admin/kullanicilar',
+      (path) => {
+        renderAt(path);
+        expect(konum()).toBe('/admin/kullanicilar');
+        expect(screen.getByText('layout:Admin')).toBeInTheDocument();
+        expect(screen.getByText('sayfa:Kullanicilar')).toBeInTheDocument();
+      },
+    );
 
     it('/admin -> /admin/kullanicilar', () => {
       renderAt('/admin');
@@ -178,6 +184,14 @@ describe('AppRoutes yonlendirme', () => {
       renderAt('/');
       expect(screen.getByText('layout:App')).toBeInTheDocument();
       expect(screen.getByText('sayfa:Dashboard')).toBeInTheDocument();
+    });
+
+    it('/hizli-ekle Dashboard uzerinde hizli ekleme modalini acik acar', () => {
+      renderAt('/hizli-ekle');
+      expect(konum()).toBe('/hizli-ekle');
+      expect(screen.getByText('layout:App')).toBeInTheDocument();
+      expect(screen.getByText('sayfa:Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('modal:HizliEkle')).toBeInTheDocument();
     });
 
     it('/islemler acilir', () => {

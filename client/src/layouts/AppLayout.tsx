@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   ArrowLeftRight,
@@ -10,6 +10,7 @@ import {
   LogOut,
   PiggyBank,
   Menu,
+  Plus,
   Settings,
   Tags,
   Target,
@@ -18,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { BildirimZili } from '../components/BildirimZili.tsx';
+import { HizliEkle } from '../components/HizliEkle.tsx';
+import { ToastHost } from '../components/ui/Toast.tsx';
 
 const NAV = [
   { to: '/', label: 'Ozet', icon: LayoutDashboard, end: true },
@@ -35,6 +38,8 @@ const NAV = [
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const closeQuickAdd = useCallback(() => setQuickAddOpen(false), []);
   const location = useLocation();
 
   // Mobil menude bir baglantiya tiklandiginda menu kapansin
@@ -146,10 +151,28 @@ export default function AppLayout() {
           <BildirimZili />
         </div>
 
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Alt bosluk: yuzen "+" butonu icerigin son satirlarini kapatmasin */}
+        <div className="mx-auto max-w-6xl px-4 pt-6 pb-24 sm:px-6 lg:px-8">
           <Outlet />
         </div>
       </main>
+
+      {/* /hizli-ekle rotasi kendi modalini acar; ikinci bir buton/modal gosterilmez */}
+      {location.pathname !== '/hizli-ekle' && (
+        <>
+          <button
+            type="button"
+            onClick={() => setQuickAddOpen(true)}
+            aria-label="Hizli islem ekle"
+            title="Hizli islem ekle"
+            className="fixed right-4 bottom-4 z-30 rounded-full bg-brand-600 p-4 text-white shadow-lg transition-colors hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 sm:right-6 sm:bottom-6"
+          >
+            <Plus className="h-6 w-6" aria-hidden />
+          </button>
+          <HizliEkle open={quickAddOpen} onClose={closeQuickAdd} />
+        </>
+      )}
+      <ToastHost />
     </div>
   );
 }

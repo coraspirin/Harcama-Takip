@@ -11,6 +11,7 @@ import { AylikTrend } from '../components/charts/AylikTrend.tsx';
 import { formatYearMonth } from '../lib/format.ts';
 import { GidisatRaporu } from '../components/GidisatRaporu.tsx';
 import { AyKapanislari } from '../components/AyKapanislari.tsx';
+import { YillikRapor } from '../components/YillikRapor.tsx';
 
 function ChangeNote({ percent, invert = false }: { percent: number | null; invert?: boolean }) {
   if (percent === null) {
@@ -40,7 +41,7 @@ const TREND_MONTHS = 12;
 export default function Raporlar() {
   const [month, setMonth] = useState(currentYearMonth());
   const [breakdownKind, setBreakdownKind] = useState<'expense' | 'income'>('expense');
-  const [view, setView] = useState<'monthly' | 'forecast' | 'closings'>('monthly');
+  const [view, setView] = useState<'monthly' | 'yearly' | 'forecast' | 'closings'>('monthly');
 
   const monthly = useAsync(() => reportService.monthly(month), [month]);
   const trend = useAsync(() => reportService.trend(month, TREND_MONTHS), [month]);
@@ -53,7 +54,7 @@ export default function Raporlar() {
     <>
       <PageHeader
         title="Raporlar"
-        description="Aylik ozet, kategori kirilimi, trend ve gidisat tahmini"
+        description="Aylik ve yillik ozet, kategori kirilimi, trend ve gidisat tahmini"
       />
 
       <div
@@ -63,6 +64,7 @@ export default function Raporlar() {
         {(
           [
             ['monthly', 'Aylik rapor'],
+            ['yearly', 'Yillik'],
             ['forecast', 'Gidisat'],
             ['closings', 'Ay kapanislari'],
           ] as const
@@ -81,7 +83,9 @@ export default function Raporlar() {
         ))}
       </div>
 
-      {view === 'forecast' ? (
+      {view === 'yearly' ? (
+        <YillikRapor />
+      ) : view === 'forecast' ? (
         <GidisatRaporu />
       ) : view === 'closings' ? (
         <AyKapanislari />

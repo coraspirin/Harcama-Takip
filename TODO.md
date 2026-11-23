@@ -40,10 +40,10 @@ işaretlenir ve memory.md'ye loglanır.
 
 ## 💡 Ürün fikirleri
 
-- [ ] Hızlı işlem ekleme (PWA kısayolu, son kullanılan kategoriler)
+- [x] Hızlı işlem ekleme (PWA kısayolu, son kullanılan kategoriler)
 - [ ] CSV dışa aktarma (Excel için)
-- [ ] Yıllık özet raporu
-- [ ] Kategori kuralları: açıklamadan otomatik kategori önerisi
+- [x] Yıllık özet raporu
+- [x] Kategori kuralları: açıklamadan otomatik kategori önerisi
 
 ## Önerilen uygulama sırası
 
