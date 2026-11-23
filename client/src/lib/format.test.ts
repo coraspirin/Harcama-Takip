@@ -61,8 +61,38 @@ describe('parseKurus', () => {
     expect(parseKurus('1.234')).toBe(123400);
   });
 
-  it('virgulden sonra uc hane binlik ayraci sayilir (mevcut davranis)', () => {
-    expect(parseKurus('1,002')).toBe(100200);
+  it('yalniz virgul her zaman ondaliktir; 2 haneden fazlasi hatadir', () => {
+    expect(parseKurus('12,5')).toBe(1250);
+    expect(parseKurus('0,29')).toBe(29);
+    const msg = 'En fazla 2 ondalık hane girilebilir';
+    expect(() => parseKurus('1,005')).toThrow(msg);
+    expect(() => parseKurus('1,002')).toThrow(msg);
+    expect(() => parseKurus('1,0049')).toThrow(msg);
+    expect(() => parseKurus('1,234')).toThrow(msg);
+  });
+
+  it('birden fazla virgul hatadir', () => {
+    expect(() => parseKurus('1,2,3')).toThrow('Gecersiz tutar');
+    expect(() => parseKurus('1,234,567')).toThrow('Gecersiz tutar');
+  });
+
+  it('yalniz nokta: gecerli gruplama binliktir, aksi halde ondalik (en fazla 2 hane)', () => {
+    expect(parseKurus('1.234')).toBe(123400);
+    expect(parseKurus('1.005')).toBe(100500);
+    expect(parseKurus('1.234.567')).toBe(123456700);
+    expect(parseKurus('12.5')).toBe(1250);
+    expect(parseKurus('1234.56')).toBe(123456);
+    expect(() => parseKurus('1.2345')).toThrow('En fazla 2 ondalık hane girilebilir');
+    expect(() => parseKurus('1.2.3')).toThrow('Gecersiz tutar');
+  });
+
+  it('ikisi birden: son ayrac ondaliktir, binlik kisim gecerli gruplama olmali', () => {
+    expect(parseKurus('1.234,56')).toBe(123456);
+    expect(parseKurus('1,234.56')).toBe(123456);
+    expect(() => parseKurus('1.234,567')).toThrow('En fazla 2 ondalık hane girilebilir');
+    expect(() => parseKurus('1,234.567')).toThrow('En fazla 2 ondalık hane girilebilir');
+    expect(() => parseKurus('1.2.3,45')).toThrow('Gecersiz tutar');
+    expect(() => parseKurus('12.34,5')).toThrow('Gecersiz tutar');
   });
 
   it('Ingilizce bicim: virgul binlik, nokta ondalik', () => {
@@ -83,14 +113,9 @@ describe('parseKurus', () => {
     expect(parseKurus('19,99')).toBe(1999);
   });
 
-  it('uc haneli ondaligi (1,005) binlik sayar; 4+ haneyi yuvarlar (mevcut davranis)', () => {
-    expect(parseKurus('1,005')).toBe(100500);
-    expect(parseKurus('1.005')).toBe(100500);
-    expect(parseKurus('1,0049')).toBe(100);
-  });
-
   it('negatif girdiyi destekler', () => {
     expect(parseKurus('-12,5')).toBe(-1250);
+    expect(parseKurus('-0')).toBe(0);
   });
 
   it('bos girdide hata firlatir', () => {

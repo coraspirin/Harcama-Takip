@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 11:31 | client parseKurus sıkılaştırıldı (string tabanlı, float yok): yalnız virgül her zaman ondalık ('1,005' artık hata), 2'den fazla ondalık hane 'En fazla 2 ondalık hane girilebilir' hatası, birden fazla virgül ve geçersiz binlik gruplaması ('1.2.3,45', '12.34,5') hata. Yalnız nokta davranışı ('1.234' binlik) korundu. MoneyInput sabit mesajı değişmedi. format.test.ts ve MoneyInput.test.tsx güncellendi.
+
 - 2026-11-23 11:23 | Frontend testleri eklendi (Vitest 3 + Testing Library + jsdom, ayrı client/vitest.config.ts, setup src/test/setup.ts): lib/format.test.ts (26), MoneyInput.test.tsx (8; imleç/tutar bozulması regresyonu), App.test.tsx (26; rol bazlı yönlendirme). AppRoutes test için named export yapıldı (davranış değişmedi). Kök npm test artık server + client çalıştırıyor; README test bölümü ve TODO güncellendi.
 
 - 2026-11-23 11:20 | Kod incelemesi düzeltmeleri: lib/cookies.ts readCookie (string olmayan, ör. j: önekli JSON cookie, "cookie yok" sayılır; requireAuth, refresh, logout kullanıyor, bozuk cookie artık 500 vermiyor); asyncHandler falsy reject/throw değerlerini Error'a sarıyor. 3 route + 4 asyncHandler birim testi eklendi.

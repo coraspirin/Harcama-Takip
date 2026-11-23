@@ -102,6 +102,18 @@ describe('MoneyInput', () => {
     expect(screen.getByText('Gecerli bir tutar girin')).toBeInTheDocument();
   });
 
+  it('"1,005" yazinca hata gosterir ve 100500 yayilmaz', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+
+    await user.type(getInput(), '1,005');
+    expect(screen.getByText('Gecerli bir tutar girin')).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalledWith(100500);
+    expect(onChange).toHaveBeenLastCalledWith(100);
+    expect(screen.getByTestId('deger')).not.toHaveTextContent('100500');
+  });
+
   it('hata, gecerli girdiyle temizlenir', async () => {
     const user = userEvent.setup();
     render(<Harness />);
