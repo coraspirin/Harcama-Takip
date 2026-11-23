@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
+import { useFieldValidity } from '../hooks/useFieldValidity.ts';
 import { debtService } from '../services/debts.ts';
 import { ApiError } from '../services/api.ts';
 import type { Debt, PayoffSummary } from '../types/index.ts';
@@ -42,6 +43,7 @@ export function BorcDetayi({
   onChanged: () => Promise<void>;
 }) {
   const [extraKurus, setExtraKurus] = useState<number | null>(null);
+  const extraFields = useFieldValidity();
   const detail = useAsync(
     () => debtService.detail(debt.id, extraKurus ?? 0),
     [debt.id, extraKurus],
@@ -128,10 +130,11 @@ export function BorcDetayi({
                 label="Aylik ek odeme"
                 valueKurus={extraKurus}
                 onChangeKurus={setExtraKurus}
+                {...extraFields.register('extraKurus')}
                 hint="Mevcut aylik odemenin USTUNE eklenecek tutar"
               />
             </div>
-            {data && (extraKurus ?? 0) > 0 && (
+            {data && extraFields.allValid && (extraKurus ?? 0) > 0 && (
               <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
                 {data.whatIf.improved.status === 'ends' ? (
                   <>

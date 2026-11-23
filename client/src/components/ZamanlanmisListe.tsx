@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CalendarClock, Check, ChevronDown, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
+import { useFieldValidity } from '../hooks/useFieldValidity.ts';
 import { categoryService } from '../services/finance.ts';
 import { occurrenceService, scheduledService } from '../services/scheduled.ts';
 import { ApiError } from '../services/api.ts';
@@ -121,6 +122,8 @@ export function ZamanlanmisListe({
   const [deleting, setDeleting] = useState<ScheduledItem | null>(null);
   const [amountModal, setAmountModal] = useState<Occurrence | null>(null);
   const [busy, setBusy] = useState(false);
+  const itemFields = useFieldValidity();
+  const occurrenceFields = useFieldValidity();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -174,6 +177,7 @@ export function ZamanlanmisListe({
   }
 
   async function handleSave() {
+    if (!itemFields.allValid) return;
     setBusy(true);
     setError(null);
     try {
@@ -252,6 +256,7 @@ export function ZamanlanmisListe({
   }
 
   async function handleConfirmWithAmount() {
+    if (!occurrenceFields.allValid) return;
     if (!amountModal || occurrenceAmount === null) {
       setError('Tutar girin');
       return;
@@ -389,7 +394,11 @@ export function ZamanlanmisListe({
             <Button variant="secondary" onClick={() => setFormOpen(false)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleSave()}>
+            <Button
+              loading={busy}
+              disabled={!itemFields.allValid}
+              onClick={() => void handleSave()}
+            >
               Kaydet
             </Button>
           </>
@@ -433,6 +442,7 @@ export function ZamanlanmisListe({
                 label="Toplam tutar"
                 valueKurus={totalAmountKurus}
                 onChangeKurus={setTotalAmountKurus}
+                {...itemFields.register('totalAmountKurus')}
                 hint="Taksitlere bolunecek toplam"
                 required
               />
@@ -464,6 +474,7 @@ export function ZamanlanmisListe({
                   label="Tutar"
                   valueKurus={amountKurus}
                   onChangeKurus={setAmountKurus}
+                  {...itemFields.register('amountKurus')}
                   hint="Her donem odenen sabit tutar"
                   required
                 />
@@ -472,6 +483,7 @@ export function ZamanlanmisListe({
                   label="Tahmini tutar"
                   valueKurus={amountKurus}
                   onChangeKurus={setAmountKurus}
+                  {...itemFields.register('amountKurus')}
                   hint="Istege bagli. Uc aylik / yillik faturada aylik pay bununla hesaplanir; bos ise son odenen tutar kullanilir."
                 />
               )}
@@ -481,6 +493,7 @@ export function ZamanlanmisListe({
               label="Tutar"
               valueKurus={amountKurus}
               onChangeKurus={setAmountKurus}
+              {...itemFields.register('amountKurus')}
               required
             />
           )}
@@ -587,7 +600,11 @@ export function ZamanlanmisListe({
             <Button variant="secondary" onClick={() => setAmountModal(null)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleConfirmWithAmount()}>
+            <Button
+              loading={busy}
+              disabled={!occurrenceFields.allValid}
+              onClick={() => void handleConfirmWithAmount()}
+            >
               Onayla
             </Button>
           </>
@@ -602,6 +619,7 @@ export function ZamanlanmisListe({
             label="Odenen tutar"
             valueKurus={occurrenceAmount}
             onChangeKurus={setOccurrenceAmount}
+            {...occurrenceFields.register('occurrenceAmount')}
             required
             autoFocus
           />

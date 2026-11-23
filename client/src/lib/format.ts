@@ -29,15 +29,15 @@ const MAX_DECIMALS_MESSAGE = 'En fazla 2 ondalık hane girilebilir';
  */
 export function parseKurus(input: string): number {
   const cleaned = input.trim().replace(/\s|₺|TL/gi, '');
-  if (cleaned === '') throw new Error('Tutar bos olamaz');
+  if (cleaned === '') throw new Error('Tutar boş olamaz');
 
   const neg = cleaned.startsWith('-');
   const s = neg || cleaned.startsWith('+') ? cleaned.slice(1) : cleaned;
-  if (!/^[\d.,]+$/.test(s) || !/\d/.test(s)) throw new Error('Gecersiz tutar');
+  if (!/^[\d.,]+$/.test(s) || !/\d/.test(s)) throw new Error('Geçersiz tutar');
 
   const lastComma = s.lastIndexOf(',');
   const lastDot = s.lastIndexOf('.');
-  const invalid = new Error('Gecersiz tutar');
+  const invalid = new Error('Geçersiz tutar');
 
   let intPart: string;
   let fracPart = '';

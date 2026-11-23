@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, Copy, Gauge, Plus, Target, Trash2 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
+import { useFieldValidity } from '../hooks/useFieldValidity.ts';
 import { budgetService, categoryService } from '../services/finance.ts';
 import { ApiError } from '../services/api.ts';
 import type { Budget, MonthOverview } from '../types/index.ts';
@@ -145,6 +146,7 @@ export default function Butce() {
   const [editing, setEditing] = useState<Budget | null>(null);
   const [deleting, setDeleting] = useState<Budget | null>(null);
   const [busy, setBusy] = useState(false);
+  const limitFields = useFieldValidity();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -198,6 +200,7 @@ export default function Butce() {
   }
 
   async function handleSave() {
+    if (!limitFields.allValid) return;
     if (limitKurus === null || limitKurus <= 0) {
       setError('Limit sifirdan buyuk olmali');
       return;
@@ -461,7 +464,11 @@ export default function Butce() {
             <Button variant="secondary" onClick={() => setFormOpen(false)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleSave()}>
+            <Button
+              loading={busy}
+              disabled={!limitFields.allValid}
+              onClick={() => void handleSave()}
+            >
               Kaydet
             </Button>
           </>
@@ -494,6 +501,7 @@ export default function Butce() {
             label="Aylik limit"
             valueKurus={limitKurus}
             onChangeKurus={setLimitKurus}
+            {...limitFields.register('limitKurus')}
             required
             autoFocus
           />

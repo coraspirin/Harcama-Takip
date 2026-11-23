@@ -72,8 +72,8 @@ describe('parseKurus', () => {
   });
 
   it('birden fazla virgul hatadir', () => {
-    expect(() => parseKurus('1,2,3')).toThrow('Gecersiz tutar');
-    expect(() => parseKurus('1,234,567')).toThrow('Gecersiz tutar');
+    expect(() => parseKurus('1,2,3')).toThrow('Geçersiz tutar');
+    expect(() => parseKurus('1,234,567')).toThrow('Geçersiz tutar');
   });
 
   it('yalniz nokta: gecerli gruplama binliktir, aksi halde ondalik (en fazla 2 hane)', () => {
@@ -83,7 +83,7 @@ describe('parseKurus', () => {
     expect(parseKurus('12.5')).toBe(1250);
     expect(parseKurus('1234.56')).toBe(123456);
     expect(() => parseKurus('1.2345')).toThrow('En fazla 2 ondalık hane girilebilir');
-    expect(() => parseKurus('1.2.3')).toThrow('Gecersiz tutar');
+    expect(() => parseKurus('1.2.3')).toThrow('Geçersiz tutar');
   });
 
   it('ikisi birden: son ayrac ondaliktir, binlik kisim gecerli gruplama olmali', () => {
@@ -91,8 +91,8 @@ describe('parseKurus', () => {
     expect(parseKurus('1,234.56')).toBe(123456);
     expect(() => parseKurus('1.234,567')).toThrow('En fazla 2 ondalık hane girilebilir');
     expect(() => parseKurus('1,234.567')).toThrow('En fazla 2 ondalık hane girilebilir');
-    expect(() => parseKurus('1.2.3,45')).toThrow('Gecersiz tutar');
-    expect(() => parseKurus('12.34,5')).toThrow('Gecersiz tutar');
+    expect(() => parseKurus('1.2.3,45')).toThrow('Geçersiz tutar');
+    expect(() => parseKurus('12.34,5')).toThrow('Geçersiz tutar');
   });
 
   it('Ingilizce bicim: virgul binlik, nokta ondalik', () => {
@@ -119,15 +119,15 @@ describe('parseKurus', () => {
   });
 
   it('bos girdide hata firlatir', () => {
-    expect(() => parseKurus('')).toThrow('Tutar bos olamaz');
-    expect(() => parseKurus('   ')).toThrow('Tutar bos olamaz');
-    expect(() => parseKurus('₺')).toThrow('Tutar bos olamaz');
+    expect(() => parseKurus('')).toThrow('Tutar boş olamaz');
+    expect(() => parseKurus('   ')).toThrow('Tutar boş olamaz');
+    expect(() => parseKurus('₺')).toThrow('Tutar boş olamaz');
   });
 
   it('gecersiz girdide hata firlatir', () => {
-    expect(() => parseKurus('abc')).toThrow('Gecersiz tutar');
-    expect(() => parseKurus('12abc')).toThrow('Gecersiz tutar');
-    expect(() => parseKurus('1,2,3,x')).toThrow('Gecersiz tutar');
+    expect(() => parseKurus('abc')).toThrow('Geçersiz tutar');
+    expect(() => parseKurus('12abc')).toThrow('Geçersiz tutar');
+    expect(() => parseKurus('1,2,3,x')).toThrow('Geçersiz tutar');
   });
 
   it('formatKurus ile gidis-donus tutarlidir', () => {

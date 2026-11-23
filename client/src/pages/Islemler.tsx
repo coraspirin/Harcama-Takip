@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeftRight, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
+import { useFieldValidity } from '../hooks/useFieldValidity.ts';
 import { categoryService, transactionService, type TransactionQuery } from '../services/finance.ts';
 import { ApiError } from '../services/api.ts';
 import type { Transaction } from '../types/index.ts';
@@ -44,6 +45,7 @@ export default function Islemler() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
+  const amountFields = useFieldValidity();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -78,6 +80,7 @@ export default function Islemler() {
   }
 
   async function handleSave() {
+    if (!amountFields.allValid) return;
     if (amountKurus === null) {
       setError('Tutar zorunlu');
       return;
@@ -448,7 +451,11 @@ export default function Islemler() {
             <Button variant="secondary" onClick={() => setFormOpen(false)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleSave()}>
+            <Button
+              loading={busy}
+              disabled={!amountFields.allValid}
+              onClick={() => void handleSave()}
+            >
               Kaydet
             </Button>
           </>
@@ -490,6 +497,7 @@ export default function Islemler() {
             label="Tutar"
             valueKurus={amountKurus}
             onChangeKurus={setAmountKurus}
+            {...amountFields.register('amountKurus')}
             required
             autoFocus
           />

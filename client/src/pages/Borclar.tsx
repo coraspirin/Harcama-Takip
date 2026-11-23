@@ -10,6 +10,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
+import { useFieldValidity } from '../hooks/useFieldValidity.ts';
 import { debtService, type DebtInput } from '../services/debts.ts';
 import { ApiError } from '../services/api.ts';
 import {
@@ -229,6 +230,10 @@ export default function Borclar() {
   const [date, setDate] = useState(todayIso());
   const [paymentNote, setPaymentNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const extraFields = useFieldValidity();
+  const debtFields = useFieldValidity();
+  const paymentFields = useFieldValidity();
+  const balanceFields = useFieldValidity();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -276,6 +281,7 @@ export default function Borclar() {
   }
 
   async function handleSave() {
+    if (!debtFields.allValid) return;
     const bp = parsePercentToBp(form.interestText);
     if (bp === null) {
       setError('Faiz orani 0 ile 100 arasinda bir yuzde olmali (or. 4,25)');
@@ -338,6 +344,7 @@ export default function Borclar() {
   }
 
   async function handlePayment() {
+    if (!paymentFields.allValid) return;
     if (!paying || amountKurus === null || amountKurus <= 0) {
       setError('Tutar girin');
       return;
@@ -365,6 +372,7 @@ export default function Borclar() {
   }
 
   async function handleBalance() {
+    if (!balanceFields.allValid) return;
     if (!rebalancing || amountKurus === null || amountKurus < 0) {
       setError('Bakiye girin');
       return;
@@ -541,10 +549,11 @@ export default function Borclar() {
                     label="Aylik ek tutar"
                     valueKurus={extraKurus}
                     onChangeKurus={setExtraKurus}
+                    {...extraFields.register('extraKurus')}
                     hint="Kapanan borcun aylik odemesi de siradakine aktarilir"
                   />
                 </div>
-                {plan.data && (
+                {plan.data && extraFields.allValid && (
                   <>
                     {plan.data.baseline.status === 'ends' && (
                       <p className="mt-3 text-sm text-slate-600">
@@ -652,7 +661,11 @@ export default function Borclar() {
             <Button variant="secondary" onClick={() => setFormOpen(false)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleSave()}>
+            <Button
+              loading={busy}
+              disabled={!debtFields.allValid}
+              onClick={() => void handleSave()}
+            >
               Kaydet
             </Button>
           </>
@@ -705,6 +718,7 @@ export default function Borclar() {
               }
               valueKurus={form.balanceKurus}
               onChangeKurus={(v) => patchForm({ balanceKurus: v })}
+              {...debtFields.register('balanceKurus')}
               hint="Bugunku guncel bakiye (ekstre veya banka uygulamasindan)"
               required
             />
@@ -719,6 +733,7 @@ export default function Borclar() {
             label="Baslangic tutari"
             valueKurus={form.originalKurus}
             onChangeKurus={(v) => patchForm({ originalKurus: v })}
+            {...debtFields.register('originalKurus')}
             hint="Ilerleme cubugu icin; bos birakilirsa kalan borc kullanilir"
           />
 
@@ -730,6 +745,7 @@ export default function Borclar() {
             }
             valueKurus={form.monthlyPaymentKurus}
             onChangeKurus={(v) => patchForm({ monthlyPaymentKurus: v })}
+            {...debtFields.register('monthlyPaymentKurus')}
             hint={
               form.kind === 'credit_card'
                 ? 'Her ay odemeyi planladiginiz tutar (asgari veya daha fazlasi)'
@@ -790,7 +806,11 @@ export default function Borclar() {
             <Button variant="secondary" onClick={() => setPaying(null)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handlePayment()}>
+            <Button
+              loading={busy}
+              disabled={!paymentFields.allValid}
+              onClick={() => void handlePayment()}
+            >
               Kaydet
             </Button>
           </>
@@ -805,6 +825,7 @@ export default function Borclar() {
             label="Tutar"
             valueKurus={amountKurus}
             onChangeKurus={setAmountKurus}
+            {...paymentFields.register('amountKurus')}
             required
             autoFocus
           />
@@ -834,7 +855,11 @@ export default function Borclar() {
             <Button variant="secondary" onClick={() => setRebalancing(null)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleBalance()}>
+            <Button
+              loading={busy}
+              disabled={!balanceFields.allValid}
+              onClick={() => void handleBalance()}
+            >
               Kaydet
             </Button>
           </>
@@ -849,6 +874,7 @@ export default function Borclar() {
             label="Guncel bakiye"
             valueKurus={amountKurus}
             onChangeKurus={setAmountKurus}
+            {...balanceFields.register('amountKurus')}
             required
             autoFocus
           />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TextField } from './ui/Field.tsx';
 import { formatKurus, parseKurus } from '../lib/format.ts';
 
@@ -16,6 +16,7 @@ export function MoneyInput({
   error,
   required,
   autoFocus,
+  onValidityChange,
 }: {
   label: string;
   valueKurus: number | null;
@@ -24,6 +25,12 @@ export function MoneyInput({
   error?: string | undefined;
   required?: boolean;
   autoFocus?: boolean;
+  /**
+   * Alan gecerliligi YALNIZCA degistiginde cagrilir (her tusta degil).
+   * Gecersizken ebeveyn son gecerli degeri tutmaya devam eder; bu yuzden
+   * ebeveyn bu bilgiyle Kaydet'i kilitlemelidir. Unmount'ta gecerli sayilir.
+   */
+  onValidityChange?: (valid: boolean) => void;
 }) {
   const [text, setText] = useState(valueKurus === null ? '' : formatKurus(valueKurus));
   const [localError, setLocalError] = useState<string | undefined>(undefined);
@@ -35,6 +42,35 @@ export function MoneyInput({
    * demektir ve metne DOKUNULMAMALIDIR.
    */
   const lastEmitted = useRef<number | null>(valueKurus);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const validityCallback = useRef(onValidityChange);
+  const lastValid = useRef(true);
+
+  useEffect(() => {
+    validityCallback.current = onValidityChange;
+  }, [onValidityChange]);
+
+  const reportValidity = useCallback((valid: boolean) => {
+    if (lastValid.current === valid) return;
+    lastValid.current = valid;
+    validityCallback.current?.(valid);
+  }, []);
+
+  // Unmount'ta gecerli say: kosullu render edilen alan butonu kilitli birakmasin.
+  useEffect(() => {
+    return () => {
+      if (!lastValid.current) {
+        lastValid.current = true;
+        validityCallback.current?.(true);
+      }
+    };
+  }, []);
+
+  // Guvenlik agi: native form dogrulamasi da gecersiz alanla submit'i engellesin.
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(localError ?? '');
+  }, [localError]);
 
   useEffect(() => {
     // Kendi yaydigimiz degerin geri donusu metni ezmemeli.
@@ -52,7 +88,9 @@ export function MoneyInput({
 
     lastEmitted.current = valueKurus;
     setText(valueKurus === null ? '' : formatKurus(valueKurus));
-  }, [valueKurus]);
+    setLocalError(undefined);
+    reportValidity(true);
+  }, [valueKurus, reportValidity]);
 
   function emit(value: number | null) {
     lastEmitted.current = value;
@@ -64,6 +102,7 @@ export function MoneyInput({
 
     if (raw.trim() === '') {
       setLocalError(undefined);
+      reportValidity(true);
       emit(null);
       return;
     }
@@ -71,8 +110,10 @@ export function MoneyInput({
     try {
       emit(parseKurus(raw));
       setLocalError(undefined);
-    } catch {
-      setLocalError('Gecerli bir tutar girin');
+      reportValidity(true);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Geçersiz tutar');
+      reportValidity(false);
     }
   }
 
@@ -88,6 +129,7 @@ export function MoneyInput({
 
   return (
     <TextField
+      ref={inputRef}
       label={label}
       value={text}
       onChange={(e) => handleChange(e.target.value)}

@@ -1,4 +1,10 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import {
+  forwardRef,
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react';
 
 const CONTROL =
   'block w-full rounded-lg border-0 px-3 py-2.5 text-slate-900 ring-1 ring-inset ring-slate-300 ' +
@@ -43,12 +49,16 @@ type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> & {
   error?: string | undefined;
 };
 
-export function TextField({ label, hint, error, className = '', ...rest }: TextFieldProps) {
+export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
+  { label, hint, error, className = '', ...rest },
+  ref,
+) {
   return (
     <FieldShell label={label} hint={hint} error={error}>
       {(id, describedBy) => (
         <input
           {...rest}
+          ref={ref}
           id={id}
           aria-describedby={describedBy}
           aria-invalid={error ? true : undefined}
@@ -57,7 +67,7 @@ export function TextField({ label, hint, error, className = '', ...rest }: TextF
       )}
     </FieldShell>
   );
-}
+});
 
 type SelectFieldProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> & {
   label: string;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, LifeBuoy, Minus, PiggyBank, Plus, Trash2 } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
+import { useFieldValidity } from '../hooks/useFieldValidity.ts';
 import { savingsService, type GoalInput } from '../services/savings.ts';
 import { ApiError } from '../services/api.ts';
 import type { SavingsGoal } from '../types/index.ts';
@@ -74,6 +75,8 @@ export default function Birikimler() {
   const [date, setDate] = useState(todayIso());
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const goalFields = useFieldValidity();
+  const contributionFields = useFieldValidity();
   const [error, setError] = useState<string | null>(null);
 
   const history = useAsync(
@@ -115,6 +118,7 @@ export default function Birikimler() {
   }
 
   async function handleSave() {
+    if (!goalFields.allValid) return;
     if (form.targetKurus === null || form.targetKurus <= 0) {
       setError('Hedef tutari girin');
       return;
@@ -151,6 +155,7 @@ export default function Birikimler() {
   }
 
   async function handleContribution() {
+    if (!contributionFields.allValid) return;
     if (!contributing || amountKurus === null || amountKurus <= 0) {
       setError('Tutar girin');
       return;
@@ -403,7 +408,11 @@ export default function Birikimler() {
             <Button variant="secondary" onClick={() => setFormOpen(false)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleSave()}>
+            <Button
+              loading={busy}
+              disabled={!goalFields.allValid}
+              onClick={() => void handleSave()}
+            >
               Kaydet
             </Button>
           </>
@@ -422,6 +431,7 @@ export default function Birikimler() {
             label="Hedef tutar"
             valueKurus={form.targetKurus}
             onChangeKurus={(v) => patchForm({ targetKurus: v })}
+            {...goalFields.register('targetKurus')}
             required
           />
           <TextField
@@ -435,6 +445,7 @@ export default function Birikimler() {
             label="Aylik ayirmayi planladiginiz tutar"
             valueKurus={form.monthlyPlanKurus}
             onChangeKurus={(v) => patchForm({ monthlyPlanKurus: v })}
+            {...goalFields.register('monthlyPlanKurus')}
             hint="Istege bagli. Butcedeki serbest para hesabindan dusulur."
           />
           <label className="flex items-center gap-2 text-sm">
@@ -476,7 +487,11 @@ export default function Birikimler() {
             <Button variant="secondary" onClick={() => setContributing(null)}>
               Vazgec
             </Button>
-            <Button loading={busy} onClick={() => void handleContribution()}>
+            <Button
+              loading={busy}
+              disabled={!contributionFields.allValid}
+              onClick={() => void handleContribution()}
+            >
               Kaydet
             </Button>
           </>
@@ -491,6 +506,7 @@ export default function Birikimler() {
             label="Tutar"
             valueKurus={amountKurus}
             onChangeKurus={setAmountKurus}
+            {...contributionFields.register('amountKurus')}
             required
             autoFocus
           />
