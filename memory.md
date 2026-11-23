@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 23:45 | Sunucuya (192.168.61.114) c5d92dc scripts/deploy.sh ile yüklendi (ilk script'li yayın); GitHub push yapılamadı (izin kuralı engelledi, 21 commit origin/main'de yok). Yedekler: /DATA/AppData/harcama-takip-backups/harcama-data-20261123-204200.tgz (29K, volume), /DATA/AppData/harcama-takip.bak-20261123-2041. Volume chown 1000:1000 geçişi uygulandı (root -> node). Container healthy, uid=1000(node), /api/health ok/db ok, / 200; server_started + ha_allowlist (warn, beklenen) logları.
+
 - 2026-11-23 23:29 | Frontend: Raporlar'a "Yıllık" sekmesi (YillikRapor: yıl seçici, özet kartları + önceki yıl değişimi, aylık grafik/tablo, öne çıkanlar, kategori listeleri, sabit/değişken); işlem formunda açıklamadan kategori önerisi (hooks/useCategorySuggestion, 300 ms debounce, yarış korumalı; kategori boş + güven>=0.8 + eşleşme>=3 ise otomatik seçim, kullanıcı elle değiştirdiyse/düzenlemede asla); Hızlı ekleme (components/HizliEkle, AppLayout'ta yüzen "+", /hizli-ekle rotası yalnız user ağacında, PWA shortcut, Toast, hooks/useTransactionsChanged ile Özet/İşlemler yenileme). +26 client testi (112).
 
 - 2026-11-23 23:26 | Backend: GET /api/reports/yearly (yıllık özet, önceki yıl karşılaştırması), GET /api/transactions/suggest-category (açıklamadan kategori önerisi, services/categorySuggestionService.ts), GET /api/transactions/recent-categories; +15 server testi (yearlySuggest.test.ts), toplam 339.
