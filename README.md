@@ -104,6 +104,52 @@ openssl rand -base64 32                   # ENCRYPTION_KEY (32 bayt olmalı)
 chmod 600 .env
 ```
 
+## Sunucuya yayın
+
+Güncellemeler `scripts/deploy.sh` ile yapılır (geliştirme makinesinden; Git Bash
+veya Linux). Script seçilen commit'i `git archive | ssh` ile sunucuya kopyalar,
+`docker compose up -d --build` çalıştırır ve container `healthy` olana kadar bekler.
+
+**Kurulum (bir kez):** Sunucudaki ilk kurulum yukarıdaki "Docker ile çalıştırma"
+bölümüne göre elle yapılır (`.env` sunucuda hazır olmalıdır). Sonra repo kökünde
+`.deploy.env` oluşturun (`.deploy.env.example`'dan kopyalayın; gitignore'ludur):
+
+```bash
+DEPLOY_TARGET=kullanici@sunucu-adresi   # ssh hedefi (anahtar ile giriş önerilir)
+DEPLOY_PATH=/opt/harcama-takip          # sunucudaki dizin (tek tırnak içermemeli)
+DEPLOY_HEALTH_URL=http://sunucu-adresi:4001/api/health   # opsiyonel
+```
+
+Aynı değişkenler ortam değişkeni olarak da verilebilir.
+
+**Kullanım:**
+
+```bash
+npm run deploy                                  # HEAD: lint + typecheck + test, sonra yayın
+bash scripts/deploy.sh --dry-run --skip-checks  # yalnızca ne yapılacağını yazdırır
+bash scripts/deploy.sh --ref v1.2.0 --yes       # belirli tag/commit, sorusuz
+```
+
+| Bayrak | Anlamı |
+| --- | --- |
+| `--ref <commit\|tag>` | Yayınlanacak ref (varsayılan `HEAD`) |
+| `--skip-checks` | Yerel lint/typecheck/test adımını atlar |
+| `--dry-run` | Hiçbir uzak komut çalıştırmaz (ssh çağrılmaz) |
+| `--yes` | Onay sorularını (ör. commit `origin/main`'de değil) otomatik kabul eder |
+| `--help` | Yardım |
+
+**Yaptıkları:** takipli dosyalarda değişiklik yoksa devam eder; commit
+`origin/main`'de değilse uyarıp onay ister; dosyaları kopyalar (sunucudaki `.env`,
+logo ve `harcama-data` volume'üne dokunmaz); sunucuda `.env` yoksa durur; en fazla
+~120 sn health bekler, başarısızlıkta son 50 satır logu gösterir; başarıda
+`$DEPLOY_PATH/.deployed-commit` dosyasına commit hash'ini yazar ve `memory.md`
+için bir satır önerir.
+
+**Yapmadıkları:** `memory.md`'yi otomatik değiştirmez; ilk kurulumu yapmaz;
+volume `chown` geçişini yapmaz (yukarıdaki "Root olmayan kullanıcıya geçiş" adımı
+elle yapılır; sunucuda `.deployed-commit` yoksa script bunu hatırlatır); sunucuda
+silinmiş dosyaları temizlemez.
+
 ## İlk süper admin hesabının oluşturulması
 
 Seed script'i veya ortam değişkeniyle şifre **yoktur**. Uygulama ilk kez

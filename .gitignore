@@ -9,6 +9,7 @@ build/
 .env
 .env.local
 .env.*.local
+.deploy.env
 
 # Veritabani ve kalici veri
 data/

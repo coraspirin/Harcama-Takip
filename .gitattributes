@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Kabuk betikleri Windows checkout'unda da LF kalmali
+*.sh text eol=lf

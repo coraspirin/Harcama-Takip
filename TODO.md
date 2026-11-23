@@ -18,7 +18,7 @@ işaretlenir ve memory.md'ye loglanır.
 ## 🟠 Orta öncelik
 
 - [x] **CI**: GitHub Actions ile her push'ta `npm run lint`, `format:check`, `typecheck`, `test` ve `build` (`.github/workflows/ci.yml`)
-  - Sonra: `git archive | ssh` ile yapılan elle yayını script'e bağla
+  - [x] `git archive | ssh` ile yapılan elle yayın `scripts/deploy.sh` ile otomatikleştirildi
 - [x] **Frontend testleri** (Vitest + Testing Library)
   - `MoneyInput.tsx` (imleç/tutar bozulması geçmişte yaşandı)
   - `lib/format.ts` (₺ ve gg.aa.yyyy biçimleri)
