@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { parseAllowedHostEntry, type AllowedHost } from '../lib/haUrl.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 /** server/ dizininin mutlak yolu (src/config -> src -> server) */
@@ -44,6 +45,27 @@ const schema = z.object({
     .transform((v) => v === 'true'),
 
   TZ: z.string().default('Europe/Istanbul'),
+
+  /**
+   * Home Assistant icin izinli host listesi (virgulle ayrilmis). Bos = kisitlama yok.
+   * Ornek: homeassistant.local,192.168.61.10,ha.example.com:8123,*.example.org
+   */
+  HA_ALLOWED_HOSTS: z
+    .string()
+    .default('')
+    .transform((value, ctx): AllowedHost[] => {
+      const result: AllowedHost[] = [];
+      for (const part of value.split(',')) {
+        if (part.trim() === '') continue;
+        try {
+          result.push(parseAllowedHostEntry(part));
+        } catch (err) {
+          ctx.addIssue({ code: 'custom', message: (err as Error).message });
+          return z.NEVER;
+        }
+      }
+      return result;
+    }),
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });

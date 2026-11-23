@@ -1,4 +1,6 @@
-import { AppError, badRequest } from '../lib/errors.ts';
+import { env } from '../config/env.ts';
+import { AppError } from '../lib/errors.ts';
+import { checkHaUrl, parseHaUrl, type AllowedHost } from '../lib/haUrl.ts';
 
 /**
  * Home Assistant REST API istemcisi.
@@ -15,21 +17,20 @@ export type HaService = {
   name: string;
 };
 
+/**
+ * Adresi dogrular: http/https, kullanici adi/parola yok, HA_ALLOWED_HOSTS
+ * doluysa izinli host. `allowed` yalnizca testlerde enjekte edilir.
+ */
+export function assertHaUrlAllowed(
+  baseUrl: string,
+  allowed: readonly AllowedHost[] = env.HA_ALLOWED_HOSTS,
+): void {
+  checkHaUrl(baseUrl, allowed);
+}
+
 function normalizeBaseUrl(baseUrl: string): string {
-  const trimmed = baseUrl.trim().replace(/\/+$/, '');
-
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    throw badRequest('Home Assistant adresi gecerli bir URL olmali (or. http://192.168.1.10:8123)');
-  }
-
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw badRequest('Home Assistant adresi http:// veya https:// ile baslamali');
-  }
-
-  return trimmed;
+  parseHaUrl(baseUrl);
+  return baseUrl.trim().replace(/\/+$/, '');
 }
 
 async function haFetch(
@@ -38,6 +39,8 @@ async function haFetch(
   endpoint: string,
   init: RequestInit = {},
 ): Promise<Response> {
+  // Her giden istekten once: liste sonradan daraltilirsa eski kayitlar da engellenir.
+  assertHaUrlAllowed(baseUrl);
   const url = `${normalizeBaseUrl(baseUrl)}${endpoint}`;
 
   let response: Response;
@@ -49,9 +52,9 @@ async function haFetch(
         authorization: `Bearer ${token}`,
         'content-type': 'application/json',
       },
-      // Yonlendirme izlenmez: token'in beklenmedik bir sunucuya gonderilmesini
-      // engeller.
-      redirect: 'error',
+      // Yonlendirme izlenmez: token'in baska bir hosta (veya izin listesi disina)
+      // gonderilmesini engeller.
+      redirect: 'manual',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (err) {
@@ -63,6 +66,11 @@ async function haFetch(
         ? 'Home Assistant zaman asimina ugradi. Adresi ve agi kontrol edin.'
         : 'Home Assistant sunucusuna ulasilamadi. Adresi kontrol edin.',
     );
+  }
+
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new AppError(502, 'HA_ERROR', 'Home Assistant yonlendirme dondu; dogrudan adresi girin.');
   }
 
   if (response.status === 401 || response.status === 403) {

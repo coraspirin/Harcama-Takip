@@ -35,7 +35,7 @@ işaretlenir ve memory.md'ye loglanır.
 
 - [x] **Yapılandırılmış loglama** (pino); zamanlanmış görev sonunda özet satırı
 - [x] **Health check'i genişlet**: veritabanı erişimi + son zamanlanmış taramanın zamanı ve sonucu
-- [ ] **Home Assistant adresi için SSRF sınırı**: admin tarafında izinli host listesi (opsiyonel; kullanıcılar güvenilir)
+- [x] **Home Assistant adresi için SSRF sınırı**: admin tarafında izinli host listesi (opsiyonel; kullanıcılar güvenilir) — env ile (`HA_ALLOWED_HOSTS`); özel IP/DNS rebinding kapsam dışı
 - [ ] **Rapor performansı**: yavaşlık görülürse aylık özetleri önbelleğe al (index'ler şu an yeterli)
 
 ## 💡 Ürün fikirleri

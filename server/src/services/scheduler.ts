@@ -48,6 +48,7 @@ export async function dispatchHomeAssistantNotifications(): Promise<number> {
     const pending = listUnsentToHa(settings.user_id);
     if (pending.length === 0) continue;
 
+    let failed = false;
     for (const notification of pending) {
       try {
         await sendNotification(
@@ -64,11 +65,12 @@ export async function dispatchHomeAssistantNotifications(): Promise<number> {
         recordHaResult(settings.user_id, (err as Error).message.slice(0, 300));
         // Bu kullanici icin kalan bildirimleri deneme - buyuk olasilikla
         // hepsi ayni nedenle basarisiz olur.
+        failed = true;
         break;
       }
     }
 
-    recordHaResult(settings.user_id, null);
+    if (!failed) recordHaResult(settings.user_id, null);
   }
 
   return sent;

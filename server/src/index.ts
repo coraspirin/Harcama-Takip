@@ -28,6 +28,22 @@ const server = app.listen(env.PORT, () => {
     'sunucu dinlemede',
   );
   logger.info({ event: 'data_dir', dataDir: env.DATA_DIR }, 'veri dizini');
+  const allowedHosts = env.HA_ALLOWED_HOSTS;
+  if (allowedHosts.length === 0) {
+    logger.info({ event: 'ha_allowlist', enabled: false }, 'HA izinli host listesi kapali');
+  } else {
+    logger.info(
+      {
+        event: 'ha_allowlist',
+        enabled: true,
+        count: allowedHosts.length,
+        hosts: allowedHosts.map(
+          (h) => `${h.wildcard ? '*.' : ''}${h.host}${h.port ? ':' + h.port : ''}`,
+        ),
+      },
+      'HA izinli host listesi etkin',
+    );
+  }
 });
 
 function shutdown(signal: string): void {

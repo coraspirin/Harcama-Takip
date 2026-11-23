@@ -11,7 +11,11 @@ import {
   saveHaSettings,
 } from '../db/haSettings.ts';
 import { decryptSecret, encryptSecret, maskSecret } from '../services/cryptoService.ts';
-import { sendNotification, testConnection } from '../services/haNotificationService.ts';
+import {
+  assertHaUrlAllowed,
+  sendNotification,
+  testConnection,
+} from '../services/haNotificationService.ts';
 
 export const homeAssistantRouter: Router = Router();
 
@@ -66,6 +70,7 @@ homeAssistantRouter.put(
   asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = saveSchema.parse(req.body);
+    assertHaUrlAllowed(input.baseUrl);
 
     const existing = findHaSettings(user.id);
 
@@ -111,6 +116,7 @@ homeAssistantRouter.post(
   asyncHandler(async (req, res) => {
     const user = currentUser(req);
     const input = testSchema.parse(req.body);
+    assertHaUrlAllowed(input.baseUrl);
 
     const existing = findHaSettings(user.id);
 

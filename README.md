@@ -125,6 +125,7 @@ değiştirilmesi gerekenler:
 | `JWT_REFRESH_SECRET` | Refresh token sırrı (access'ten farklı olmalı) |
 | `ENCRYPTION_KEY` | Home Assistant token'ının AES-256-GCM anahtarı, base64 32 bayt |
 | `COOKIE_SECURE` | HTTPS arkasındaysanız `true` |
+| `HA_ALLOWED_HOSTS` | Home Assistant için izinli host listesi, virgülle ayrılmış (örn. `homeassistant.local,192.168.61.10,ha.example.com:8123,*.example.org`). Girdiler küçük harfe çevrilir; port yazılmışsa host+port, yazılmamışsa yalnız host eşleşir (her port). Joker yalnızca başta `*.` olabilir ve yalnız alt alan adlarını kapsar (`*.example.org`, `example.org`'un kendisini kapsamaz). Geçersiz girdi açılışta hata verir. Boş/tanımsız = kısıtlama yok. Adreste kullanıcı adı/parola her durumda reddedilir ve yönlendirmeler (3xx) izlenmez. Özel IP / DNS rebinding engelleme kapsam dışıdır. |
 | `LOG_LEVEL` | Log seviyesi: `fatal`, `error`, `warn`, `info` (varsayılan), `debug`, `trace`, `silent` |
 
 Üretim modunda (`NODE_ENV=production`) bu değerler varsayılanda bırakılırsa
