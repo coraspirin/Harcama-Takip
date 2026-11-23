@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 08:12 | Dockerfile: runtime artık USER node (/data/db node sahipli oluşturuluyor); README'ye "Root olmayan kullanıcıya geçiş (tek seferlik)" volume chown notu eklendi; TODO'da madde işaretlendi (sunucuda elle uygulanacak). .env.example zaten repoda mevcut olduğundan ve okunması izin kuralıyla engellendiğinden o madde yapılmadı.
+
 - 2026-11-23 01:27 | TODO.md eklendi (proje incelemesinden iyileştirme listesi: .env.example, Docker USER node, CI, frontend testleri, ESLint/Prettier, Node sürümü sabitleme, prompt.md arşivi, loglama, health check, SSRF, ürün fikirleri). Otomatik DB yedeği maddesi çıkarıldı: yedek Docker seviyesinde alınıyor.
 
 - 2026-11-06 16:58 | Sunucuya 1598244 yüklendi (git archive | ssh tar, docker compose up -d --build); 009_auto_confirm migration'ı uygulandı, container healthy, :4001 yanıt veriyor.

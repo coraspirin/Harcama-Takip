@@ -10,9 +10,10 @@ işaretlenir ve memory.md'ye loglanır.
 - [ ] **`.env.example` dosyasını ekle**
   - README kurulum adımı buna dayanıyor ama dosya yok
   - Değişken listesini `server/src/config/env.ts` (zod şeması) kaynak alarak çıkar
-- [ ] **Container'ı root olmayan kullanıcıyla çalıştır**
+- [x] **Container'ı root olmayan kullanıcıyla çalıştır**
   - Dockerfile: `/data` için `chown node:node`, ardından `USER node`
   - Sunucudaki mevcut volume'de dosya sahipliğini bir kez düzelt
+  - Not: README'de belgelendi, sunucuda elle uygulanacak (chown 1000:1000)
 
 ## 🟠 Orta öncelik
 

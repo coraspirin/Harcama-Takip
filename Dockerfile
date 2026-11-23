@@ -41,7 +41,14 @@ ENV CLIENT_DIR=/app/client/dist \
     TZ=Europe/Istanbul
 
 EXPOSE 4000
+
+# Root olmayan kullanici: uygulama yalnizca DATA_DIR (/data/db) altina yazar.
+# /data, VOLUME'den ONCE node sahipli olusturulur; yeni (bos) named volume ilk
+# baglanista imajdaki sahipligi devralir. /app dosyalari root sahipli ve
+# okunabilir kalir (uygulama oraya yazmaz).
+RUN mkdir -p /data/db && chown -R node:node /data
 VOLUME ["/data"]
+USER node
 
 HEALTHCHECK --interval=30s --timeout=4s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:4000/api/health || exit 1

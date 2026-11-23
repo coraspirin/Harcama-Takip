@@ -71,6 +71,21 @@ docker volume rm <proje>_harcama-data
 docker compose up -d --build                  # /kurulum ekranı yeniden açılır
 ```
 
+**Root olmayan kullanıcıya geçiş (tek seferlik):** Container artık `node`
+kullanıcısıyla (uid/gid 1000) çalışır. Yeni kurulumlarda bir işlem gerekmez;
+ancak bu değişiklikten önce oluşmuş bir volume root sahiplidir ve veritabanına
+yazılamaz. Mevcut sunucuda güncellemeden önce bir kez:
+
+```bash
+docker compose down
+docker volume ls | grep harcama-data          # tam adı doğrulayın (<proje>_harcama-data)
+docker run --rm -v harcama-takip_harcama-data:/data alpine chown -R 1000:1000 /data
+docker compose up -d --build
+```
+
+Volume adı compose proje adına (genellikle klasör adı) bağlıdır; yukarıdaki
+`harcama-takip_harcama-data` yerine `docker volume ls` çıktısındaki adı yazın.
+
 Sunucuda 4000 portu doluysa `docker-compose.yml`'i düzenlemeyin (her `git pull`'da
 çakışır) — `.env` içine `HOST_PORT=4001` yazmanız yeterlidir. Ağ oluşturulurken
 "Pool overlaps" hatası alırsanız aynı şekilde `.env` içine boş bir aralık yazın:
