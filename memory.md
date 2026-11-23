@@ -6,6 +6,7 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 23:26 | Backend: GET /api/reports/yearly (yıllık özet, önceki yıl karşılaştırması), GET /api/transactions/suggest-category (açıklamadan kategori önerisi, services/categorySuggestionService.ts), GET /api/transactions/recent-categories; +15 server testi (yearlySuggest.test.ts), toplam 339.
 - 2026-11-23 23:19 | HA token sızıntısı kapatıldı: kayıtlı token yalnızca aynı adrese (şema+host+efektif port+yol+sorgu, sondaki / önemsiz; lib/haUrl.ts isSameHaEndpoint) yeniden kullanılır; PUT ve POST /test'te adres değişip token yoksa 400 HA_TOKEN_REQUIRED. Client token ipucu 'Adres değişmediyse...' oldu, README cümlesi eklendi. Yönlendirme testi mesajı da doğruluyor; scheduler HA hata kalıcılığı testi (schedulerHa.test.ts); üretimde boş HA_ALLOWED_HOSTS açılışta warn. +6 server testi.
 - 2026-11-23 23:17 | Sunucuya yayın script'i: scripts/deploy.sh (git archive | ssh, docker compose up --build, health bekleme, .deployed-commit; --ref/--skip-checks/--dry-run/--yes; DEPLOY_TARGET/DEPLOY_PATH/DEPLOY_HEALTH_URL .deploy.env'den), .deploy.env.example, npm run deploy, README "Sunucuya yayın", .gitattributes *.sh eol=lf, TODO CI alt maddesi kapandı.
 - 2026-11-23 23:17 | Borçlar (7) ve Bekleyen ödemeler/ZamanlanmisListe (8) formlarında tutar kilidi testleri eklendi (e570473); client toplam 86 test.

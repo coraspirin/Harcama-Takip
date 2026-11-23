@@ -9,6 +9,7 @@ import { percentChange } from '../lib/money.ts';
 import { sumTransactions } from '../db/transactions.ts';
 import {
   categoryBreakdown,
+  expenseNatureTotals,
   monthlyNatureTotals,
   monthlyTotals,
   type CategoryBreakdownRow,
@@ -230,5 +231,126 @@ reportsRouter.get(
       getMonthClosing(user.id, addMonthsToYearMonth(current, -(i + 1))),
     );
     res.json({ closings });
+  }),
+);
+
+const yearlyQuerySchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+});
+
+function serializeYearlyBreakdown(rows: CategoryBreakdownRow[], previous: CategoryBreakdownRow[]) {
+  const previousByCategory = new Map(previous.map((r) => [r.category_id, Number(r.total_kurus)]));
+  return serializeBreakdown(rows).map((row) => {
+    const previousYearKurus = previousByCategory.get(row.categoryId) ?? 0;
+    return {
+      ...row,
+      previousYearKurus,
+      changePercent: percentChange(previousYearKurus, row.totalKurus),
+    };
+  });
+}
+
+type MonthExpense = { month: string; expenseKurus: number };
+
+function extremeMonth(
+  months: MonthExpense[],
+  better: (candidate: number, best: number) => boolean,
+): MonthExpense | null {
+  let best: MonthExpense | null = null;
+  for (const m of months) {
+    if (best === null || better(m.expenseKurus, best.expenseKurus)) {
+      best = { month: m.month, expenseKurus: m.expenseKurus };
+    }
+  }
+  return best;
+}
+
+/** Yillik ozet: aylik seri, kategori kirilimi (onceki yil karsilastirmali), one cikanlar. */
+reportsRouter.get(
+  '/yearly',
+  asyncHandler((req, res) => {
+    const user = currentUser(req);
+    const q = yearlyQuerySchema.parse(req.query);
+
+    const today = todayIso();
+    const thisYear = Number(today.slice(0, 4));
+    const year = q.year ?? thisYear;
+    const prevYear = year - 1;
+
+    const isCurrentYear = year === thisYear;
+    const monthsElapsed = isCurrentYear ? Number(today.slice(5, 7)) : year < thisYear ? 12 : 0;
+
+    const range = { start: `${year}-01-01`, end: `${year}-12-31` };
+    const prevRange = { start: `${prevYear}-01-01`, end: `${prevYear}-12-31` };
+
+    const monthRows = new Map(
+      monthlyTotals(user.id, `${year}-01`, `${year}-12`).map((r) => [r.year_month, r]),
+    );
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const month = `${year}-${String(i + 1).padStart(2, '0')}`;
+      const row = monthRows.get(month);
+      const incomeKurus = Number(row?.income_kurus ?? 0);
+      const expenseKurus = Number(row?.expense_kurus ?? 0);
+      return { month, incomeKurus, expenseKurus, netKurus: incomeKurus - expenseKurus };
+    });
+
+    const incomeKurus = months.reduce((s, m) => s + m.incomeKurus, 0);
+    const expenseKurus = months.reduce((s, m) => s + m.expenseKurus, 0);
+    const netKurus = incomeKurus - expenseKurus;
+
+    const prevMonthRows = monthlyTotals(user.id, `${prevYear}-01`, `${prevYear}-12`);
+    let previousYear: { incomeKurus: number; expenseKurus: number; netKurus: number } | null = null;
+    if (prevMonthRows.length > 0) {
+      const income = prevMonthRows.reduce((s, r) => s + Number(r.income_kurus), 0);
+      const expense = prevMonthRows.reduce((s, r) => s + Number(r.expense_kurus), 0);
+      previousYear = { incomeKurus: income, expenseKurus: expense, netKurus: income - expense };
+    }
+
+    const withExpense = months.filter((m) => m.expenseKurus > 0);
+    const elapsedWithExpense = withExpense.filter(
+      (m) => Number(m.month.slice(5, 7)) <= monthsElapsed,
+    );
+    const nature = expenseNatureTotals(user.id, range.start, range.end);
+
+    res.json({
+      year,
+      isCurrentYear,
+      monthsElapsed,
+      totals: {
+        incomeKurus,
+        expenseKurus,
+        netKurus,
+        savingsRatePercent:
+          incomeKurus === 0 ? null : Math.round((netKurus / incomeKurus) * 1000) / 10,
+      },
+      previousYear,
+      changePercent: {
+        income: previousYear ? percentChange(previousYear.incomeKurus, incomeKurus) : null,
+        expense: previousYear ? percentChange(previousYear.expenseKurus, expenseKurus) : null,
+        net: previousYear ? percentChange(previousYear.netKurus, netKurus) : null,
+      },
+      months,
+      expenseByCategory: serializeYearlyBreakdown(
+        categoryBreakdown(user.id, range.start, range.end, 'expense'),
+        categoryBreakdown(user.id, prevRange.start, prevRange.end, 'expense'),
+      ),
+      incomeByCategory: serializeYearlyBreakdown(
+        categoryBreakdown(user.id, range.start, range.end, 'income'),
+        categoryBreakdown(user.id, prevRange.start, prevRange.end, 'income'),
+      ),
+      highlights: {
+        highestExpenseMonth: extremeMonth(withExpense, (a, b) => a > b),
+        lowestExpenseMonth: extremeMonth(elapsedWithExpense, (a, b) => a < b),
+        averageMonthlyExpenseKurus:
+          monthsElapsed === 0 ? 0 : Math.round(expenseKurus / monthsElapsed),
+        averageMonthlyIncomeKurus:
+          monthsElapsed === 0 ? 0 : Math.round(incomeKurus / monthsElapsed),
+      },
+      expenseByNature: {
+        fixedKurus: Number(nature.fixed_kurus),
+        variableKurus: Number(nature.variable_kurus),
+        uncategorizedKurus: Number(nature.uncategorized_kurus),
+      },
+    });
   }),
 );

@@ -145,3 +145,23 @@ export function dailyTotals(
     )
     .all(userId, from, to) as { date: string; income_kurus: number; expense_kurus: number }[];
 }
+
+export type ExpenseNatureRow = {
+  fixed_kurus: number;
+  variable_kurus: number;
+  uncategorized_kurus: number;
+};
+
+/** Donemin giderinin sabit / degisken / kategorisiz kirilimi. */
+export function expenseNatureTotals(userId: number, from: string, to: string): ExpenseNatureRow {
+  return getDb()
+    .prepare(
+      `SELECT COALESCE(SUM(CASE WHEN c.nature = 'fixed' THEN t.amount_kurus ELSE 0 END), 0) AS fixed_kurus,
+              COALESCE(SUM(CASE WHEN c.id IS NOT NULL AND c.nature = 'variable' THEN t.amount_kurus ELSE 0 END), 0) AS variable_kurus,
+              COALESCE(SUM(CASE WHEN c.id IS NULL THEN t.amount_kurus ELSE 0 END), 0) AS uncategorized_kurus
+       FROM transactions t
+       LEFT JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+       WHERE t.user_id = ? AND t.type = 'expense' AND t.date >= ? AND t.date <= ?`,
+    )
+    .get(userId, from, to) as ExpenseNatureRow;
+}

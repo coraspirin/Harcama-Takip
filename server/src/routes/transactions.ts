@@ -4,7 +4,8 @@ import { asyncHandler } from '../middleware/error.ts';
 import { requireUser, currentUser } from '../middleware/auth.ts';
 import { badRequest, notFound } from '../lib/errors.ts';
 import { idParamSchema, isoDateSchema, positiveKurusSchema } from '../lib/validation.ts';
-import { isIsoDate } from '../lib/date.ts';
+import { addDays, isIsoDate, todayIso } from '../lib/date.ts';
+import { suggestCategories } from '../services/categorySuggestionService.ts';
 import { categoryExists } from '../db/categories.ts';
 import {
   countTransactions,
@@ -12,6 +13,8 @@ import {
   bulkDeleteTransactions,
   findTransaction,
   insertTransaction,
+  listFallbackCategories,
+  listRecentCategories,
   listTransactions,
   sumTransactions,
   updateTransaction,
@@ -85,6 +88,61 @@ transactionsRouter.get(
       totals: sumTransactions(user.id, filters),
       pagination: { page: q.page, pageSize: q.pageSize, total },
     });
+  }),
+);
+
+const suggestQuerySchema = z.object({
+  description: z.string().trim().max(200),
+  type: z.enum(['income', 'expense']),
+});
+
+/**
+ * Aciklamaya gore kategori onerisi. Aciklama yalnizca query'de gelir; istek
+ * logu query yazmadigi icin loglanmaz. Rota, '/:id' rotalarindan once olmali.
+ */
+transactionsRouter.get(
+  '/suggest-category',
+  asyncHandler((req, res) => {
+    const user = currentUser(req);
+    const q = suggestQuerySchema.parse(req.query);
+
+    if (q.description.length < 2) {
+      res.json({ suggestions: [] });
+      return;
+    }
+    res.json({ suggestions: suggestCategories(user.id, q.type, q.description) });
+  }),
+);
+
+const recentQuerySchema = z.object({
+  type: z.enum(['income', 'expense']),
+  limit: z.coerce.number().int().min(1).max(12).default(6),
+});
+
+/** Son 90 gunde en cok kullanilan kategoriler; yeni kullanicida ada gore yedek liste. */
+transactionsRouter.get(
+  '/recent-categories',
+  asyncHandler((req, res) => {
+    const user = currentUser(req);
+    const q = recentQuerySchema.parse(req.query);
+
+    const rows = listRecentCategories(user.id, q.type, addDays(todayIso(), -90), q.limit);
+    const categories =
+      rows.length > 0
+        ? rows.map((r) => ({
+            categoryId: r.category_id,
+            categoryName: r.category_name,
+            useCount: Number(r.use_count),
+            lastUsedAt: r.last_used_at,
+          }))
+        : listFallbackCategories(user.id, q.type, q.limit).map((c) => ({
+            categoryId: c.id,
+            categoryName: c.name,
+            useCount: 0,
+            lastUsedAt: null as string | null,
+          }));
+
+    res.json({ categories });
   }),
 );
 

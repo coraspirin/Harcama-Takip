@@ -206,3 +206,79 @@ export function bulkDeleteTransactions(userId: number, ids: number[]): number {
 
   return Number(result.changes);
 }
+
+export type SuggestionCandidateRow = {
+  category_id: number;
+  category_name: string;
+  description: string;
+  date: string;
+};
+
+/**
+ * Kategori onerisi icin adaylar: kullanicinin `since` tarihinden beri olan,
+ * kategorisi dolu ve arsivlenmemis, kategori turu islem turuyle ayni islemleri
+ * (en yeni `limit` adet).
+ */
+export function listSuggestionCandidates(
+  userId: number,
+  type: TransactionType,
+  since: string,
+  limit: number,
+): SuggestionCandidateRow[] {
+  return getDb()
+    .prepare(
+      `SELECT t.category_id, c.name AS category_name, t.description, t.date
+       FROM transactions t
+       JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+       WHERE t.user_id = ? AND t.type = ? AND c.kind = t.type AND c.archived = 0
+         AND t.description IS NOT NULL AND t.date >= ?
+       ORDER BY t.date DESC, t.id DESC
+       LIMIT ?`,
+    )
+    .all(userId, type, since, limit) as SuggestionCandidateRow[];
+}
+
+export type RecentCategoryRow = {
+  category_id: number;
+  category_name: string;
+  use_count: number;
+  last_used_at: string;
+};
+
+/** `since` tarihinden beri kullanilan arsivlenmemis kategoriler (kullanim sayisina gore). */
+export function listRecentCategories(
+  userId: number,
+  type: TransactionType,
+  since: string,
+  limit: number,
+): RecentCategoryRow[] {
+  return getDb()
+    .prepare(
+      `SELECT c.id AS category_id, c.name AS category_name,
+              COUNT(*) AS use_count, MAX(t.date) AS last_used_at
+       FROM transactions t
+       JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id
+       WHERE t.user_id = ? AND t.type = ? AND c.kind = t.type AND c.archived = 0
+         AND t.date >= ?
+       GROUP BY c.id
+       ORDER BY use_count DESC, last_used_at DESC, c.name COLLATE NOCASE
+       LIMIT ?`,
+    )
+    .all(userId, type, since, limit) as RecentCategoryRow[];
+}
+
+/** Yedek: arsivlenmemis, ilgili turdeki kategoriler (ada gore). */
+export function listFallbackCategories(
+  userId: number,
+  kind: TransactionType,
+  limit: number,
+): { id: number; name: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT id, name FROM categories
+       WHERE user_id = ? AND kind = ? AND archived = 0
+       ORDER BY name COLLATE NOCASE
+       LIMIT ?`,
+    )
+    .all(userId, kind, limit) as { id: number; name: string }[];
+}
