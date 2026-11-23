@@ -65,8 +65,8 @@ authRouter.post(
 authRouter.post(
   '/refresh',
   refreshLimiter,
-  asyncHandler(async (req, res) => {
-    const token = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+  asyncHandler((req, res) => {
+    const token = (req.cookies as Record<string, string | undefined> | undefined)?.[REFRESH_COOKIE];
     if (!token) throw unauthorized();
 
     const payload = verifyRefreshToken(token);
@@ -112,8 +112,8 @@ authRouter.post(
 
 authRouter.post(
   '/logout',
-  asyncHandler(async (req, res) => {
-    const token = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+  asyncHandler((req, res) => {
+    const token = (req.cookies as Record<string, string | undefined> | undefined)?.[REFRESH_COOKIE];
     if (token) revokeRefreshToken(hashToken(token));
     clearAuthCookies(res);
     res.json({ ok: true });
@@ -124,7 +124,7 @@ authRouter.post(
 authRouter.post(
   '/logout-all',
   requireAnyRole,
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const revoked = revokeAllForUser(user.id);
     clearAuthCookies(res);
@@ -135,7 +135,7 @@ authRouter.post(
 authRouter.get(
   '/me',
   requireAnyRole,
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const auth = currentUser(req);
     const user = findUserById(auth.id);
     if (!user) throw unauthorized();

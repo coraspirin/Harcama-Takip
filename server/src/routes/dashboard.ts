@@ -28,7 +28,7 @@ const querySchema = z.object({
  */
 dashboardRouter.get(
   '/summary',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const { month } = querySchema.parse(req.query);
 

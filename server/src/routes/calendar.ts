@@ -21,7 +21,7 @@ const MAX_PENDING = 500;
  */
 calendarRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const today = todayIso();
     const month = req.query.month ? yearMonthSchema.parse(req.query.month) : toYearMonth(today);

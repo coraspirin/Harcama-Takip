@@ -18,7 +18,7 @@ export type RequireAuthOptions = {
  */
 export function requireAuth(options: RequireAuthOptions = {}): RequestHandler {
   return (req, _res, next) => {
-    const token = req.cookies?.[ACCESS_COOKIE] as string | undefined;
+    const token = (req.cookies as Record<string, string | undefined> | undefined)?.[ACCESS_COOKIE];
     if (!token) return next(unauthorized());
 
     const payload = verifyAccessToken(token);

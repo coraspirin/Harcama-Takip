@@ -52,7 +52,7 @@ function assertOwnedRefs(userId: number, categoryId: number | null): void {
 
 transactionsRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const q = listQuerySchema.parse(req.query);
 
@@ -90,7 +90,7 @@ transactionsRouter.get(
 
 transactionsRouter.post(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = transactionSchema.parse(req.body);
 
@@ -107,7 +107,7 @@ transactionsRouter.post(
 
 transactionsRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = transactionSchema.parse(req.body);
@@ -126,7 +126,7 @@ transactionsRouter.patch(
 
 transactionsRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 
@@ -145,7 +145,7 @@ const bulkDeleteSchema = z.object({
 /** Secili islemleri topluca siler. */
 transactionsRouter.post(
   '/bulk-delete',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = bulkDeleteSchema.parse(req.body);
 

@@ -17,15 +17,15 @@ işaretlenir ve memory.md'ye loglanır.
 
 ## 🟠 Orta öncelik
 
-- [ ] **CI**: GitHub Actions ile her push'ta `npm run typecheck` ve `npm test`
+- [x] **CI**: GitHub Actions ile her push'ta `npm run lint`, `format:check`, `typecheck`, `test` ve `build` (`.github/workflows/ci.yml`)
   - Sonra: `git archive | ssh` ile yapılan elle yayını script'e bağla
 - [ ] **Frontend testleri** (Vitest + Testing Library)
   - `MoneyInput.tsx` (imleç/tutar bozulması geçmişte yaşandı)
   - `lib/format.ts` (₺ ve gg.aa.yyyy biçimleri)
   - `App.tsx` rol bazlı yönlendirme (kurulum / giriş / şifre değiştirme / admin / user)
-- [ ] **ESLint + Prettier**
+- [x] **ESLint + Prettier**
   - Kurallar: `no-floating-promises`, `react-hooks/exhaustive-deps`, `no-explicit-any`
-- [ ] **Node sürümünü sabitle**
+- [x] **Node sürümünü sabitle**
   - Şu an README "24+", Dockerfile `node:26-alpine`, `@types/node` 24
   - Tek sürüme karar ver, `package.json`'lara `engines` ekle (`node:sqlite` deneysel)
 - [ ] **prompt.md'yi arşivle**

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=26 <27"
+  },
   "description": "Cok kullanicili kisisel gelir/gider takip uygulamasi",
   "scripts": {
     "install:all": "npm install --prefix server && npm install --prefix client",
@@ -11,9 +14,21 @@
     "dev:client": "npm run dev --prefix client",
     "build": "npm run build --prefix client && npm run build --prefix server",
     "typecheck": "npm run typecheck --prefix server && npm run typecheck --prefix client",
-    "test": "npm test --prefix server"
+    "test": "npm test --prefix server",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "@eslint/js": "^9.39.5",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.73.0"
   }
 }

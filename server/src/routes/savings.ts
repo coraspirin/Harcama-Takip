@@ -36,7 +36,7 @@ function goalResponse(userId: number, goalId: number) {
 
 savingsRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     res.json(getSavingsOverview(user.id, todayIso(), req.query.includeClosed === 'true'));
   }),
@@ -57,7 +57,7 @@ function assertDate(value: string | null): void {
 
 savingsRouter.post(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = goalSchema.parse(req.body);
     assertDate(input.targetDate);
@@ -69,7 +69,7 @@ savingsRouter.post(
 
 savingsRouter.get(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     res.json(goalResponse(user.id, idParamSchema.parse(req.params.id)));
   }),
@@ -77,7 +77,7 @@ savingsRouter.get(
 
 savingsRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = goalSchema.and(z.object({ closed: z.boolean().default(false) })).parse(req.body);
@@ -91,7 +91,7 @@ savingsRouter.patch(
 
 savingsRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     if (!deleteGoal(user.id, id)) throw notFound('Hedef bulunamadi');
@@ -108,7 +108,7 @@ const contributionSchema = z.object({
 
 savingsRouter.post(
   '/:id/contributions',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = contributionSchema.parse(req.body);
@@ -122,7 +122,7 @@ savingsRouter.post(
 
 savingsRouter.delete(
   '/:id/contributions/:contributionId',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const contributionId = idParamSchema.parse(req.params.contributionId);

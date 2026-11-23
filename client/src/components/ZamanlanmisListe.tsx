@@ -368,10 +368,10 @@ export function ZamanlanmisListe({
               busy={busy}
               onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
               onDelete={() => setDeleting(item)}
-              onConfirm={handleConfirm}
-              onUnconfirm={handleUnconfirm}
-              onBudgetToggle={(exclude) => handleBudgetToggle(item, exclude)}
-              onAutoConfirmToggle={(value) => handleAutoConfirmToggle(item, value)}
+              onConfirm={(occurrence) => void handleConfirm(occurrence)}
+              onUnconfirm={(occurrence) => void handleUnconfirm(occurrence)}
+              onBudgetToggle={(exclude) => void handleBudgetToggle(item, exclude)}
+              onAutoConfirmToggle={(value) => void handleAutoConfirmToggle(item, value)}
             />
           ))}
         </div>

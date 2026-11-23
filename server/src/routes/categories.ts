@@ -34,7 +34,7 @@ const updateSchema = z.object({
 
 categoriesRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const includeArchived = req.query.includeArchived === 'true';
 
@@ -49,7 +49,7 @@ categoriesRouter.get(
 
 categoriesRouter.post(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = createSchema.parse(req.body);
 
@@ -65,7 +65,7 @@ categoriesRouter.post(
 
 categoriesRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = updateSchema.parse(req.body);
@@ -96,7 +96,7 @@ categoriesRouter.patch(
  */
 categoriesRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 

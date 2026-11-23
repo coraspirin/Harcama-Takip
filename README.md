@@ -36,8 +36,9 @@ erişemeyen** bir süper admin rolü vardır.
 
 ## Kurulum (geliştirme)
 
-Gereksinim: **Node.js 24+** (`node:sqlite` ve TypeScript'in doğrudan
-çalıştırılması için).
+Gereksinim: **Node.js 26 (LTS)** (`node:sqlite` ve TypeScript'in doğrudan
+çalıştırılması için). `node:sqlite` deneysel olduğundan sürüm bilinçli olarak
+sabit tutulur (`.nvmrc`, `engines`, Dockerfile ve CI aynı sürümü kullanır).
 
 ```bash
 cp .env.example .env      # değerleri doldurun (aşağıya bakın)

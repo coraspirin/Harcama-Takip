@@ -42,8 +42,9 @@ export const loginLimiter = rateLimit({
   // dogrulamasi kapatilir (yalnizca bu limiter'da ozel keyGenerator var).
   validate: false,
   keyGenerator: (req) => {
+    const body = req.body as { username?: unknown } | undefined;
     const username =
-      typeof req.body?.username === 'string' ? req.body.username.toLowerCase().slice(0, 64) : '-';
+      typeof body?.username === 'string' ? body.username.toLowerCase().slice(0, 64) : '-';
     return `${ipKey(req.ip ?? '')}|${username}`;
   },
   handler: jsonHandler('Cok fazla giris denemesi yaptiniz. Lutfen 15 dakika sonra tekrar deneyin.'),

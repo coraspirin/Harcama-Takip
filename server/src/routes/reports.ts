@@ -41,7 +41,7 @@ function serializeBreakdown(rows: CategoryBreakdownRow[]) {
  */
 reportsRouter.get(
   '/monthly',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const month = req.query.month
       ? yearMonthSchema.parse(req.query.month)
@@ -91,7 +91,7 @@ const rangeQuerySchema = z.object({
 /** Serbest tarih araliginda kategori kirilimi. */
 reportsRouter.get(
   '/categories',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const q = rangeQuerySchema.parse(req.query);
 
@@ -120,7 +120,7 @@ const trendQuerySchema = z.object({
  */
 reportsRouter.get(
   '/trend',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const q = trendQuerySchema.parse(req.query);
 
@@ -157,7 +157,7 @@ const forecastQuerySchema = z.object({
  */
 reportsRouter.get(
   '/forecast',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const q = forecastQuerySchema.parse(req.query);
     const today = todayIso();
@@ -211,7 +211,7 @@ reportsRouter.get(
  */
 reportsRouter.get(
   '/closings',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const count = z.coerce.number().int().min(1).max(24).default(6).parse(req.query.count ?? 6);
     const current = toYearMonth(todayIso());

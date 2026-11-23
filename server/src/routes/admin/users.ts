@@ -53,7 +53,7 @@ function generateTemporaryPassword(): string {
 
 adminUsersRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
+  asyncHandler((_req, res) => {
     res.json({ users: listUsers().map(serializeAdminUser) });
   }),
 );
@@ -101,7 +101,7 @@ const activeSchema = z.object({ isActive: z.boolean() });
 
 adminUsersRouter.patch(
   '/:id/active',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const admin = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const { isActive } = activeSchema.parse(req.body);
@@ -177,7 +177,7 @@ adminUsersRouter.post(
 adminUsersRouter.delete(
   '/:id',
   sensitiveLimiter,
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const admin = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 

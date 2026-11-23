@@ -37,7 +37,8 @@ export function useAsync<T>(loader: () => Promise<T>, deps: unknown[] = []): Asy
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
+    // Bilincli fire-and-forget: hatalar IIFE icinde yakalanip state'e yazilir.
+    void (async () => {
       setLoading(true);
       setError(null);
       try {

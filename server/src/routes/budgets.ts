@@ -53,7 +53,7 @@ function serializeBudget(row: BudgetWithSpent, today = todayIso()) {
 
 budgetsRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const month = req.query.month
       ? yearMonthSchema.parse(req.query.month)
@@ -88,7 +88,7 @@ const createSchema = z.object({
 
 budgetsRouter.post(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = createSchema.parse(req.body);
 
@@ -118,7 +118,7 @@ budgetsRouter.post(
 
 budgetsRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const { limitKurus } = z.object({ limitKurus: positiveKurusSchema }).parse(req.body);
@@ -135,7 +135,7 @@ budgetsRouter.patch(
 
 budgetsRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 
@@ -149,7 +149,7 @@ budgetsRouter.delete(
 /** Ayin para durumu; hesap monthOverviewService'tedir (ozet ekrani da kullanir). */
 budgetsRouter.get(
   '/overview',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const today = todayIso();
     const month = req.query.month ? yearMonthSchema.parse(req.query.month) : toYearMonth(today);
@@ -160,7 +160,7 @@ budgetsRouter.get(
 /** Bir onceki ayin butcelerini bu aya kopyalar (mevcut kayitlar korunur). */
 budgetsRouter.post(
   '/copy',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const { toMonth } = z.object({ toMonth: yearMonthSchema }).parse(req.body);
 

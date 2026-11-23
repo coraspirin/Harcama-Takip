@@ -32,7 +32,7 @@ function serialize(row: NotificationRow) {
 
 notificationsRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     res.json({
       notifications: listNotifications(user.id).map(serialize),
@@ -43,7 +43,7 @@ notificationsRouter.get(
 
 notificationsRouter.post(
   '/:id/read',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 
@@ -58,7 +58,7 @@ notificationsRouter.post(
 
 notificationsRouter.post(
   '/read-all',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     res.json({ ok: true, marked: markAllRead(user.id), unreadCount: 0 });
   }),
@@ -66,7 +66,7 @@ notificationsRouter.post(
 
 notificationsRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 

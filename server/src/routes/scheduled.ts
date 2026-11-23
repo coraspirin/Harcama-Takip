@@ -149,7 +149,7 @@ const createSchema = z
 
 scheduledRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const kind = req.query.kind
       ? z.enum(SCHEDULED_KINDS).parse(req.query.kind)
@@ -165,7 +165,7 @@ scheduledRouter.get(
  */
 scheduledRouter.get(
   '/summary',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const today = todayIso();
     const month = req.query.month ? yearMonthSchema.parse(req.query.month) : toYearMonth(today);
@@ -210,7 +210,7 @@ scheduledRouter.get(
 /** Dashboard ve uyari kartlari icin: yaklasan ve gecikmis vadeler. */
 scheduledRouter.get(
   '/upcoming',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const days = z.coerce.number().int().min(0).max(365).default(30).parse(req.query.days ?? 30);
 
@@ -227,7 +227,7 @@ scheduledRouter.get(
 
 scheduledRouter.post(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = createSchema.parse(req.body);
 
@@ -256,7 +256,7 @@ const updateSchema = z.object({
 /** Butceye yansima ayari; olusturduktan sonra da degistirilebilir. */
 scheduledRouter.patch(
   '/:id/budget',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const { excludeFromBudget } = z.object({ excludeFromBudget: z.boolean() }).parse(req.body);
@@ -275,7 +275,7 @@ scheduledRouter.patch(
  */
 scheduledRouter.patch(
   '/:id/auto-confirm',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const { autoConfirm } = z.object({ autoConfirm: z.boolean() }).parse(req.body);
@@ -296,7 +296,7 @@ scheduledRouter.patch(
 
 scheduledRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = updateSchema.parse(req.body);
@@ -315,7 +315,7 @@ scheduledRouter.patch(
 
 scheduledRouter.get(
   '/:id/occurrences',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 
@@ -331,7 +331,7 @@ scheduledRouter.get(
  */
 scheduledRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 
@@ -356,7 +356,7 @@ const confirmSchema = z.object({
 
 occurrencesRouter.post(
   '/:id/confirm',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = confirmSchema.parse(req.body ?? {});
@@ -370,7 +370,7 @@ occurrencesRouter.post(
 
 occurrencesRouter.post(
   '/:id/unconfirm',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 
@@ -389,7 +389,7 @@ const occurrenceUpdateSchema = z.object({
 /** Fatura tutarini girmek veya vadeyi duzeltmek icin (yalnizca bekleyen kayitlar). */
 occurrencesRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = occurrenceUpdateSchema.parse(req.body);

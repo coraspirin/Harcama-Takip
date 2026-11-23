@@ -61,7 +61,7 @@ export default function Kurulum() {
         </div>
 
         <form
-          onSubmit={handleSubmit}
+          onSubmit={(e) => void handleSubmit(e)}
           className="space-y-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
         >
           <Alert tone="warning" title="Bu ekran yalnizca bir kez gosterilir">

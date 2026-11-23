@@ -8,10 +8,15 @@ import { env } from '../config/env.ts';
  * Her async route bu sarmalayiciyla kaydedilir.
  */
 export function asyncHandler(
-  fn: (...args: Parameters<RequestHandler>) => Promise<unknown>,
+  fn: (...args: Parameters<RequestHandler>) => unknown,
 ): RequestHandler {
   return (req, res, next) => {
-    void fn(req, res, next).catch(next);
+    // Senkron firlatilan hatalar da (ornegin zod parse) next'e iletilir.
+    try {
+      Promise.resolve(fn(req, res, next)).catch(next);
+    } catch (err) {
+      next(err);
+    }
   };
 }
 

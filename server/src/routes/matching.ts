@@ -11,7 +11,7 @@ matchingRouter.use(requireUser);
 /** Gecmisten tekrar eden odemeler. */
 matchingRouter.get(
   '/recurrences',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     res.json({ suggestions: detectRecurrences(user.id) });
   }),
@@ -19,9 +19,9 @@ matchingRouter.get(
 
 matchingRouter.post(
   '/recurrences/reject',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
-    const signature = z.string().trim().min(1).max(200).parse(req.body?.signature);
+    const signature = z.string().trim().min(1).max(200).parse((req.body as { signature?: unknown } | undefined)?.signature);
     rejectRecurrence(user.id, signature);
     res.json({ rejected: true });
   }),

@@ -23,7 +23,7 @@ homeAssistantRouter.use(requireUser);
  */
 homeAssistantRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const settings = findHaSettings(user.id);
 
@@ -63,7 +63,7 @@ const saveSchema = z.object({
 homeAssistantRouter.put(
   '/',
   sensitiveLimiter,
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = saveSchema.parse(req.body);
 
@@ -144,7 +144,7 @@ homeAssistantRouter.post(
 
 homeAssistantRouter.delete(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     if (!deleteHaSettings(user.id)) throw notFound('Home Assistant ayari bulunamadi');
     res.json({ deleted: true });

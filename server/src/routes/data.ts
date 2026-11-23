@@ -18,7 +18,7 @@ dataRouter.use(requireUser);
 /** Kullanicinin TUM verisini JSON olarak indirir. */
 dataRouter.get(
   '/export',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const data = exportUserData(user.id, user.username);
 
@@ -36,7 +36,7 @@ const importSchema = z.object({
 dataRouter.post(
   '/import',
   sensitiveLimiter,
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const { mode, data } = importSchema.parse(req.body);
 
@@ -53,7 +53,7 @@ const RESET_CONFIRMATION = 'VERIMI SIL';
 dataRouter.post(
   '/reset',
   sensitiveLimiter,
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const { confirm } = z.object({ confirm: z.string() }).parse(req.body);
 

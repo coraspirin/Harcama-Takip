@@ -6,6 +6,8 @@ Biçim: `YYYY-MM-DD HH:MM | değişiklik özeti`
 
 ## Kayıtlar
 
+- 2026-11-23 10:45 | Node 26 sabitlendi (.nvmrc, engines, @types/node 26, README); ESLint 9 flat config (typescript-eslint type-aware, react-hooks, prettier uyumu) ve Prettier (tek tırnak, noktalı virgül, 100 sütun, trailing comma all) eklendi; lint ihlalleri düzeltildi (async handler'larda gereksiz async kaldırıldı/asyncHandler senkron hatayı da yakalıyor, form/handler void sarmalayıcıları, cookie/body tip daraltmaları); node:test için no-floating-promises known-safe istisnası; GitHub Actions CI (lint, format:check, typecheck, test, build) eklendi; TODO'da CI, ESLint+Prettier, Node sürümü maddeleri işaretlendi.
+
 - 2026-11-23 08:12 | Dockerfile: runtime artık USER node (/data/db node sahipli oluşturuluyor); README'ye "Root olmayan kullanıcıya geçiş (tek seferlik)" volume chown notu eklendi; TODO'da madde işaretlendi (sunucuda elle uygulanacak). .env.example zaten repoda mevcut olduğundan ve okunması izin kuralıyla engellendiğinden o madde yapılmadı.
 
 - 2026-11-23 01:27 | TODO.md eklendi (proje incelemesinden iyileştirme listesi: .env.example, Docker USER node, CI, frontend testleri, ESLint/Prettier, Node sürümü sabitleme, prompt.md arşivi, loglama, health check, SSRF, ürün fikirleri). Otomatik DB yedeği maddesi çıkarıldı: yedek Docker seviyesinde alınıyor.

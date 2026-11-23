@@ -44,7 +44,7 @@ function serializePayment(row: DebtPaymentRow) {
 
 debtsRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const includeClosed = req.query.includeClosed === 'true';
 
@@ -62,7 +62,7 @@ const extraQuerySchema = z.object({
  */
 debtsRouter.get(
   '/plan',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const { extra } = extraQuerySchema.parse(req.query);
 
@@ -115,7 +115,7 @@ const createSchema = debtSchema.and(
 
 debtsRouter.post(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const input = createSchema.parse(req.body);
     const balanceDate = input.balanceDate ?? todayIso();
@@ -136,7 +136,7 @@ debtsRouter.post(
 
 debtsRouter.get(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const { extra } = extraQuerySchema.parse(req.query);
@@ -170,7 +170,7 @@ const updateSchema = debtSchema.and(
 
 debtsRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = updateSchema.parse(req.body);
@@ -196,7 +196,7 @@ const balanceSchema = z.object({
  */
 debtsRouter.post(
   '/:id/balance',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = balanceSchema.parse(req.body);
@@ -214,7 +214,7 @@ debtsRouter.post(
 
 debtsRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
 
@@ -232,7 +232,7 @@ const paymentSchema = z.object({
 
 debtsRouter.post(
   '/:id/payments',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const input = paymentSchema.parse(req.body);
@@ -256,7 +256,7 @@ debtsRouter.post(
 
 debtsRouter.delete(
   '/:id/payments/:paymentId',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const user = currentUser(req);
     const id = idParamSchema.parse(req.params.id);
     const paymentId = idParamSchema.parse(req.params.paymentId);

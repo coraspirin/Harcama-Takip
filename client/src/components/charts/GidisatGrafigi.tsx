@@ -46,7 +46,7 @@ export function GidisatGrafigi({
     month: shortMonth(point.month),
     'Kalan borc': point.debtKurus,
     'Biriken nakit': point.cashKurus,
-    ...(scenario?.[i] && { 'Kalan borc (senaryo)': scenario[i]!.debtKurus }),
+    ...(scenario?.[i] && { 'Kalan borc (senaryo)': scenario[i].debtKurus }),
   }));
 
   return (

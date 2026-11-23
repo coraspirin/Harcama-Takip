@@ -1,0 +1,9 @@
+node_modules
+dist
+dev-dist
+build
+coverage
+data
+package-lock.json
+.claude
+*.md

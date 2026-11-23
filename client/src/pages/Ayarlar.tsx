@@ -113,7 +113,7 @@ export default function Ayarlar() {
         </Card>
 
         <Card title="Sifre degistir" className="lg:col-span-2">
-          <form onSubmit={handlePasswordChange} className="max-w-sm space-y-4">
+          <form onSubmit={(e) => void handlePasswordChange(e)} className="max-w-sm space-y-4">
             <input type="hidden" autoComplete="username" value={user?.username ?? ''} readOnly />
 
             <TextField

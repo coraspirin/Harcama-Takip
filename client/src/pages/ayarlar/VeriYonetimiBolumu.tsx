@@ -21,7 +21,7 @@ export default function VeriYonetimiBolumu() {
   const [result, setResult] = useState<ImportResult | null>(null);
 
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
-  const [pendingData, setPendingData] = useState<unknown | null>(null);
+  const [pendingData, setPendingData] = useState<unknown>(null);
   const [pendingName, setPendingName] = useState('');
 
   const [resetOpen, setResetOpen] = useState(false);

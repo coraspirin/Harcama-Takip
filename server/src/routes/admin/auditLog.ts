@@ -38,7 +38,7 @@ const querySchema = z.object({
 
 adminAuditLogRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler((req, res) => {
     const { page, pageSize } = querySchema.parse(req.query);
 
     res.json({
