@@ -18,25 +18,24 @@ function pathOf(req: IncomingMessage & { originalUrl?: string }): string {
  * doldurmasindan sonra dogru deger alinir.
  */
 export function createRequestLogger(logger: Logger): RequestHandler {
+  let syntheticErr = false;
   return pinoHttp<IncomingMessage & { user?: { id: number } }>({
     logger,
     // Docker 30 sn'de bir /api/health cagirir; log'u bogmasin.
     autoLogging: { ignore: (req) => pathOf(req) === '/api/health' },
     serializers: {
-      // pino-http 5xx'te sentetik 'failed with status code' err'i ekler ve err'i
-      // serializer'a ONCE kendi std serializer'indan gecirip (duz nesne) verir.
-      // errorHandler zaten stack'li unhandled_error yazdigi icin sentetik err
-      // dusurulur; digerleri allowlist'ten gecer (duz nesne -> yalnizca typeof).
-      err: (err: unknown) => {
-        const message = (err as { message?: unknown } | null)?.message;
-        return typeof message === 'string' && message.startsWith('failed with status code')
-          ? undefined
-          : serializeErr(err);
-      },
+      // pino-http, ne err ne res.err varken 5xx'te sentetik 'failed with status
+      // code' err'i uretir (logger.js: err || res.err || new Error(...)) ve onu
+      // std serializer'dan gecirip duz nesne olarak verir. Sentetik durum, mesaj
+      // oneki yerine customLogLevel'da (ham err/res gorulur) isaretlenir; log
+      // cagrisi ayni senkron akista oldugu icin bayrak guvenlidir. errorHandler
+      // zaten stack'li log yazdigi icin sentetik err dusurulur.
+      err: (err: unknown) => (syntheticErr ? undefined : serializeErr(err)),
       req: (req: IncomingMessage) => ({ method: req.method, path: pathOf(req) }),
       res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
     },
     customLogLevel: (_req, res, err) => {
+      syntheticErr = !err && !(res as { err?: unknown }).err && res.statusCode >= 500;
       if (err || res.statusCode >= 500) return 'error';
       if (res.statusCode >= 400) return 'warn';
       return 'info';

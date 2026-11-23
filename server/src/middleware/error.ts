@@ -59,11 +59,19 @@ const DEFAULT_CLIENT_ERROR: ClientError = { code: 'BAD_REQUEST', message: 'Gecer
 
 /**
  * Istemci hatasi (4xx) sayilanlar: (a) body-parser hatalari (err.type
- * CLIENT_ERROR_BY_TYPE'ta) veya (b) http-errors deseni (expose === true ve
+ * CLIENT_ERROR_BY_TYPE'ta), (c) URIError + status 400 (bozuk URL kodlamasi) veya (b) http-errors deseni (expose === true ve
  * numerik status/statusCode 400-499). Baska "status alanli" hatalar (ornegin
  * upstream HTTP istemcisi 404'u) 5xx yoluna duser. Mesaj ve govde istemciye/loga
  * ASLA aktarilmaz: V8 JSON.parse mesaji ham govdeden parca icerir.
  */
+function isUriError(err: Error): boolean {
+  try {
+    return err instanceof URIError;
+  } catch {
+    return false;
+  }
+}
+
 function clientErrorOf(err: Error): (ClientError & { status: number; type: string | null }) | null {
   const e = err as { status?: unknown; statusCode?: unknown; type?: unknown; expose?: unknown };
   const raw = typeof e.status === 'number' ? e.status : e.statusCode;
@@ -71,6 +79,10 @@ function clientErrorOf(err: Error): (ClientError & { status: number; type: strin
   const type = typeof e.type === 'string' ? e.type : null;
   const byType = type !== null ? CLIENT_ERROR_BY_TYPE[type] : undefined;
   if (byType) return { ...byType, status: status ?? 400, type };
+  // Express 4 decode_param: bozuk yol parametresinde URIError + status 400 (expose yok).
+  if (isUriError(err) && status === 400) {
+    return { ...CLIENT_ERROR_BY_STATUS[400]!, status, type: 'URIError' };
+  }
   if (e.expose === true && status !== null) {
     return { ...(CLIENT_ERROR_BY_STATUS[status] ?? DEFAULT_CLIENT_ERROR), status, type };
   }
@@ -80,6 +92,12 @@ function clientErrorOf(err: Error): (ClientError & { status: number; type: strin
 export function createErrorHandler(log: Logger): ErrorRequestHandler {
   return (err: unknown, _req, res, _next) => {
     if (err instanceof AppError) {
+      if (err.status >= 500) {
+        log.error(
+          { event: 'app_error', code: err.code, status: err.status, err },
+          'uygulama hatasi',
+        );
+      }
       res.status(err.status).json({
         error: { code: err.code, message: err.message, details: err.details ?? undefined },
       });

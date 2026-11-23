@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { createApp } from '../app.ts';
 import { createLogger, serializeErr } from '../lib/logger.ts';
+import { AppError } from '../lib/errors.ts';
 
 const SECRET = 'Gizli123!';
 const EMAIL = 'a@b.c';
@@ -306,5 +307,75 @@ test('5xx: pino-http sentetik err satiri yok, unhandled_error stack ile var', as
       assert.ok(req && req.err === undefined, lines());
     },
     probeApp((next) => next(new Error('db down'))),
+  );
+});
+
+test('bozuk URL kodlamasi -> 400 BAD_REQUEST, client_error type URIError, unhandled_error yok', async () => {
+  await withApp(
+    async (url, lines) => {
+      const res = await fetch(`${url}/api/__probe/%E0%A4%A`);
+      assert.equal(res.status, 400);
+      const body = (await res.json()) as { error: { code: string } };
+      assert.equal(body.error.code, 'BAD_REQUEST');
+      const out = lines();
+      assert.ok(!out.includes('unhandled_error'), out);
+      const ce = parseLines(out).find((r) => r.event === 'client_error');
+      assert.ok(ce);
+      assert.equal(ce.type, 'URIError');
+      assert.equal(ce.status, 400);
+      assert.equal(ce.err, undefined);
+      assert.equal(ce.message, undefined);
+      assert.ok(!JSON.stringify(ce).includes('%E0'));
+    },
+    {
+      configure: (app) => {
+        app.get('/api/__probe/:id', (_req, res) => res.json({ ok: true }));
+      },
+    },
+  );
+});
+
+test('5xx AppError -> app_error satiri (code, status, stack); 4xx AppError loglanmaz', async () => {
+  await withApp(
+    async (url, lines) => {
+      const res = await fetch(`${url}/api/__probe`);
+      assert.equal(res.status, 502);
+      const row = parseLines(lines()).find((r) => r.event === 'app_error');
+      assert.ok(row, lines());
+      assert.equal(row.code, 'HA_ERROR');
+      assert.equal(row.status, 502);
+      assert.ok(typeof (row.err as LogLine).stack === 'string');
+    },
+    probeApp((next) => next(new AppError(502, 'HA_ERROR', 'upstream'))),
+  );
+  await withApp(
+    async (url, lines) => {
+      const res = await fetch(`${url}/api/__probe`);
+      assert.equal(res.status, 409);
+      assert.ok(!lines().includes('app_error'));
+    },
+    probeApp((next) => next(new AppError(409, 'CONFLICT', 'x'))),
+  );
+});
+
+const trapErr = () =>
+  new Proxy(new Error('x'), {
+    getPrototypeOf() {
+      throw new Error('tuzak');
+    },
+  });
+
+test('serializeErr: getPrototypeOf tuzakli Proxy firlatmaz', () => {
+  assert.doesNotThrow(() => serializeErr(trapErr()));
+  assert.deepEqual(serializeErr(trapErr()), { type: 'Error', message: '[serializer hatasi]' });
+});
+
+test("tuzakli Proxy hata route'tan firlatilinca yanit yine 500", async () => {
+  await withApp(
+    async (url) => {
+      const res = await fetch(`${url}/api/__probe`, { signal: AbortSignal.timeout(5000) });
+      assert.equal(res.status, 500);
+    },
+    probeApp((next) => next(trapErr())),
   );
 });

@@ -46,8 +46,27 @@ const MAX_AGGREGATE = 5;
 const MAX_SCAN_DEPTH = 16;
 const MAX_SCAN_AGGREGATE = 100;
 
-function isErr(v: unknown): v is Error {
+/** instanceof, Proxy getPrototypeOf tuzagi gibi durumlarda firlatabilir; guvenli sarmalayici. */
+function safeInstanceOf(v: unknown, ctor: abstract new (...args: never[]) => unknown): boolean {
+  try {
+    return v instanceof ctor;
+  } catch {
+    return false;
+  }
+}
+
+/** Firlatabilir surum: yalnizca serializeErr ust seviyesinde (try/catch icinde) kullanilir. */
+function isErrStrict(v: unknown): v is Error {
   return v instanceof Error || types.isNativeError(v);
+}
+
+/** Zincir (cause/aggregate) ogeleri icin guvenli surum: tuzakli oge "Error degil" sayilir. */
+function isErr(v: unknown): v is Error {
+  try {
+    return isErrStrict(v);
+  } catch {
+    return false;
+  }
 }
 
 /** Getter'i firlatabilen/tuhaf nesnelere karsi guvenli alan okuma. */
@@ -64,11 +83,11 @@ function cap(v: string): string {
 }
 
 function isParseError(err: Error): boolean {
-  return get(err, 'type') === 'entity.parse.failed' || err instanceof SyntaxError;
+  return get(err, 'type') === 'entity.parse.failed' || safeInstanceOf(err, SyntaxError);
 }
 
 function aggregateOf(err: Error): unknown[] {
-  if (!(err instanceof AggregateError)) return [];
+  if (!safeInstanceOf(err, AggregateError)) return [];
   const list = get(err, 'errors');
   return Array.isArray(list) ? list : [];
 }
@@ -158,8 +177,13 @@ function serializeNode(err: Error, depth: number, seen: Set<unknown>): Record<st
  * olmayan degerler (string, nesne...) hic yazilmaz; yalnizca typeof yazilir.
  */
 export function serializeErr(err: unknown): unknown {
-  if (!isErr(err)) return nonErrorValue(err);
-  return serializeNode(err, 0, new Set());
+  // Serializer asla firlatmamali: aksi halde log cagrisi ve istek bozulur.
+  try {
+    if (!isErrStrict(err)) return nonErrorValue(err);
+    return serializeNode(err, 0, new Set());
+  } catch {
+    return { type: 'Error', message: '[serializer hatasi]' };
+  }
 }
 
 /**
