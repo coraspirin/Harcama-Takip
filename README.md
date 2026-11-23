@@ -261,4 +261,5 @@ HTTPS gerektirir (`localhost` istisna).
 ömürlü erişim token'ı ve bildirim hedefi tanımlanır; "Test bildirimi gönder" ile
 doğrulanır. Açıkken günlük tarama, yaklaşan ödeme uyarılarını telefona da
 gönderir. Kapalı veya erişilemez olsa da uyarılar uygulama içindeki bildirim
-zilinde görünmeye devam eder.
+zilinde görünmeye devam eder. Sunucu adresi değiştirilirse güvenlik gereği
+erişim token'ı yeniden girilmelidir (kayıtlı token yalnızca aynı adrese gönderilir).

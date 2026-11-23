@@ -26,7 +26,8 @@ test('3xx yanit 502 HA_ERROR; yonlendirilen hedefe istek gitmez', async () => {
   try {
     await assert.rejects(
       () => fetchNotifyTargets(`http://127.0.0.1:${port}`, 'gizli-token'),
-      (err: { status?: number; code?: string }) => err.status === 502 && err.code === 'HA_ERROR',
+      (err: { status?: number; code?: string; message?: string }) =>
+        err.status === 502 && err.code === 'HA_ERROR' && /y[oö]nlendirme/i.test(err.message ?? ''),
     );
     assert.equal(targetHits, 0);
     assert.equal(authAtTarget, undefined);

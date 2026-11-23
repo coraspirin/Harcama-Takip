@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.ts';
 import { requireUser, currentUser } from '../middleware/auth.ts';
 import { sensitiveLimiter } from '../middleware/rateLimit.ts';
-import { badRequest, notFound } from '../lib/errors.ts';
+import { AppError, badRequest, notFound } from '../lib/errors.ts';
+import { isSameHaEndpoint } from '../lib/haUrl.ts';
 import {
   deleteHaSettings,
   findHaSettings,
@@ -18,6 +19,18 @@ import {
 } from '../services/haNotificationService.ts';
 
 export const homeAssistantRouter: Router = Router();
+
+/**
+ * Kayitli token yalnizca ayni adrese gonderilebilir; adres degistiyse yeni
+ * token zorunlu (aksi halde kayitli token baska bir sunucuya sizdirilabilir).
+ */
+function tokenRequiredError(): AppError {
+  return new AppError(
+    400,
+    'HA_TOKEN_REQUIRED',
+    "Home Assistant adresi değişti; erişim token'ını yeniden girin.",
+  );
+}
 
 homeAssistantRouter.use(requireUser);
 
@@ -58,7 +71,7 @@ homeAssistantRouter.get(
 
 const saveSchema = z.object({
   baseUrl: z.string().trim().min(1, 'Home Assistant adresi gerekli').max(300),
-  /** Bos birakilirsa mevcut token korunur (kullanici yalnizca hedefi degistiriyor olabilir). */
+  /** Bos birakilirsa mevcut token korunur; yalnizca adres degismediyse (aksi halde HA_TOKEN_REQUIRED). */
   token: z.string().trim().max(1000).optional(),
   notifyTarget: z.string().trim().max(200).nullable().default(null),
   enabled: z.boolean().default(false),
@@ -78,6 +91,7 @@ homeAssistantRouter.put(
     if (input.token && input.token.length > 0) {
       tokenEncrypted = encryptSecret(input.token);
     } else if (existing) {
+      if (!isSameHaEndpoint(input.baseUrl, existing.base_url)) throw tokenRequiredError();
       tokenEncrypted = existing.token_encrypted;
     } else {
       throw badRequest("Ilk kayitta erisim token'i zorunlu");
@@ -124,6 +138,7 @@ homeAssistantRouter.post(
     if (input.token && input.token.length > 0) {
       token = input.token;
     } else if (existing) {
+      if (!isSameHaEndpoint(input.baseUrl, existing.base_url)) throw tokenRequiredError();
       token = decryptSecret(existing.token_encrypted);
     } else {
       throw badRequest("Erisim token'i gerekli");

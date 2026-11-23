@@ -30,7 +30,14 @@ const server = app.listen(env.PORT, () => {
   logger.info({ event: 'data_dir', dataDir: env.DATA_DIR }, 'veri dizini');
   const allowedHosts = env.HA_ALLOWED_HOSTS;
   if (allowedHosts.length === 0) {
-    logger.info({ event: 'ha_allowlist', enabled: false }, 'HA izinli host listesi kapali');
+    if (env.NODE_ENV === 'production') {
+      logger.warn(
+        { event: 'ha_allowlist', enabled: false },
+        'HA_ALLOWED_HOSTS bos: HA adresleri kisitlanmiyor, README HA bolumune bakin',
+      );
+    } else {
+      logger.info({ event: 'ha_allowlist', enabled: false }, 'HA izinli host listesi kapali');
+    }
   } else {
     logger.info(
       {

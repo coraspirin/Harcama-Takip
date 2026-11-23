@@ -127,3 +127,28 @@ export function checkHaUrl(baseUrl: string, allowed: readonly AllowedHost[]): vo
     );
   }
 }
+
+/**
+ * Iki adres ayni uc nokta mi? Sema + host (kucuk harf, punycode) + efektif port
+ * + yol (sondaki "/" onemsiz) + sorgu karsilastirilir. Gecersiz adres -> false.
+ * Kayitli token'in yalnizca ayni adrese yeniden kullanilabilmesi icin.
+ */
+export function isSameHaEndpoint(a: string, b: string): boolean {
+  let ua: URL;
+  let ub: URL;
+  try {
+    ua = parseHaUrl(a);
+    ub = parseHaUrl(b);
+  } catch {
+    return false;
+  }
+  const port = (u: URL) => (u.port !== '' ? Number(u.port) : (DEFAULT_PORTS[u.protocol] ?? 0));
+  const path = (u: URL) => u.pathname.replace(/\/+$/, '');
+  return (
+    ua.protocol === ub.protocol &&
+    stripBrackets(ua.hostname) === stripBrackets(ub.hostname) &&
+    port(ua) === port(ub) &&
+    path(ua) === path(ub) &&
+    ua.search === ub.search
+  );
+}

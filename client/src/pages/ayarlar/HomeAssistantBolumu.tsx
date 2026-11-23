@@ -155,7 +155,7 @@ export default function HomeAssistantBolumu() {
           autoComplete="off"
           hint={
             current
-              ? 'Bos birakirsaniz mevcut token korunur.'
+              ? 'Adres degismediyse bos birakirsaniz mevcut token korunur.'
               : 'HA profil sayfanizin en altindaki "Uzun omurlu erisim belirteci" bolumunden olusturun.'
           }
         />
