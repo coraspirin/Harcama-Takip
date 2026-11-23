@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.ts';
 import { requireUser, currentUser } from '../middleware/auth.ts';
 import { badRequest, notFound } from '../lib/errors.ts';
-import { idParamSchema, isoDateSchema, kurusSchema, positiveKurusSchema } from '../lib/validation.ts';
+import {
+  idParamSchema,
+  isoDateSchema,
+  kurusSchema,
+  positiveKurusSchema,
+} from '../lib/validation.ts';
 import { isIsoDate, todayIso } from '../lib/date.ts';
 import {
   DEBT_KINDS,
@@ -19,7 +24,11 @@ import {
   updateDebt,
   type DebtPaymentRow,
 } from '../db/debts.ts';
-import { compareExtraPayment, simulateStrategy, type StrategyDebt } from '../services/debtForecastService.ts';
+import {
+  compareExtraPayment,
+  simulateStrategy,
+  type StrategyDebt,
+} from '../services/debtForecastService.ts';
 import {
   forecastStartMonth,
   getDebtOverview,
@@ -108,7 +117,10 @@ const createSchema = debtSchema.and(
   z.object({
     balanceKurus: kurusSchema.refine((v) => v >= 0, 'Bakiye eksi olamaz'),
     // Bos birakilirsa baslangic tutari = bakiye
-    originalKurus: kurusSchema.refine((v) => v >= 0).nullable().default(null),
+    originalKurus: kurusSchema
+      .refine((v) => v >= 0)
+      .nullable()
+      .default(null),
     balanceDate: isoDateSchema.optional(),
   }),
 );

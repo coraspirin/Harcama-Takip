@@ -37,15 +37,13 @@ export function runMigrations(db: DatabaseSync): void {
     throw new Error(
       `Veritabani bu surumun semasiyla uyusmuyor (taninmayan migration: ${list}). ` +
         'Eski tasarimdan kalmis olabilir; veritabani dosyasini (Docker kurulumunda ' +
-        'harcama-data volume\'unu) silip uygulamayi yeniden baslatin.',
+        "harcama-data volume'unu) silip uygulamayi yeniden baslatin.",
     );
   }
 
   const applied = new Set(appliedRows.map((row) => Number(row.id)));
 
-  const pending = migrations
-    .filter((m) => !applied.has(m.id))
-    .sort((a, b) => a.id - b.id);
+  const pending = migrations.filter((m) => !applied.has(m.id)).sort((a, b) => a.id - b.id);
 
   if (pending.length === 0) return;
 

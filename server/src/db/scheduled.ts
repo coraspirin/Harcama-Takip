@@ -102,9 +102,8 @@ export function listScheduledItems(
 }
 
 export function findScheduledItem(userId: number, id: number): ScheduledItemWithProgress | null {
-  const row = getDb()
-    .prepare(`${SELECT_ITEM} WHERE i.user_id = ? AND i.id = ?`)
-    .get(userId, id) as ScheduledItemWithProgress | undefined;
+  const row = getDb().prepare(`${SELECT_ITEM} WHERE i.user_id = ? AND i.id = ?`).get(userId, id) as
+    ScheduledItemWithProgress | undefined;
   return row ?? null;
 }
 
@@ -271,7 +270,9 @@ const SELECT_OCCURRENCE = `
 
 export function listOccurrences(userId: number, itemId: number): OccurrenceWithItem[] {
   return getDb()
-    .prepare(`${SELECT_OCCURRENCE} WHERE o.user_id = ? AND o.scheduled_item_id = ? ORDER BY o.due_date`)
+    .prepare(
+      `${SELECT_OCCURRENCE} WHERE o.user_id = ? AND o.scheduled_item_id = ? ORDER BY o.due_date`,
+    )
     .all(userId, itemId) as OccurrenceWithItem[];
 }
 

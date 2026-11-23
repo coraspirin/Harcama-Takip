@@ -28,7 +28,9 @@ type Occurrence = {
 };
 
 async function occurrencesOf(client: TestClient, itemId: number): Promise<Occurrence[]> {
-  const res = await client.get<{ occurrences: Occurrence[] }>(`/api/scheduled/${itemId}/occurrences`);
+  const res = await client.get<{ occurrences: Occurrence[] }>(
+    `/api/scheduled/${itemId}/occurrences`,
+  );
   assert.equal(res.status, 200);
   return res.body.occurrences;
 }
@@ -38,7 +40,9 @@ before(async () => {
   user = await createUserAndLogin(server, 'ayse');
   other = await createUserAndLogin(server, 'mehmet');
 
-  const categories = await user.get<{ categories: { id: number; name: string }[] }>('/api/categories');
+  const categories = await user.get<{ categories: { id: number; name: string }[] }>(
+    '/api/categories',
+  );
   const fatura = categories.body.categories.find((c) => c.name === 'Fatura');
   assert.ok(fatura);
   categoryId = fatura.id;
@@ -469,9 +473,11 @@ describe('abonelikler ve seyrek giderlerin aylik payi', () => {
   });
 
   test('aylik pay ay durumundaki serbest paradan dusulur', async () => {
-    const res = await abone.get<{ reserveKurus: number; freeKurus: number; pendingExpenseKurus: number }>(
-      '/api/budgets/overview?month=2030-01',
-    );
+    const res = await abone.get<{
+      reserveKurus: number;
+      freeKurus: number;
+      pendingExpenseKurus: number;
+    }>('/api/budgets/overview?month=2030-01');
     assert.equal(res.body.reserveKurus, 110_000);
     assert.equal(res.body.freeKurus, -res.body.pendingExpenseKurus - 110_000);
   });
@@ -513,7 +519,10 @@ describe('aboneligin yenilenme ayi', () => {
     assert.equal(created.body.item.endMonth, monthFromNow(4));
 
     const dates = (await occurrencesOf(yenilenen, created.body.item.id)).map((o) => o.dueDate);
-    assert.deepEqual(dates, [1, 2, 3, 4].map((n) => `${monthFromNow(n)}-10`));
+    assert.deepEqual(
+      dates,
+      [1, 2, 3, 4].map((n) => `${monthFromNow(n)}-10`),
+    );
   });
 
   test('gunluk ufuk tazeleme bitis ayini asmaz', async () => {
@@ -614,7 +623,9 @@ describe('butceye yansimayan kayit', () => {
   });
 
   test('onaylaninca islem kaydi olusmaz', async () => {
-    const items = await haric.get<{ items: { id: number; kind: string }[] }>('/api/scheduled?kind=bill');
+    const items = await haric.get<{ items: { id: number; kind: string }[] }>(
+      '/api/scheduled?kind=bill',
+    );
     const [first] = await occurrencesOf(haric, items.body.items[0]!.id);
 
     const res = await haric.post(`/api/occurrences/${first!.id}/confirm`, {});
@@ -702,7 +713,10 @@ describe('otomatik odenen abonelik', () => {
       '/api/transactions',
     );
     assert.equal(tx.body.transactions.length, 3);
-    assert.ok(tx.body.transactions.some((t) => t.date === firstOfMonth(-2)), 'tarih = vade');
+    assert.ok(
+      tx.body.transactions.some((t) => t.date === firstOfMonth(-2)),
+      'tarih = vade',
+    );
   });
 
   test('sonradan acilinca gecmis vadeler kapanir, kapatilinca yenileri beklemede kalir', async () => {

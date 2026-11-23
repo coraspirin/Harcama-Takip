@@ -42,7 +42,10 @@ export function BorcDetayi({
   onChanged: () => Promise<void>;
 }) {
   const [extraKurus, setExtraKurus] = useState<number | null>(null);
-  const detail = useAsync(() => debtService.detail(debt.id, extraKurus ?? 0), [debt.id, extraKurus]);
+  const detail = useAsync(
+    () => debtService.detail(debt.id, extraKurus ?? 0),
+    [debt.id, extraKurus],
+  );
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
@@ -132,8 +135,8 @@ export function BorcDetayi({
               <div className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
                 {data.whatIf.improved.status === 'ends' ? (
                   <>
-                    Borc <strong>{formatYearMonth(data.whatIf.improved.payoffMonth!)}</strong> ayinda
-                    biter ({data.whatIf.improved.months} ay).
+                    Borc <strong>{formatYearMonth(data.whatIf.improved.payoffMonth!)}</strong>{' '}
+                    ayinda biter ({data.whatIf.improved.months} ay).
                     {data.whatIf.monthsSaved !== null && (
                       <>
                         {' '}

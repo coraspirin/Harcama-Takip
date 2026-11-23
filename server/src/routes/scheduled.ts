@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { asyncHandler } from '../middleware/error.ts';
 import { requireUser, currentUser } from '../middleware/auth.ts';
 import { badRequest, notFound } from '../lib/errors.ts';
-import { idParamSchema, isoDateSchema, positiveKurusSchema, yearMonthSchema } from '../lib/validation.ts';
+import {
+  idParamSchema,
+  isoDateSchema,
+  positiveKurusSchema,
+  yearMonthSchema,
+} from '../lib/validation.ts';
 import { addDays, todayIso, toYearMonth } from '../lib/date.ts';
 import { categoryExists } from '../db/categories.ts';
 import {
@@ -112,38 +117,74 @@ const createSchema = z
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'planned' && value.amountKurus === null) {
-      ctx.addIssue({ code: 'custom', path: ['amountKurus'], message: 'Planlanan kayit icin tutar zorunlu' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['amountKurus'],
+        message: 'Planlanan kayit icin tutar zorunlu',
+      });
     }
     if (value.kind === 'installment') {
       if (value.totalAmountKurus === null) {
-        ctx.addIssue({ code: 'custom', path: ['totalAmountKurus'], message: 'Toplam tutar zorunlu' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['totalAmountKurus'],
+          message: 'Toplam tutar zorunlu',
+        });
       }
       if (value.installmentCount === null) {
-        ctx.addIssue({ code: 'custom', path: ['installmentCount'], message: 'Taksit sayisi zorunlu' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['installmentCount'],
+          message: 'Taksit sayisi zorunlu',
+        });
       }
     }
     if (value.isSubscription && value.kind !== 'bill') {
-      ctx.addIssue({ code: 'custom', path: ['isSubscription'], message: 'Yalnizca fatura abonelik olabilir' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['isSubscription'],
+        message: 'Yalnizca fatura abonelik olabilir',
+      });
     }
     if (value.isSubscription && value.amountKurus === null) {
-      ctx.addIssue({ code: 'custom', path: ['amountKurus'], message: 'Abonelik icin tutar zorunlu' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['amountKurus'],
+        message: 'Abonelik icin tutar zorunlu',
+      });
     }
     if (value.endMonth !== null) {
       if (value.kind !== 'bill') {
-        ctx.addIssue({ code: 'custom', path: ['endMonth'], message: 'Bitis ayi yalnizca fatura ve abonelikte secilir' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['endMonth'],
+          message: 'Bitis ayi yalnizca fatura ve abonelikte secilir',
+        });
       } else if (value.endMonth < value.startDate.slice(0, 7)) {
-        ctx.addIssue({ code: 'custom', path: ['endMonth'], message: 'Yenilenme ayi ilk vadeden once olamaz' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['endMonth'],
+          message: 'Yenilenme ayi ilk vadeden once olamaz',
+        });
       }
     }
     if (value.autoConfirm && value.kind !== 'bill') {
-      ctx.addIssue({ code: 'custom', path: ['autoConfirm'], message: 'Otomatik odeme yalnizca fatura ve abonelikte secilir' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['autoConfirm'],
+        message: 'Otomatik odeme yalnizca fatura ve abonelikte secilir',
+      });
     }
     if (value.kind === 'bill' && value.period === null) {
       ctx.addIssue({ code: 'custom', path: ['period'], message: 'Fatura periyodu zorunlu' });
     }
     // Taksit ve fatura dogasi geregi giderdir
     if (value.kind !== 'planned' && value.direction !== 'expense') {
-      ctx.addIssue({ code: 'custom', path: ['direction'], message: 'Taksit ve fatura yalnizca gider olabilir' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['direction'],
+        message: 'Taksit ve fatura yalnizca gider olabilir',
+      });
     }
   });
 
@@ -151,9 +192,7 @@ scheduledRouter.get(
   '/',
   asyncHandler((req, res) => {
     const user = currentUser(req);
-    const kind = req.query.kind
-      ? z.enum(SCHEDULED_KINDS).parse(req.query.kind)
-      : undefined;
+    const kind = req.query.kind ? z.enum(SCHEDULED_KINDS).parse(req.query.kind) : undefined;
 
     res.json({ items: listScheduledItems(user.id, kind).map(serializeItem) });
   }),
@@ -212,7 +251,13 @@ scheduledRouter.get(
   '/upcoming',
   asyncHandler((req, res) => {
     const user = currentUser(req);
-    const days = z.coerce.number().int().min(0).max(365).default(30).parse(req.query.days ?? 30);
+    const days = z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(365)
+      .default(30)
+      .parse(req.query.days ?? 30);
 
     const today = todayIso();
     const rows = listUpcomingOccurrences(user.id, addDays(today, days));
@@ -282,7 +327,8 @@ scheduledRouter.patch(
 
     const item = findScheduledItem(user.id, id);
     if (!item) throw notFound('Kayit bulunamadi');
-    if (item.kind !== 'bill') throw badRequest('Otomatik odeme yalnizca fatura ve abonelikte secilir');
+    if (item.kind !== 'bill')
+      throw badRequest('Otomatik odeme yalnizca fatura ve abonelikte secilir');
 
     setAutoConfirm(user.id, id, autoConfirm);
     const confirmedCount = autoConfirm

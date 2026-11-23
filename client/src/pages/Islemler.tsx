@@ -1,11 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeftRight, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync.ts';
-import {
-  categoryService,
-  transactionService,
-  type TransactionQuery,
-} from '../services/finance.ts';
+import { categoryService, transactionService, type TransactionQuery } from '../services/finance.ts';
 import { ApiError } from '../services/api.ts';
 import type { Transaction } from '../types/index.ts';
 import { Button } from '../components/ui/Button.tsx';
@@ -172,7 +168,9 @@ export default function Islemler() {
   const transactions = list.data?.transactions ?? [];
   const totals = list.data?.totals;
   const pagination = list.data?.pagination;
-  const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize)) : 1;
+  const totalPages = pagination
+    ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
+    : 1;
 
   return (
     <>
@@ -324,9 +322,7 @@ export default function Islemler() {
 
       {selected.size > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 p-3">
-          <span className="text-sm font-medium text-brand-900">
-            {selected.size} islem secili
-          </span>
+          <span className="text-sm font-medium text-brand-900">{selected.size} islem secili</span>
           <Button size="sm" variant="danger" onClick={() => setBulkDeleting(true)}>
             <Trash2 className="h-4 w-4" aria-hidden />
             Secilenleri sil
@@ -393,7 +389,12 @@ export default function Islemler() {
                   <SignedAmount kurus={tx.amountKurus} type={tx.type} />
 
                   <div className="flex shrink-0 gap-0.5">
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(tx)} aria-label="Duzenle">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openEdit(tx)}
+                      aria-label="Duzenle"
+                    >
                       <Pencil className="h-4 w-4" aria-hidden />
                     </Button>
                     <Button

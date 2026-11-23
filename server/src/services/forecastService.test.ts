@@ -1,12 +1,32 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { averageHistory, buildForecast, projectDebts, type HistoryMonth } from './forecastService.ts';
+import {
+  averageHistory,
+  buildForecast,
+  projectDebts,
+  type HistoryMonth,
+} from './forecastService.ts';
 import type { StrategyDebt } from './debtForecastService.ts';
 
 const history: HistoryMonth[] = [
-  { month: '2026-07', incomeKurus: 5_000_000, fixedExpenseKurus: 2_000_000, variableExpenseKurus: 1_500_000 },
-  { month: '2026-08', incomeKurus: 5_000_000, fixedExpenseKurus: 2_000_000, variableExpenseKurus: 2_500_000 },
-  { month: '2026-09', incomeKurus: 5_000_000, fixedExpenseKurus: 2_000_000, variableExpenseKurus: 2_000_000 },
+  {
+    month: '2026-07',
+    incomeKurus: 5_000_000,
+    fixedExpenseKurus: 2_000_000,
+    variableExpenseKurus: 1_500_000,
+  },
+  {
+    month: '2026-08',
+    incomeKurus: 5_000_000,
+    fixedExpenseKurus: 2_000_000,
+    variableExpenseKurus: 2_500_000,
+  },
+  {
+    month: '2026-09',
+    incomeKurus: 5_000_000,
+    fixedExpenseKurus: 2_000_000,
+    variableExpenseKurus: 2_000_000,
+  },
 ];
 
 const loan: StrategyDebt = {
@@ -44,8 +64,17 @@ describe('borc projeksiyonu', () => {
   });
 
   test('yuvarlamada ek tutar en yuksek faizliye gider', () => {
-    const card: StrategyDebt = { ...loan, id: 2, name: 'Kart', monthlyInterestBp: 300, minPaymentKurus: 50_000 };
-    const timeline = projectDebts([loan, card], '2026-11', 1, { extraKurus: 100_000, rollover: true });
+    const card: StrategyDebt = {
+      ...loan,
+      id: 2,
+      name: 'Kart',
+      monthlyInterestBp: 300,
+      minPaymentKurus: 50_000,
+    };
+    const timeline = projectDebts([loan, card], '2026-11', 1, {
+      extraKurus: 100_000,
+      rollover: true,
+    });
     // Kart: 1.000.000 + %3 faiz = 1.030.000 - 50.000 asgari - 100.000 ek
     assert.equal(timeline[0]?.balanceKurus, 900_000 + 880_000);
     assert.equal(timeline[0]?.paidKurus, 250_000);
@@ -77,7 +106,14 @@ describe('gidisat tahmini', () => {
 
   test('gider geliri asiyorsa yon kotulesiyor', () => {
     const forecast = buildForecast({
-      history: [{ month: '2026-09', incomeKurus: 1_000_000, fixedExpenseKurus: 800_000, variableExpenseKurus: 400_000 }],
+      history: [
+        {
+          month: '2026-09',
+          incomeKurus: 1_000_000,
+          fixedExpenseKurus: 800_000,
+          variableExpenseKurus: 400_000,
+        },
+      ],
       debts: [],
       installmentsByMonth: new Map(),
       installmentRemainingKurus: 0,
@@ -90,7 +126,13 @@ describe('gidisat tahmini', () => {
   });
 
   test('ayda daha az harcayip borca yatirmak borcu erken bitirir', () => {
-    const card: StrategyDebt = { ...loan, name: 'Kart', monthlyInterestBp: 400, taxesIncluded: true, minPaymentKurus: 80_000 };
+    const card: StrategyDebt = {
+      ...loan,
+      name: 'Kart',
+      monthlyInterestBp: 400,
+      taxesIncluded: true,
+      minPaymentKurus: 80_000,
+    };
     const forecast = buildForecast({
       history,
       debts: [card],

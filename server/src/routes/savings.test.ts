@@ -99,7 +99,9 @@ describe('birikim hedefleri', () => {
   });
 
   test('ay durumunda birikim serbest paradan dusulur (plan ile katkinin buyugu)', async () => {
-    const res = await user.get<{ savingsKurus: number; freeKurus: number }>('/api/budgets/overview');
+    const res = await user.get<{ savingsKurus: number; freeKurus: number }>(
+      '/api/budgets/overview',
+    );
     // Plan 250.000, bu ay katki 500.000 -> 500.000
     assert.equal(res.body.savingsKurus, 500_000);
     assert.equal(res.body.freeKurus, -500_000);

@@ -44,9 +44,9 @@ export function listBudgets(userId: number, yearMonth: string): BudgetWithSpent[
 }
 
 export function findBudget(userId: number, id: number): BudgetRow | null {
-  const row = getDb().prepare('SELECT * FROM budgets WHERE user_id = ? AND id = ?').get(userId, id) as
-    | BudgetRow
-    | undefined;
+  const row = getDb()
+    .prepare('SELECT * FROM budgets WHERE user_id = ? AND id = ?')
+    .get(userId, id) as BudgetRow | undefined;
   return row ?? null;
 }
 
@@ -73,7 +73,9 @@ export function createBudget(
   limitKurus: number,
 ): BudgetRow {
   const result = getDb()
-    .prepare('INSERT INTO budgets (user_id, category_id, year_month, limit_kurus) VALUES (?, ?, ?, ?)')
+    .prepare(
+      'INSERT INTO budgets (user_id, category_id, year_month, limit_kurus) VALUES (?, ?, ?, ?)',
+    )
     .run(userId, categoryId, yearMonth, limitKurus);
 
   const created = findBudget(userId, Number(result.lastInsertRowid));
@@ -83,13 +85,17 @@ export function createBudget(
 
 export function updateBudget(userId: number, id: number, limitKurus: number): BudgetRow | null {
   getDb()
-    .prepare(`UPDATE budgets SET limit_kurus = ?, updated_at = datetime('now') WHERE user_id = ? AND id = ?`)
+    .prepare(
+      `UPDATE budgets SET limit_kurus = ?, updated_at = datetime('now') WHERE user_id = ? AND id = ?`,
+    )
     .run(limitKurus, userId, id);
   return findBudget(userId, id);
 }
 
 export function deleteBudget(userId: number, id: number): boolean {
-  const result = getDb().prepare('DELETE FROM budgets WHERE user_id = ? AND id = ?').run(userId, id);
+  const result = getDb()
+    .prepare('DELETE FROM budgets WHERE user_id = ? AND id = ?')
+    .run(userId, id);
   return Number(result.changes) > 0;
 }
 

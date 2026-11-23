@@ -205,7 +205,10 @@ describe('kullanici yonetimi', () => {
     const self = list.body.users.find((u) => u.username === ADMIN.username);
     assert.ok(self);
 
-    assert.equal((await admin.patch(`/api/admin/users/${self.id}/active`, { isActive: false })).status, 400);
+    assert.equal(
+      (await admin.patch(`/api/admin/users/${self.id}/active`, { isActive: false })).status,
+      400,
+    );
     assert.equal((await admin.delete(`/api/admin/users/${self.id}`)).status, 400);
     assert.equal((await admin.post(`/api/admin/users/${self.id}/reset-password`)).status, 400);
   });

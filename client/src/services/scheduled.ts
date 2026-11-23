@@ -91,8 +91,8 @@ export const occurrenceService = {
 
 export const notificationService = {
   list: () => api.get<{ notifications: Notification[]; unreadCount: number }>('/api/notifications'),
-  markRead: (id: number) =>
-    api.post<{ unreadCount: number }>(`/api/notifications/${id}/read`),
-  markAllRead: () => api.post<{ marked: number; unreadCount: number }>('/api/notifications/read-all'),
+  markRead: (id: number) => api.post<{ unreadCount: number }>(`/api/notifications/${id}/read`),
+  markAllRead: () =>
+    api.post<{ marked: number; unreadCount: number }>('/api/notifications/read-all'),
   remove: (id: number) => api.delete<{ unreadCount: number }>(`/api/notifications/${id}`),
 };

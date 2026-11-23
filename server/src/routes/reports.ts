@@ -144,7 +144,11 @@ reportsRouter.get(
 );
 
 const forecastQuerySchema = z.object({
-  basis: z.coerce.number().int().refine((v) => [3, 6, 12].includes(v), 'basis 3, 6 veya 12 olmali').default(6),
+  basis: z.coerce
+    .number()
+    .int()
+    .refine((v) => [3, 6, 12].includes(v), 'basis 3, 6 veya 12 olmali')
+    .default(6),
   cut: z.coerce.number().int().min(0).max(1_000_000_000_00).default(0),
 });
 
@@ -213,7 +217,13 @@ reportsRouter.get(
   '/closings',
   asyncHandler((req, res) => {
     const user = currentUser(req);
-    const count = z.coerce.number().int().min(1).max(24).default(6).parse(req.query.count ?? 6);
+    const count = z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(24)
+      .default(6)
+      .parse(req.query.count ?? 6);
     const current = toYearMonth(todayIso());
 
     const closings = Array.from({ length: count }, (_, i) =>

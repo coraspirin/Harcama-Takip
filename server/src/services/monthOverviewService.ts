@@ -1,4 +1,10 @@
-import { addMonthsToYearMonth, monthRange, toYearMonth, type IsoDate, type YearMonth } from '../lib/date.ts';
+import {
+  addMonthsToYearMonth,
+  monthRange,
+  toYearMonth,
+  type IsoDate,
+  type YearMonth,
+} from '../lib/date.ts';
 import { sumTransactions } from '../db/transactions.ts';
 import { monthlyTotals } from '../db/reports.ts';
 import { listRecurringBills, sumPendingOccurrences } from '../db/scheduled.ts';

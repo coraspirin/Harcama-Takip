@@ -49,10 +49,14 @@ function DayCell({ day, today }: { day: CalendarDay; today: string }) {
             {p.name}
           </p>
         ))}
-        {day.pending.length > 2 && <p className="text-slate-400">+{day.pending.length - 2} kayit</p>}
+        {day.pending.length > 2 && (
+          <p className="text-slate-400">+{day.pending.length - 2} kayit</p>
+        )}
       </div>
       {hasMoves && (
-        <p className={`tabular mt-0.5 text-right ${day.tight ? 'font-medium text-red-700' : 'text-slate-400'}`}>
+        <p
+          className={`tabular mt-0.5 text-right ${day.tight ? 'font-medium text-red-700' : 'text-slate-400'}`}
+        >
           {compactLira(day.cumulativeKurus)}
         </p>
       )}
@@ -106,8 +110,8 @@ export default function Takvim() {
 
           <p className="mb-3 text-xs text-slate-500">
             Her gunun altindaki rakam ay basindan o gunun sonuna kadar net akistir: gecmis gunlerde
-            gerceklesen, bugun ve sonrasinda bekleyen odemeler dahil. Hesap bakiyesi tutulmadigi icin
-            ay basi sifir kabul edilir.
+            gerceklesen, bugun ve sonrasinda bekleyen odemeler dahil. Hesap bakiyesi tutulmadigi
+            icin ay basi sifir kabul edilir.
           </p>
 
           {/* Genis ekran: ay izgarasi */}
@@ -141,7 +145,9 @@ export default function Takvim() {
                           {formatDate(day.date)}
                           {day.date === data.today && ' · bugun'}
                         </span>
-                        <span className={`tabular text-xs ${day.tight ? 'font-medium text-red-700' : 'text-slate-500'}`}>
+                        <span
+                          className={`tabular text-xs ${day.tight ? 'font-medium text-red-700' : 'text-slate-500'}`}
+                        >
                           net <Money kurus={day.cumulativeKurus} />
                         </span>
                       </div>

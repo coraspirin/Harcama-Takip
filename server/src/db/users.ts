@@ -32,9 +32,8 @@ export function usernameExists(username: string): boolean {
 }
 
 export function emailExists(email: string): boolean {
-  const row = getDb()
-    .prepare('SELECT id FROM users WHERE email = ?')
-    .get(normalizeEmail(email)) as { id: number } | undefined;
+  const row = getDb().prepare('SELECT id FROM users WHERE email = ?').get(normalizeEmail(email)) as
+    { id: number } | undefined;
   return row !== undefined;
 }
 

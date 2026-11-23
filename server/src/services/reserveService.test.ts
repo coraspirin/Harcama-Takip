@@ -11,7 +11,15 @@ describe('seyrek giderlerin aylik payi', () => {
 
   test('aylik kalemler pay hesabina girmez', () => {
     const reserve = calculateReserve(
-      [{ id: 1, name: 'Internet', period: 'monthly', amountKurus: 50_000, startDate: '2026-01-05' }],
+      [
+        {
+          id: 1,
+          name: 'Internet',
+          period: 'monthly',
+          amountKurus: 50_000,
+          startDate: '2026-01-05',
+        },
+      ],
       '2026-11',
     );
     assert.equal(reserve.items.length, 0);
@@ -22,7 +30,13 @@ describe('seyrek giderlerin aylik payi', () => {
     const reserve = calculateReserve(
       [
         { id: 1, name: 'Kasko', period: 'yearly', amountKurus: 1_200_000, startDate: '2026-03-10' },
-        { id: 2, name: 'Emlak vergisi', period: 'yearly', amountKurus: 600_000, startDate: '2025-11-30' },
+        {
+          id: 2,
+          name: 'Emlak vergisi',
+          period: 'yearly',
+          amountKurus: 600_000,
+          startDate: '2025-11-30',
+        },
       ],
       '2026-11',
     );
@@ -34,7 +48,15 @@ describe('seyrek giderlerin aylik payi', () => {
 
   test('tutari bilinmeyen kalem sayilir ama toplama girmez', () => {
     const reserve = calculateReserve(
-      [{ id: 1, name: 'Dogalgaz', period: 'quarterly', amountKurus: null, startDate: '2026-02-15' }],
+      [
+        {
+          id: 1,
+          name: 'Dogalgaz',
+          period: 'quarterly',
+          amountKurus: null,
+          startDate: '2026-02-15',
+        },
+      ],
       '2026-11',
     );
     assert.equal(reserve.unknownCount, 1);

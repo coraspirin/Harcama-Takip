@@ -109,7 +109,9 @@ export function ZamanlanmisListe({
     () =>
       scheduledService
         .list(kind)
-        .then((rows) => (kind === 'bill' ? rows.filter((r) => r.isSubscription === isSubscription) : rows)),
+        .then((rows) =>
+          kind === 'bill' ? rows.filter((r) => r.isSubscription === isSubscription) : rows,
+        ),
     [kind, isSubscription],
   );
   const categories = useAsync(() => categoryService.list(), []);
@@ -484,7 +486,13 @@ export function ZamanlanmisListe({
           )}
 
           <TextField
-            label={kind === 'installment' ? 'Ilk taksit tarihi' : kind === 'bill' ? 'Ilk vade tarihi' : 'Vade tarihi'}
+            label={
+              kind === 'installment'
+                ? 'Ilk taksit tarihi'
+                : kind === 'bill'
+                  ? 'Ilk vade tarihi'
+                  : 'Vade tarihi'
+            }
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
@@ -517,7 +525,9 @@ export function ZamanlanmisListe({
               <span>
                 Gunu gelince otomatik odendi say
                 <span className="block text-xs text-slate-500">
-                  Karttan otomatik cekilen abonelikler icin. Vade gunu geldiginde onayinizi beklemeden odendi sayilir ve islem kaydi vade tarihiyle olusur. Ilk vade gecmis bir tarihse o vadeler de hemen odendi olur.
+                  Karttan otomatik cekilen abonelikler icin. Vade gunu geldiginde onayinizi
+                  beklemeden odendi sayilir ve islem kaydi vade tarihiyle olusur. Ilk vade gecmis
+                  bir tarihse o vadeler de hemen odendi olur.
                 </span>
               </span>
             </label>
@@ -534,8 +544,8 @@ export function ZamanlanmisListe({
               <span>
                 Butceye yansitma
                 <span className="block text-xs text-slate-500">
-                  Kayit listede kalir ama serbest paraya, limitlere, borclara ve raporlara
-                  girmez. Odendi olarak isaretlediginizde islem kaydi olusmaz.
+                  Kayit listede kalir ama serbest paraya, limitlere, borclara ve raporlara girmez.
+                  Odendi olarak isaretlediginizde islem kaydi olusmaz.
                 </span>
               </span>
             </label>
@@ -585,7 +595,8 @@ export function ZamanlanmisListe({
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            <strong>{amountModal?.itemName}</strong> — vade {amountModal && formatDate(amountModal.dueDate)}
+            <strong>{amountModal?.itemName}</strong> — vade{' '}
+            {amountModal && formatDate(amountModal.dueDate)}
           </p>
           <MoneyInput
             label="Odenen tutar"
@@ -712,9 +723,7 @@ function ScheduledCard({
 
         <div className="flex shrink-0 items-center gap-1">
           <div className="mr-1 text-right">
-            <p className="text-xs text-slate-500">
-              {kind === 'installment' ? 'Kalan' : 'Tutar'}
-            </p>
+            <p className="text-xs text-slate-500">{kind === 'installment' ? 'Kalan' : 'Tutar'}</p>
             <p className="font-medium text-slate-900">
               <Money
                 kurus={
@@ -740,7 +749,10 @@ function ScheduledCard({
       {kind === 'installment' && item.progress.total > 0 && (
         <div className="px-4 pb-3">
           <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-brand-500" style={{ width: `${progressPercent}%` }} />
+            <div
+              className="h-full rounded-full bg-brand-500"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
         </div>
       )}

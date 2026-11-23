@@ -24,11 +24,7 @@ type AuthContextValue = {
   user: User | null;
   activeSessions: number;
   login: (username: string, password: string) => Promise<User>;
-  completeSetup: (input: {
-    username: string;
-    email?: string;
-    password: string;
-  }) => Promise<User>;
+  completeSetup: (input: { username: string; email?: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<number>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -145,7 +141,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword,
       refreshUser,
     }),
-    [status, user, activeSessions, login, completeSetup, logout, logoutAll, changePassword, refreshUser],
+    [
+      status,
+      user,
+      activeSessions,
+      login,
+      completeSetup,
+      logout,
+      logoutAll,
+      changePassword,
+      refreshUser,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

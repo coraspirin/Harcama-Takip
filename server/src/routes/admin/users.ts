@@ -6,7 +6,12 @@ import { currentUser, requireSuperAdmin } from '../../middleware/auth.ts';
 import { sensitiveLimiter } from '../../middleware/rateLimit.ts';
 import { badRequest, conflict, notFound } from '../../lib/errors.ts';
 import { hashPassword } from '../../lib/auth.ts';
-import { emailSchema, idParamSchema, passwordSchema, usernameSchema } from '../../lib/validation.ts';
+import {
+  emailSchema,
+  idParamSchema,
+  passwordSchema,
+  usernameSchema,
+} from '../../lib/validation.ts';
 import {
   countUsersByRole,
   deleteUser,

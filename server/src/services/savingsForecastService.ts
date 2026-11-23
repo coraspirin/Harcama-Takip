@@ -50,9 +50,7 @@ export function calculateGoalProgress(input: GoalInput): GoalProgress {
 
   // Tempo: bu ay dahil son PACE_MONTHS ay. Ilk katkidan once gecen aylar
   // ortalamaya katilmaz; yeni acilan hedefin temposu sifira cekilmesin.
-  const firstMonth = input.contributions
-    .map((c) => toYearMonth(c.date))
-    .sort()[0];
+  const firstMonth = input.contributions.map((c) => toYearMonth(c.date)).sort()[0];
   const windowStart = addMonthsToYearMonth(currentMonth, -(PACE_MONTHS - 1));
   const effectiveStart = firstMonth && firstMonth > windowStart ? firstMonth : windowStart;
   const windowMonths = firstMonth
@@ -69,7 +67,10 @@ export function calculateGoalProgress(input: GoalInput): GoalProgress {
   let monthsLeft: number | null = null;
   let requiredMonthlyKurus: number | null = null;
   if (input.targetDate) {
-    monthsLeft = Math.max(1, monthIndex(toYearMonth(input.targetDate)) - monthIndex(currentMonth) + 1);
+    monthsLeft = Math.max(
+      1,
+      monthIndex(toYearMonth(input.targetDate)) - monthIndex(currentMonth) + 1,
+    );
     requiredMonthlyKurus = reached ? null : Math.ceil(remainingKurus / monthsLeft);
   }
 
@@ -78,14 +79,14 @@ export function calculateGoalProgress(input: GoalInput): GoalProgress {
     projectedMonth = currentMonth;
   } else if (averageMonthlyKurus > 0) {
     const months = Math.ceil(remainingKurus / averageMonthlyKurus);
-    if (months <= MAX_PROJECTION_MONTHS) projectedMonth = addMonthsToYearMonth(currentMonth, months);
+    if (months <= MAX_PROJECTION_MONTHS)
+      projectedMonth = addMonthsToYearMonth(currentMonth, months);
   }
 
   const onTrack =
     input.targetDate === null
       ? null
-      : reached ||
-        (projectedMonth !== null && projectedMonth <= toYearMonth(input.targetDate));
+      : reached || (projectedMonth !== null && projectedMonth <= toYearMonth(input.targetDate));
 
   return {
     savedKurus,

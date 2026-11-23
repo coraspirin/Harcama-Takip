@@ -198,8 +198,9 @@ export default function VeriYonetimiBolumu() {
             </Alert>
           ) : (
             <Alert tone="warning" title="Mevcut veriniz silinecek">
-              Bu modda tum islemleriniz, kategorileriniz, butceleriniz, bekleyen odemeleriniz, borclariniz ve
-              birikimleriniz silinip dosyadaki hâliyle kurulur. Bu islem geri alinamaz.
+              Bu modda tum islemleriniz, kategorileriniz, butceleriniz, bekleyen odemeleriniz,
+              borclariniz ve birikimleriniz silinip dosyadaki hâliyle kurulur. Bu islem geri
+              alinamaz.
             </Alert>
           )}
         </div>

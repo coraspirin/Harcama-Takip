@@ -130,7 +130,6 @@ describe('butce', () => {
     });
     assert.equal(created.status, 201);
 
-
     await user.post('/api/transactions', {
       categoryId,
       type: 'expense',
@@ -148,7 +147,6 @@ describe('butce', () => {
   });
 
   test('limit asildiginda exceeded true olur', async () => {
-
     await user.post('/api/transactions', {
       categoryId,
       type: 'expense',
@@ -280,7 +278,11 @@ describe('genel limit ve ay durumu', () => {
   });
 
   test('ay durumu: beklenen gelir, harcama, bekleyen odeme ve serbest para', async () => {
-    await ev.post('/api/transactions', { type: 'income', amountKurus: 4_000_000, date: '2026-05-01' });
+    await ev.post('/api/transactions', {
+      type: 'income',
+      amountKurus: 4_000_000,
+      date: '2026-05-01',
+    });
     await ev.post('/api/scheduled', {
       kind: 'planned',
       name: 'Okul taksiti',
@@ -378,7 +380,13 @@ describe('veri disa/ice aktarim', () => {
       data: {
         schemaVersion: 2,
         transactions: [
-          { categoryId: null, type: 'gecersiz_tur', amountKurus: 100, date: '2026-08-01', description: null },
+          {
+            categoryId: null,
+            type: 'gecersiz_tur',
+            amountKurus: 100,
+            date: '2026-08-01',
+            description: null,
+          },
         ],
       },
     });
@@ -390,7 +398,11 @@ describe('veri disa/ice aktarim', () => {
   });
 
   test('ice aktarim BASKA kullanicinin verisine dokunmaz', async () => {
-    await other.post('/api/transactions', { type: 'expense', amountKurus: 1000, date: '2026-08-01' });
+    await other.post('/api/transactions', {
+      type: 'expense',
+      amountKurus: 1000,
+      date: '2026-08-01',
+    });
     const beforeOther = await other.get<Record<string, unknown[]>>('/api/data/export');
 
     await user.post('/api/data/import', {
@@ -399,10 +411,7 @@ describe('veri disa/ice aktarim', () => {
     });
 
     const afterOther = await other.get<Record<string, unknown[]>>('/api/data/export');
-    assert.equal(
-      afterOther.body['transactions']?.length,
-      beforeOther.body['transactions']?.length,
-    );
+    assert.equal(afterOther.body['transactions']?.length, beforeOther.body['transactions']?.length);
     assert.ok((afterOther.body['transactions']?.length ?? 0) > 0);
   });
 

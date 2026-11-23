@@ -101,8 +101,8 @@ export default function BekleyenOdemeler() {
               </>
             ) : (
               <p className="text-sm text-slate-500">
-                Kasko, emlak vergisi gibi uc aylik veya yillik bir fatura eklerseniz, her ay ne kadar
-                kenara ayirmaniz gerektigini burada gorursunuz.
+                Kasko, emlak vergisi gibi uc aylik veya yillik bir fatura eklerseniz, her ay ne
+                kadar kenara ayirmaniz gerektigini burada gorursunuz.
               </p>
             )}
             {reserve && reserve.unknownCount > 0 && (

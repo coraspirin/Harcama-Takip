@@ -95,9 +95,7 @@ function LimitCard({ limit }: { limit: NonNullable<DashboardSummary['limit']> })
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <p className="text-xs text-slate-500">
-            {limit.exceeded ? 'Limit asildi' : 'Kalan'}
-          </p>
+          <p className="text-xs text-slate-500">{limit.exceeded ? 'Limit asildi' : 'Kalan'}</p>
           <p className={`font-semibold ${limit.exceeded ? 'text-red-600' : 'text-slate-900'}`}>
             <Money kurus={Math.abs(limit.remainingKurus)} />
           </p>
@@ -278,7 +276,10 @@ export default function Dashboard() {
                     : `Onumuzdeki ${UPCOMING_DAYS} gun`
                 }
                 actions={
-                  <Link to="/bekleyen" className="text-sm font-medium text-brand-600 hover:underline">
+                  <Link
+                    to="/bekleyen"
+                    className="text-sm font-medium text-brand-600 hover:underline"
+                  >
                     Tumu
                   </Link>
                 }
@@ -302,7 +303,8 @@ export default function Dashboard() {
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-medium text-slate-900">
                               {occurrence.itemName}
-                              {occurrence.seq !== null && ` (${occurrence.seq}/${occurrence.totalSeq})`}
+                              {occurrence.seq !== null &&
+                                ` (${occurrence.seq}/${occurrence.totalSeq})`}
                             </p>
                             <p className={`text-sm ${overdue ? 'text-red-600' : 'text-slate-500'}`}>
                               {overdue ? 'Gecikti · ' : ''}
@@ -313,7 +315,10 @@ export default function Dashboard() {
                             {occurrence.amountKurus === null ? (
                               <span className="text-slate-400">tutar girilmedi</span>
                             ) : (
-                              <SignedAmount kurus={occurrence.amountKurus} type={occurrence.direction} />
+                              <SignedAmount
+                                kurus={occurrence.amountKurus}
+                                type={occurrence.direction}
+                              />
                             )}
                           </span>
                         </li>

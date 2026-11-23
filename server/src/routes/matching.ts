@@ -21,7 +21,12 @@ matchingRouter.post(
   '/recurrences/reject',
   asyncHandler((req, res) => {
     const user = currentUser(req);
-    const signature = z.string().trim().min(1).max(200).parse((req.body as { signature?: unknown } | undefined)?.signature);
+    const signature = z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .parse((req.body as { signature?: unknown } | undefined)?.signature);
     rejectRecurrence(user.id, signature);
     res.json({ rejected: true });
   }),

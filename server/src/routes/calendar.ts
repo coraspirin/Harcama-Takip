@@ -45,7 +45,13 @@ calendarRouter.get(
       excludedFromBudget: o.exclude_from_budget === 1,
     }));
 
-    const days = buildCalendar({ month, daysInMonth: daysInMonth(y, m), today, totalsByDay, pending });
+    const days = buildCalendar({
+      month,
+      daysInMonth: daysInMonth(y, m),
+      today,
+      totalsByDay,
+      pending,
+    });
 
     res.json({
       month,

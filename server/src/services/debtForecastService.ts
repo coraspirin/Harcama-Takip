@@ -86,8 +86,11 @@ export function simulatePayoff(input: PayoffInput): Payoff {
   let totalPaid = 0;
 
   for (let i = 0; i < MAX_MONTHS && balance > 0; i++) {
-    const interest = monthlyInterest(balance, input.monthlyInterestBp, input.taxesIncluded)
-      .totalInterestKurus;
+    const interest = monthlyInterest(
+      balance,
+      input.monthlyInterestBp,
+      input.taxesIncluded,
+    ).totalInterestKurus;
     const due = balance + interest;
     const payment = Math.min(input.paymentKurus, due);
 
@@ -197,7 +200,14 @@ export function simulateStrategy(
     .map((d) => ({ ...d, balance: d.balanceKurus }));
 
   if (active.length === 0) {
-    return { strategy, status: 'paid', months: 0, payoffMonth: null, totalInterestKurus: 0, order: [] };
+    return {
+      strategy,
+      status: 'paid',
+      months: 0,
+      payoffMonth: null,
+      totalInterestKurus: 0,
+      order: [],
+    };
   }
 
   const budget = active.reduce((sum, d) => sum + d.minPaymentKurus, 0) + Math.max(0, extraKurus);
@@ -217,8 +227,11 @@ export function simulateStrategy(
 
     for (const debt of active) {
       if (debt.balance <= 0) continue;
-      const interest = monthlyInterest(debt.balance, debt.monthlyInterestBp, debt.taxesIncluded)
-        .totalInterestKurus;
+      const interest = monthlyInterest(
+        debt.balance,
+        debt.monthlyInterestBp,
+        debt.taxesIncluded,
+      ).totalInterestKurus;
       debt.balance += interest;
       totalInterest += interest;
     }

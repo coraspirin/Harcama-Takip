@@ -26,7 +26,7 @@ function getKey(): Buffer {
       500,
       'ENCRYPTION_KEY_INVALID',
       'ENCRYPTION_KEY gecerli degil. 32 baytlik base64 bir anahtar olmali. ' +
-        'Uretmek icin: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"',
+        "Uretmek icin: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
     );
   }
 
@@ -56,11 +56,7 @@ export function decryptSecret(payload: string): string {
   }
 
   try {
-    const decipher = crypto.createDecipheriv(
-      ALGORITHM,
-      getKey(),
-      Buffer.from(parts[1]!, 'base64'),
-    );
+    const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), Buffer.from(parts[1]!, 'base64'));
     decipher.setAuthTag(Buffer.from(parts[2]!, 'base64'));
 
     return Buffer.concat([
@@ -74,7 +70,7 @@ export function decryptSecret(payload: string): string {
       500,
       'DECRYPT_FAILED',
       'Saklanan gizli deger cozulemedi. ENCRYPTION_KEY degistirilmis olabilir; ' +
-        'bu durumda Home Assistant token\'ini yeniden girmeniz gerekir.',
+        "bu durumda Home Assistant token'ini yeniden girmeniz gerekir.",
     );
   }
 }

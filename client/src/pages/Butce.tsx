@@ -312,7 +312,12 @@ export default function Butce() {
                   <span className="text-slate-400"> · tum giderler</span>
                 </p>
               </button>
-              <Button size="sm" variant="ghost" onClick={() => setDeleting(general)} aria-label="Sil">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setDeleting(general)}
+                aria-label="Sil"
+              >
                 <Trash2 className="h-4 w-4 text-red-500" aria-hidden />
               </Button>
             </div>
@@ -420,7 +425,10 @@ export default function Butce() {
       ) : (
         <div className="space-y-3">
           {list.map((budget) => (
-            <div key={budget.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <div
+              key={budget.id}
+              className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
+            >
               <div className="flex items-start justify-between gap-3">
                 <button className="min-w-0 flex-1 text-left" onClick={() => openEdit(budget)}>
                   <p className="truncate font-medium text-slate-900">{budgetLabel(budget)}</p>

@@ -30,8 +30,14 @@ describe('anormal harcama', () => {
   });
 
   test('yeterli gecmis yoksa veya kalem kucukse uyari yok', () => {
-    assert.equal(detectAnomalies(new Map([[1, 900_000]]), new Map([[1, [100_000, 100_000]]])).length, 0);
-    assert.equal(detectAnomalies(new Map([[1, 90_000]]), new Map([[1, [10_000, 10_000, 10_000]]])).length, 0);
+    assert.equal(
+      detectAnomalies(new Map([[1, 900_000]]), new Map([[1, [100_000, 100_000]]])).length,
+      0,
+    );
+    assert.equal(
+      detectAnomalies(new Map([[1, 90_000]]), new Map([[1, [10_000, 10_000, 10_000]]])).length,
+      0,
+    );
   });
 });
 
@@ -69,7 +75,9 @@ describe('takvim', () => {
     const days = buildCalendar({
       ...base,
       totalsByDay: new Map(),
-      pending: [{ id: 1, name: 'Fatura', direction: 'expense', amountKurus: 50_000, dueDate: '2026-11-03' }],
+      pending: [
+        { id: 1, name: 'Fatura', direction: 'expense', amountKurus: 50_000, dueDate: '2026-11-03' },
+      ],
     });
     assert.equal(days[2]?.pending.length, 0);
     assert.equal(days[9]?.pending[0]?.overdue, true);
@@ -80,7 +88,9 @@ describe('takvim', () => {
     const days = buildCalendar({
       ...base,
       totalsByDay: new Map(),
-      pending: [{ id: 1, name: 'Dogalgaz', direction: 'expense', amountKurus: null, dueDate: '2026-11-20' }],
+      pending: [
+        { id: 1, name: 'Dogalgaz', direction: 'expense', amountKurus: null, dueDate: '2026-11-20' },
+      ],
     });
     assert.equal(days[19]?.pending.length, 1);
     assert.equal(days[19]?.cumulativeKurus, 0);

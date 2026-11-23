@@ -30,8 +30,7 @@ export const forbidden = (message = 'Bu islem icin yetkiniz yok') =>
  * Baskasinin kaydina erisim denemesinde de bunu kullaniriz: 403 yerine 404
  * donmek, kaydin var olup olmadigini sizdirmaz.
  */
-export const notFound = (message = 'Kayit bulunamadi') =>
-  new AppError(404, 'NOT_FOUND', message);
+export const notFound = (message = 'Kayit bulunamadi') => new AppError(404, 'NOT_FOUND', message);
 
 export const conflict = (message: string, details?: unknown) =>
   new AppError(409, 'CONFLICT', message, details);

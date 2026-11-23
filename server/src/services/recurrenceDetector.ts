@@ -60,14 +60,16 @@ const FIXED_TOLERANCE_BP = 200; // %2
  *   "SUPERONLINE Tes:0054438464 Fat:19844591604" -> "superonline"
  */
 export function recurrenceSignature(description: string): string {
-  return foldTurkish(description)
-    // 4+ haneli sayi dizileri: abone/fatura/referans numarasi
-    .replace(/\d{4,}/g, ' ')
-    // Kalan kisa sayilar da ay/gun bilgisi tasiyabilir
-    .replace(/\d+/g, ' ')
-    .replace(/[^a-z\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    foldTurkish(description)
+      // 4+ haneli sayi dizileri: abone/fatura/referans numarasi
+      .replace(/\d{4,}/g, ' ')
+      // Kalan kisa sayilar da ay/gun bilgisi tasiyabilir
+      .replace(/\d+/g, ' ')
+      .replace(/[^a-z\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 type Row = {

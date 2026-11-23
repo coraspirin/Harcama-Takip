@@ -87,9 +87,7 @@ export function listTransactions(
 ): TransactionWithNames[] {
   const { where, params } = buildFilters(userId, filters);
   return getDb()
-    .prepare(
-      `${SELECT_WITH_NAMES} WHERE ${where} ORDER BY t.date DESC, t.id DESC LIMIT ? OFFSET ?`,
-    )
+    .prepare(`${SELECT_WITH_NAMES} WHERE ${where} ORDER BY t.date DESC, t.id DESC LIMIT ? OFFSET ?`)
     .all(...params, limit, offset) as TransactionWithNames[];
 }
 
@@ -176,7 +174,15 @@ export function updateTransaction(
            description = ?, updated_at = datetime('now')
        WHERE user_id = ? AND id = ?`,
     )
-    .run(input.categoryId, input.type, input.amountKurus, input.date, input.description, userId, id);
+    .run(
+      input.categoryId,
+      input.type,
+      input.amountKurus,
+      input.date,
+      input.description,
+      userId,
+      id,
+    );
 
   return findTransaction(userId, id);
 }

@@ -67,7 +67,12 @@ export function projectDebts(
 
   for (let i = 0; i < months; i++) {
     for (const d of state) {
-      if (d.balance > 0) d.balance += monthlyInterest(d.balance, d.monthlyInterestBp, d.taxesIncluded).totalInterestKurus;
+      if (d.balance > 0)
+        d.balance += monthlyInterest(
+          d.balance,
+          d.monthlyInterestBp,
+          d.taxesIncluded,
+        ).totalInterestKurus;
     }
 
     let paid = 0;

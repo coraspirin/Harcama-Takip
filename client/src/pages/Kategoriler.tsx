@@ -96,7 +96,9 @@ export default function Kategoriler() {
           {items.map((category) => (
             <li key={category.id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
-                <p className={`truncate font-medium ${category.archived ? 'text-slate-400' : 'text-slate-900'}`}>
+                <p
+                  className={`truncate font-medium ${category.archived ? 'text-slate-400' : 'text-slate-900'}`}
+                >
                   {category.name}
                   {category.archived && ' (arsivli)'}
                 </p>
@@ -109,7 +111,12 @@ export default function Kategoriler() {
                 </p>
               </div>
               <div className="flex shrink-0 gap-1">
-                <Button size="sm" variant="ghost" onClick={() => openEdit(category)} aria-label="Duzenle">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => openEdit(category)}
+                  aria-label="Duzenle"
+                >
                   <Pencil className="h-4 w-4" aria-hidden />
                 </Button>
                 <Button
@@ -260,9 +267,8 @@ export default function Kategoriler() {
           (deleting?.usageCount ?? 0) > 0 ? (
             <>
               <strong>{deleting?.name}</strong> {deleting?.usageCount} islemde kullanilmis. Gecmis
-              kayitlarin kategorisi kaybolmasin diye silinmeyecek,{' '}
-              <strong>arsivlenecek</strong>: yeni islemlerde secilemez, eski kayitlarda gorunmeye
-              devam eder.
+              kayitlarin kategorisi kaybolmasin diye silinmeyecek, <strong>arsivlenecek</strong>:
+              yeni islemlerde secilemez, eski kayitlarda gorunmeye devam eder.
             </>
           ) : (
             <>

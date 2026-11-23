@@ -76,9 +76,8 @@ export function listDebts(userId: number, includeClosed = false): DebtWithBalanc
 }
 
 export function findDebt(userId: number, id: number): DebtWithBalance | null {
-  const row = getDb()
-    .prepare(`${SELECT_DEBT} WHERE d.user_id = ? AND d.id = ?`)
-    .get(userId, id) as DebtWithBalance | undefined;
+  const row = getDb().prepare(`${SELECT_DEBT} WHERE d.user_id = ? AND d.id = ?`).get(userId, id) as
+    DebtWithBalance | undefined;
   return row ?? null;
 }
 
@@ -257,7 +256,10 @@ export function pendingInstallmentsByMonth(userId: number): Map<string, number> 
 }
 
 /** Bir ayda borclara yapilan odemeler ve alacak tahsilatlari. */
-export function debtPaymentsInMonth(userId: number, month: string): { oweKurus: number; lentKurus: number } {
+export function debtPaymentsInMonth(
+  userId: number,
+  month: string,
+): { oweKurus: number; lentKurus: number } {
   const row = getDb()
     .prepare(
       `SELECT

@@ -69,17 +69,13 @@ async function haFetch(
     throw new AppError(
       400,
       'HA_UNAUTHORIZED',
-      'Home Assistant erisim token\'i gecersiz veya suresi dolmus.',
+      "Home Assistant erisim token'i gecersiz veya suresi dolmus.",
     );
   }
 
   if (!response.ok) {
     const body = (await response.text()).slice(0, 200);
-    throw new AppError(
-      502,
-      'HA_ERROR',
-      `Home Assistant hata dondu (${response.status}): ${body}`,
-    );
+    throw new AppError(502, 'HA_ERROR', `Home Assistant hata dondu (${response.status}): ${body}`);
   }
 
   return response;

@@ -76,7 +76,10 @@ function DebtCard({
   const lent = debt.direction === 'lent';
   const paidShare =
     debt.originalKurus > 0
-      ? Math.min(100, Math.round(((debt.originalKurus - debt.currentBalanceKurus) / debt.originalKurus) * 100))
+      ? Math.min(
+          100,
+          Math.round(((debt.originalKurus - debt.currentBalanceKurus) / debt.originalKurus) * 100),
+        )
       : 0;
   const status = debt.forecast?.status;
   const warn = status === 'never';
@@ -110,13 +113,17 @@ function DebtCard({
           />
         </div>
         <p className="mt-1.5 text-xs text-slate-500">
-          %{paidShare} {lent ? 'tahsil edildi' : 'odendi'} ·{' '}
-          <Money kurus={debt.originalKurus} /> uzerinden
+          %{paidShare} {lent ? 'tahsil edildi' : 'odendi'} · <Money kurus={debt.originalKurus} />{' '}
+          uzerinden
         </p>
 
         <p
           className={`mt-2 flex items-center gap-1.5 text-sm ${
-            warn ? 'font-medium text-red-600' : status === 'ends' ? 'text-slate-700' : 'text-slate-500'
+            warn
+              ? 'font-medium text-red-600'
+              : status === 'ends'
+                ? 'text-slate-700'
+                : 'text-slate-500'
           }`}
         >
           {warn ? (
@@ -134,8 +141,8 @@ function DebtCard({
         </p>
         {warn && debt.forecast && (
           <p className="mt-0.5 text-xs text-red-600">
-            Aylik faiz yaklasik <Money kurus={debt.forecast.firstMonthInterestKurus} />; odeme
-            bunun uzerinde olmali.
+            Aylik faiz yaklasik <Money kurus={debt.forecast.firstMonthInterestKurus} />; odeme bunun
+            uzerinde olmali.
           </p>
         )}
       </button>
@@ -154,7 +161,15 @@ function DebtCard({
   );
 }
 
-function StrategyColumn({ title, hint, result }: { title: string; hint: string; result: StrategyResult }) {
+function StrategyColumn({
+  title,
+  hint,
+  result,
+}: {
+  title: string;
+  hint: string;
+  result: StrategyResult;
+}) {
   return (
     <div className="rounded-lg bg-slate-50 p-3">
       <p className="font-medium text-slate-900">{title}</p>
@@ -162,8 +177,8 @@ function StrategyColumn({ title, hint, result }: { title: string; hint: string; 
       {result.status === 'ends' ? (
         <>
           <p className="mt-2 text-sm">
-            Hepsi <strong>{formatYearMonth(result.payoffMonth!)}</strong> ayinda biter ({result.months}{' '}
-            ay)
+            Hepsi <strong>{formatYearMonth(result.payoffMonth!)}</strong> ayinda biter (
+            {result.months} ay)
           </p>
           <p className="text-sm text-slate-600">
             Toplam faiz ~<Money kurus={result.totalInterestKurus ?? 0} />
@@ -476,19 +491,26 @@ export default function Borclar() {
             <section className="mb-6">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-700">Taksitler</h2>
-                <Link to="/bekleyen?sekme=taksit" className="text-sm font-medium text-brand-600 hover:underline">
+                <Link
+                  to="/bekleyen?sekme=taksit"
+                  className="text-sm font-medium text-brand-600 hover:underline"
+                >
                   Taksitlere git
                 </Link>
               </div>
               <Card>
                 <ul className="-my-2 divide-y divide-slate-100">
                   {installments.map((item) => (
-                    <li key={item.itemId} className="flex items-center justify-between gap-3 py-2.5">
+                    <li
+                      key={item.itemId}
+                      className="flex items-center justify-between gap-3 py-2.5"
+                    >
                       <div className="min-w-0">
                         <p className="truncate font-medium text-slate-900">{item.name}</p>
                         <p className="text-sm text-slate-500">
                           {item.remainingCount} taksit kaldi
-                          {item.lastDueDate && ` · son taksit ${formatYearMonth(item.lastDueDate.slice(0, 7))}`}
+                          {item.lastDueDate &&
+                            ` · son taksit ${formatYearMonth(item.lastDueDate.slice(0, 7))}`}
                         </p>
                       </div>
                       <div className="text-right">
@@ -676,7 +698,11 @@ export default function Borclar() {
 
           {!editing ? (
             <MoneyInput
-              label={form.direction === 'lent' && form.kind === 'personal' ? 'Kalan alacak' : 'Kalan borc'}
+              label={
+                form.direction === 'lent' && form.kind === 'personal'
+                  ? 'Kalan alacak'
+                  : 'Kalan borc'
+              }
               valueKurus={form.balanceKurus}
               onChangeKurus={(v) => patchForm({ balanceKurus: v })}
               hint="Bugunku guncel bakiye (ekstre veya banka uygulamasindan)"
@@ -697,7 +723,11 @@ export default function Borclar() {
           />
 
           <MoneyInput
-            label={form.direction === 'lent' && form.kind === 'personal' ? 'Aylik beklenen tahsilat' : 'Aylik odeme'}
+            label={
+              form.direction === 'lent' && form.kind === 'personal'
+                ? 'Aylik beklenen tahsilat'
+                : 'Aylik odeme'
+            }
             valueKurus={form.monthlyPaymentKurus}
             onChangeKurus={(v) => patchForm({ monthlyPaymentKurus: v })}
             hint={
@@ -768,10 +798,23 @@ export default function Borclar() {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            <strong>{paying?.name}</strong> · kalan <Money kurus={paying?.currentBalanceKurus ?? 0} />
+            <strong>{paying?.name}</strong> · kalan{' '}
+            <Money kurus={paying?.currentBalanceKurus ?? 0} />
           </p>
-          <MoneyInput label="Tutar" valueKurus={amountKurus} onChangeKurus={setAmountKurus} required autoFocus />
-          <TextField label="Tarih" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          <MoneyInput
+            label="Tutar"
+            valueKurus={amountKurus}
+            onChangeKurus={setAmountKurus}
+            required
+            autoFocus
+          />
+          <TextField
+            label="Tarih"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
           <TextField
             label="Not"
             value={paymentNote}
@@ -802,8 +845,20 @@ export default function Borclar() {
             Ekstrenizde veya banka uygulamanizda gorunen guncel tutari girin. Bu tarihe kadarki
             odemelerin bu tutara yansidigi kabul edilir; faiz tahmini de boylece duzelir.
           </p>
-          <MoneyInput label="Guncel bakiye" valueKurus={amountKurus} onChangeKurus={setAmountKurus} required autoFocus />
-          <TextField label="Tarih" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          <MoneyInput
+            label="Guncel bakiye"
+            valueKurus={amountKurus}
+            onChangeKurus={setAmountKurus}
+            required
+            autoFocus
+          />
+          <TextField
+            label="Tarih"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
           {error && <Alert tone="error">{error}</Alert>}
         </div>
       </Modal>

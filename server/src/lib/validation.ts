@@ -44,6 +44,4 @@ export const isoDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Tarih YYYY-MM-DD biciminde olmali');
 
-export const yearMonthSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}$/, 'Donem YYYY-MM biciminde olmali');
+export const yearMonthSchema = z.string().regex(/^\d{4}-\d{2}$/, 'Donem YYYY-MM biciminde olmali');

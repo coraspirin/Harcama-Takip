@@ -1,5 +1,10 @@
 import { addMonthsToYearMonth, toYearMonth, type IsoDate, type YearMonth } from '../lib/date.ts';
-import { listGoals, listUserContributions, type ContributionRow, type SavingsGoalRow } from '../db/savings.ts';
+import {
+  listGoals,
+  listUserContributions,
+  type ContributionRow,
+  type SavingsGoalRow,
+} from '../db/savings.ts';
 import { monthlyNatureTotals } from '../db/reports.ts';
 import {
   calculateGoalProgress,
@@ -20,7 +25,11 @@ function groupByGoal(rows: ContributionRow[]): Map<number, ContributionRow[]> {
   return map;
 }
 
-export function serializeGoal(goal: SavingsGoalRow, contributions: ContributionRow[], today: IsoDate) {
+export function serializeGoal(
+  goal: SavingsGoalRow,
+  contributions: ContributionRow[],
+  today: IsoDate,
+) {
   const month = toYearMonth(today);
   return {
     id: goal.id,
@@ -44,13 +53,21 @@ export function serializeGoal(goal: SavingsGoalRow, contributions: ContributionR
 }
 
 export function serializeContribution(row: ContributionRow) {
-  return { id: row.id, goalId: row.goal_id, date: row.date, amountKurus: row.amount_kurus, note: row.note };
+  return {
+    id: row.id,
+    goalId: row.goal_id,
+    date: row.date,
+    amountKurus: row.amount_kurus,
+    note: row.note,
+  };
 }
 
 /** Birikimler sayfasi: hedefler, toplamlar ve acil durum fonu onerisi. */
 export function getSavingsOverview(userId: number, today: IsoDate, includeClosed = false) {
   const byGoal = groupByGoal(listUserContributions(userId));
-  const goals = listGoals(userId, includeClosed).map((g) => serializeGoal(g, byGoal.get(g.id) ?? [], today));
+  const goals = listGoals(userId, includeClosed).map((g) =>
+    serializeGoal(g, byGoal.get(g.id) ?? [], today),
+  );
   const open = goals.filter((g) => !g.closed);
 
   const month = toYearMonth(today);
@@ -89,6 +106,9 @@ export function savingsForMonth(userId: number, month: YearMonth, today: IsoDate
     return goals.reduce((sum, g) => sum + Math.max(0, inMonth(g.id)), 0);
   }
   return monthlySavingsCommitment(
-    goals.map((g) => ({ monthlyPlanKurus: g.monthly_plan_kurus, contributedThisMonthKurus: inMonth(g.id) })),
+    goals.map((g) => ({
+      monthlyPlanKurus: g.monthly_plan_kurus,
+      contributedThisMonthKurus: inMonth(g.id),
+    })),
   );
 }

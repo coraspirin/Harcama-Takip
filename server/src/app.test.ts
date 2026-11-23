@@ -20,9 +20,7 @@ test('GET /api/health - veritabanina dokunarak saglik doner', async () => {
 });
 
 test('bilinmeyen /api yolu JSON 404 doner (HTML degil)', async () => {
-  const res = await server
-    .newClient()
-    .get<{ error: { code: string } }>('/api/olmayan-endpoint');
+  const res = await server.newClient().get<{ error: { code: string } }>('/api/olmayan-endpoint');
   assert.equal(res.status, 404);
   assert.equal(res.body.error.code, 'NOT_FOUND');
 });

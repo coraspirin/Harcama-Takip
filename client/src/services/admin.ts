@@ -33,7 +33,9 @@ export const adminService = {
   }) => api.post<{ user: AdminUser }>('/api/admin/users', input).then((r) => r.user),
 
   setActive: (id: number, isActive: boolean) =>
-    api.patch<{ user: AdminUser }>(`/api/admin/users/${id}/active`, { isActive }).then((r) => r.user),
+    api
+      .patch<{ user: AdminUser }>(`/api/admin/users/${id}/active`, { isActive })
+      .then((r) => r.user),
 
   resetPassword: (id: number) =>
     api.post<{ temporaryPassword: string; note: string }>(`/api/admin/users/${id}/reset-password`),

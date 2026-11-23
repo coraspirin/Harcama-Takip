@@ -19,7 +19,20 @@ import {
 } from '../../lib/chartPalette.ts';
 import type { ProjectionPoint } from '../../types/index.ts';
 
-const MONTH_SHORT = ['Oca', 'Sub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Agu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+const MONTH_SHORT = [
+  'Oca',
+  'Sub',
+  'Mar',
+  'Nis',
+  'May',
+  'Haz',
+  'Tem',
+  'Agu',
+  'Eyl',
+  'Eki',
+  'Kas',
+  'Ara',
+];
 
 function shortMonth(ym: string): string {
   const [year, month] = ym.split('-').map(Number) as [number, number];

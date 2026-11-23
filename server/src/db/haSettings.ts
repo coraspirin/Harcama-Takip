@@ -14,8 +14,7 @@ export type HaSettingsRow = {
 
 export function findHaSettings(userId: number): HaSettingsRow | null {
   const row = getDb().prepare('SELECT * FROM ha_settings WHERE user_id = ?').get(userId) as
-    | HaSettingsRow
-    | undefined;
+    HaSettingsRow | undefined;
   return row ?? null;
 }
 

@@ -37,7 +37,9 @@ export type TransactionQuery = {
   pageSize?: number;
 };
 
-function toQueryString(params: Record<string, string | number | boolean | null | undefined>): string {
+function toQueryString(
+  params: Record<string, string | number | boolean | null | undefined>,
+): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === '') continue;
@@ -111,7 +113,9 @@ export const reportService = {
   trend: (to: string, months = 12) =>
     api.get<TrendReport>(`/api/reports/trend?to=${to}&months=${months}`),
   closings: (count = 6) =>
-    api.get<{ closings: MonthClosing[] }>(`/api/reports/closings?count=${count}`).then((r) => r.closings),
+    api
+      .get<{ closings: MonthClosing[] }>(`/api/reports/closings?count=${count}`)
+      .then((r) => r.closings),
   forecast: (basis: 3 | 6 | 12, cutKurus = 0) =>
     api.get<ForecastReport>(`/api/reports/forecast?basis=${basis}&cut=${cutKurus}`),
 };

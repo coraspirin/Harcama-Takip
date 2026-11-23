@@ -88,7 +88,7 @@ describe('uretim modu (tek container)', () => {
     assert.match(res.headers.get('cache-control') ?? '', /no-store/);
   });
 
-  test('hash\'li varliklar onbellege alinir', { skip: !clientBuilt }, async () => {
+  test("hash'li varliklar onbellege alinir", { skip: !clientBuilt }, async () => {
     const html = await (await fetch(`${baseUrl}/`)).text();
     const match = /src="(\/assets\/[^"]+\.js)"/.exec(html);
     assert.ok(match?.[1], 'index.html bir varlik referansi icermeli');

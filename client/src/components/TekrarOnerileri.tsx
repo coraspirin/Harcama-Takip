@@ -56,9 +56,7 @@ export function TekrarOnerileri({
 
             <span className="tabular shrink-0 text-sm font-medium text-slate-900">
               <Money kurus={item.amountKurus} />
-              {item.amountVaries && (
-                <span className="ml-1 font-normal text-slate-500">(ort.)</span>
-              )}
+              {item.amountVaries && <span className="ml-1 font-normal text-slate-500">(ort.)</span>}
             </span>
 
             <div className="flex shrink-0 gap-1">

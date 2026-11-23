@@ -18,7 +18,9 @@ export default function IslemGunlugu() {
 
   const logs = log.data?.logs ?? [];
   const pagination = log.data?.pagination;
-  const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize)) : 1;
+  const totalPages = pagination
+    ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
+    : 1;
 
   return (
     <>

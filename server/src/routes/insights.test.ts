@@ -48,9 +48,16 @@ after(async () => {
 describe('gunluk uyarilar', () => {
   test('limit %80 uyarisi ve asim uyarisi ayda birer kez uretilir', async () => {
     const month = monthsAgo(0);
-    await user.post('/api/budgets', { categoryId: marketId, yearMonth: month, limitKurus: 100_000 });
+    await user.post('/api/budgets', {
+      categoryId: marketId,
+      yearMonth: month,
+      limitKurus: 100_000,
+    });
     await user.post('/api/transactions', {
-      type: 'expense', categoryId: marketId, amountKurus: 85_000, date: `${month}-01`,
+      type: 'expense',
+      categoryId: marketId,
+      amountKurus: 85_000,
+      date: `${month}-01`,
     });
 
     await scan();
@@ -59,7 +66,10 @@ describe('gunluk uyarilar', () => {
     assert.equal(list.filter((n) => n.type === 'budget.warning').length, 1, 'tek uyari');
 
     await user.post('/api/transactions', {
-      type: 'expense', categoryId: marketId, amountKurus: 30_000, date: `${month}-01`,
+      type: 'expense',
+      categoryId: marketId,
+      amountKurus: 30_000,
+      date: `${month}-01`,
     });
     await scan();
     await scan();
@@ -76,11 +86,17 @@ describe('gunluk uyarilar', () => {
 
     for (const n of [1, 2, 3]) {
       await anormal.post('/api/transactions', {
-        type: 'expense', categoryId: eglence, amountKurus: 100_000, date: `${monthsAgo(n)}-05`,
+        type: 'expense',
+        categoryId: eglence,
+        amountKurus: 100_000,
+        date: `${monthsAgo(n)}-05`,
       });
     }
     await anormal.post('/api/transactions', {
-      type: 'expense', categoryId: eglence, amountKurus: 300_000, date: `${monthsAgo(0)}-01`,
+      type: 'expense',
+      categoryId: eglence,
+      amountKurus: 300_000,
+      date: `${monthsAgo(0)}-01`,
     });
 
     await scan();
@@ -94,8 +110,16 @@ describe('gunluk uyarilar', () => {
   test('onceki ayin kapanis ozeti bir kez uretilir', async () => {
     const kapanis = await createUserAndLogin(server, 'kapanis');
     const prev = monthsAgo(1);
-    await kapanis.post('/api/transactions', { type: 'income', amountKurus: 500_000, date: `${prev}-01` });
-    await kapanis.post('/api/transactions', { type: 'expense', amountKurus: 200_000, date: `${prev}-02` });
+    await kapanis.post('/api/transactions', {
+      type: 'income',
+      amountKurus: 500_000,
+      date: `${prev}-01`,
+    });
+    await kapanis.post('/api/transactions', {
+      type: 'expense',
+      amountKurus: 200_000,
+      date: `${prev}-02`,
+    });
 
     await scan();
     await scan();
@@ -115,9 +139,16 @@ describe('ay kapanislari raporu', () => {
   test('son aylarin ozetleri doner', async () => {
     const raporcu = await createUserAndLogin(server, 'kapanisraporu');
     const prev = monthsAgo(1);
-    await raporcu.post('/api/transactions', { type: 'income', amountKurus: 1_000_000, date: `${prev}-01` });
     await raporcu.post('/api/transactions', {
-      type: 'expense', categoryId: null, amountKurus: 400_000, date: `${prev}-03`,
+      type: 'income',
+      amountKurus: 1_000_000,
+      date: `${prev}-01`,
+    });
+    await raporcu.post('/api/transactions', {
+      type: 'expense',
+      categoryId: null,
+      amountKurus: 400_000,
+      date: `${prev}-03`,
     });
     await raporcu.post('/api/budgets', { yearMonth: prev, limitKurus: 300_000 });
 
@@ -161,7 +192,12 @@ describe('takvim', () => {
     });
 
     const res = await takvimci.get<{
-      days: { date: string; pending: { name: string }[]; cumulativeKurus: number; tight: boolean }[];
+      days: {
+        date: string;
+        pending: { name: string }[];
+        cumulativeKurus: number;
+        tight: boolean;
+      }[];
       tightDayCount: number;
       endCumulativeKurus: number;
     }>(`/api/calendar?month=${next}`);

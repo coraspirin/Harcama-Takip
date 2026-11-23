@@ -53,7 +53,9 @@ export function createNotification(userId: number, input: CreateNotificationInpu
 
 export function listNotifications(userId: number, limit = 50): NotificationRow[] {
   return getDb()
-    .prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?')
+    .prepare(
+      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?',
+    )
     .all(userId, limit) as NotificationRow[];
 }
 
@@ -66,14 +68,18 @@ export function countUnread(userId: number): number {
 
 export function markRead(userId: number, id: number): boolean {
   const result = getDb()
-    .prepare(`UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND id = ? AND read_at IS NULL`)
+    .prepare(
+      `UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND id = ? AND read_at IS NULL`,
+    )
     .run(userId, id);
   return Number(result.changes) > 0;
 }
 
 export function markAllRead(userId: number): number {
   const result = getDb()
-    .prepare(`UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL`)
+    .prepare(
+      `UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL`,
+    )
     .run(userId);
   return Number(result.changes);
 }

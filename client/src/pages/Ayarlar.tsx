@@ -93,10 +93,7 @@ export default function Ayarlar() {
           </dl>
         </Card>
 
-        <Card
-          title="Oturumlar"
-          description={`Su anda ${activeSessions} aktif oturum bulunuyor.`}
-        >
+        <Card title="Oturumlar" description={`Su anda ${activeSessions} aktif oturum bulunuyor.`}>
           <Alert tone="info" title="Tum cihazlardan cikis">
             Telefonunuzu kaybettiyseniz veya bir oturumun baskasinda acik kaldigindan
             supheleniyorsaniz tum oturumlari kapatabilirsiniz. Bu islem sizi de cikisa gonderir.

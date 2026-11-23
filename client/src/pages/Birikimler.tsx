@@ -364,7 +364,10 @@ export default function Birikimler() {
             <ul className="-my-2 divide-y divide-slate-100">
               {closed.map((goal) => (
                 <li key={goal.id} className="flex items-center justify-between py-2.5">
-                  <button className="text-left font-medium text-slate-500" onClick={() => openEdit(goal)}>
+                  <button
+                    className="text-left font-medium text-slate-500"
+                    onClick={() => openEdit(goal)}
+                  >
                     {goal.name}
                   </button>
                   <Money kurus={goal.progress.savedKurus} className="text-sm text-slate-500" />
@@ -484,9 +487,26 @@ export default function Birikimler() {
             <strong>{contributing?.goal.name}</strong> · birikim{' '}
             <Money kurus={contributing?.goal.progress.savedKurus ?? 0} />
           </p>
-          <MoneyInput label="Tutar" valueKurus={amountKurus} onChangeKurus={setAmountKurus} required autoFocus />
-          <TextField label="Tarih" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-          <TextField label="Not" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Istege bagli" />
+          <MoneyInput
+            label="Tutar"
+            valueKurus={amountKurus}
+            onChangeKurus={setAmountKurus}
+            required
+            autoFocus
+          />
+          <TextField
+            label="Tarih"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+          <TextField
+            label="Not"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Istege bagli"
+          />
           <p className="text-xs text-slate-500">
             Birikime ayrilan para gider sayilmaz; islemlerinize yazilmaz.
           </p>
@@ -494,7 +514,11 @@ export default function Birikimler() {
         </div>
       </Modal>
 
-      <Modal open={historyOf !== null} title={historyOf?.name ?? ''} onClose={() => setHistoryOf(null)}>
+      <Modal
+        open={historyOf !== null}
+        title={historyOf?.name ?? ''}
+        onClose={() => setHistoryOf(null)}
+      >
         {(history.data?.contributions.length ?? 0) === 0 ? (
           <p className="text-sm text-slate-500">Henuz kayit yok.</p>
         ) : (

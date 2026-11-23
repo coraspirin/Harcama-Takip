@@ -25,7 +25,8 @@ function scanBudgets(userId: number, today: IsoDate): number {
     const level = budgetAlertLevel(budget.spent_kurus, budget.limit_kurus);
     if (!level) continue;
 
-    const name = budget.category_id === null ? 'Genel aylik limit' : budget.category_name ?? 'Kategori';
+    const name =
+      budget.category_id === null ? 'Genel aylik limit' : (budget.category_name ?? 'Kategori');
     const percent = Math.round((budget.spent_kurus / budget.limit_kurus) * 100);
     const ok = createNotification(userId, {
       type: level === 'exceeded' ? 'budget.exceeded' : 'budget.warning',

@@ -44,7 +44,12 @@ describe('tek borcun bitme tahmini', () => {
   });
 
   test('vergiler dahilse faiz daha yuksek, bitis daha gec', () => {
-    const base = { balanceKurus: 1_000_000, monthlyInterestBp: 425, paymentKurus: 100_000, startMonth: '2026-11' };
+    const base = {
+      balanceKurus: 1_000_000,
+      monthlyInterestBp: 425,
+      paymentKurus: 100_000,
+      startMonth: '2026-11',
+    };
     const withoutTax = simulatePayoff({ ...base, taxesIncluded: false });
     const withTax = simulatePayoff({ ...base, taxesIncluded: true });
     assert.ok(withTax.totalInterestKurus! > withoutTax.totalInterestKurus!);
@@ -124,9 +129,23 @@ describe('fazla odeme karsilastirmasi', () => {
 describe('cig ve kartopu yontemleri', () => {
   const debts: StrategyDebt[] = [
     // Kucuk bakiye, dusuk faiz
-    { id: 1, name: 'Arkadas', balanceKurus: 200_000, monthlyInterestBp: 0, taxesIncluded: false, minPaymentKurus: 20_000 },
+    {
+      id: 1,
+      name: 'Arkadas',
+      balanceKurus: 200_000,
+      monthlyInterestBp: 0,
+      taxesIncluded: false,
+      minPaymentKurus: 20_000,
+    },
     // Buyuk bakiye, yuksek faiz
-    { id: 2, name: 'Kart', balanceKurus: 1_500_000, monthlyInterestBp: 400, taxesIncluded: true, minPaymentKurus: 100_000 },
+    {
+      id: 2,
+      name: 'Kart',
+      balanceKurus: 1_500_000,
+      monthlyInterestBp: 400,
+      taxesIncluded: true,
+      minPaymentKurus: 100_000,
+    },
   ];
 
   test('kartopu once kucuk bakiyeyi kapatir', () => {
@@ -150,7 +169,16 @@ describe('cig ve kartopu yontemleri', () => {
 
   test('butce faizi karsilamiyorsa hic bitmez', () => {
     const result = simulateStrategy(
-      [{ id: 1, name: 'Kart', balanceKurus: 10_000_000, monthlyInterestBp: 500, taxesIncluded: true, minPaymentKurus: 100_000 }],
+      [
+        {
+          id: 1,
+          name: 'Kart',
+          balanceKurus: 10_000_000,
+          monthlyInterestBp: 500,
+          taxesIncluded: true,
+          minPaymentKurus: 100_000,
+        },
+      ],
       0,
       'avalanche',
       '2026-11',

@@ -2,10 +2,7 @@ import { getDb } from '../db/connection.ts';
 import { addMonths, todayIso, toYearMonth } from '../lib/date.ts';
 import { splitInstallments } from '../lib/money.ts';
 import { badRequest, conflict, notFound } from '../lib/errors.ts';
-import {
-  deleteTransaction,
-  insertTransaction,
-} from '../db/transactions.ts';
+import { deleteTransaction, insertTransaction } from '../db/transactions.ts';
 import {
   findOccurrence,
   findScheduledItem,

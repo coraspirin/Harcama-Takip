@@ -99,7 +99,7 @@ describe('borc olusturma ve tahmin', () => {
     const lent = await createDebt(user, {
       kind: 'personal',
       direction: 'lent',
-      name: 'Ali\'ye verilen',
+      name: "Ali'ye verilen",
       counterparty: 'Ali',
       balanceKurus: 300_000,
       monthlyPaymentKurus: 100_000,
@@ -315,7 +315,11 @@ describe('fazla odeme senaryolari', () => {
 
 describe('veri izolasyonu', () => {
   test('baskasinin borcu okunamaz, degistirilemez, odeme eklenemez', async () => {
-    const mine = await createDebt(user, { kind: 'personal', name: 'Gizli borc', balanceKurus: 1000 });
+    const mine = await createDebt(user, {
+      kind: 'personal',
+      name: 'Gizli borc',
+      balanceKurus: 1000,
+    });
 
     assert.equal((await other.get(`/api/debts/${mine.id}`)).status, 404);
     assert.equal(

@@ -75,7 +75,7 @@ homeAssistantRouter.put(
     } else if (existing) {
       tokenEncrypted = existing.token_encrypted;
     } else {
-      throw badRequest('Ilk kayitta erisim token\'i zorunlu');
+      throw badRequest("Ilk kayitta erisim token'i zorunlu");
     }
 
     if (input.enabled && !input.notifyTarget) {
@@ -120,7 +120,7 @@ homeAssistantRouter.post(
     } else if (existing) {
       token = decryptSecret(existing.token_encrypted);
     } else {
-      throw badRequest('Erisim token\'i gerekli');
+      throw badRequest("Erisim token'i gerekli");
     }
 
     const targets = await testConnection(input.baseUrl, token);

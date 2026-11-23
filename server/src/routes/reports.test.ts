@@ -39,15 +39,45 @@ before(async () => {
   maasId = find('Maas');
 
   // --- 2026-06 ---
-  await addTransaction({ type: 'income', categoryId: maasId, amountKurus: 500_000, date: '2026-06-01' });
-  await addTransaction({ type: 'expense', categoryId: marketId, amountKurus: 100_000, date: '2026-06-10' });
+  await addTransaction({
+    type: 'income',
+    categoryId: maasId,
+    amountKurus: 500_000,
+    date: '2026-06-01',
+  });
+  await addTransaction({
+    type: 'expense',
+    categoryId: marketId,
+    amountKurus: 100_000,
+    date: '2026-06-10',
+  });
 
   // --- 2026-07 (ay sinirlari: ilk ve son gun) ---
-  await addTransaction({ type: 'income', categoryId: maasId, amountKurus: 600_000, date: '2026-07-01' });
-  await addTransaction({ type: 'expense', categoryId: marketId, amountKurus: 150_000, date: '2026-07-31' });
-  await addTransaction({ type: 'expense', categoryId: kiraId, amountKurus: 250_000, date: '2026-07-15' });
+  await addTransaction({
+    type: 'income',
+    categoryId: maasId,
+    amountKurus: 600_000,
+    date: '2026-07-01',
+  });
+  await addTransaction({
+    type: 'expense',
+    categoryId: marketId,
+    amountKurus: 150_000,
+    date: '2026-07-31',
+  });
+  await addTransaction({
+    type: 'expense',
+    categoryId: kiraId,
+    amountKurus: 250_000,
+    date: '2026-07-15',
+  });
   // Kategorisiz gider
-  await addTransaction({ type: 'expense', categoryId: null, amountKurus: 50_000, date: '2026-07-20' });
+  await addTransaction({
+    type: 'expense',
+    categoryId: null,
+    amountKurus: 50_000,
+    date: '2026-07-20',
+  });
 });
 
 after(async () => {
@@ -200,7 +230,12 @@ describe('gidisat tahmini', () => {
 
   type Forecast = {
     hasHistory: boolean;
-    averages: { months: number; incomeKurus: number; fixedExpenseKurus: number; variableExpenseKurus: number };
+    averages: {
+      months: number;
+      incomeKurus: number;
+      fixedExpenseKurus: number;
+      variableExpenseKurus: number;
+    };
     monthlyFreeCashKurus: number;
     projection: { month: string; debtKurus: number; cashKurus: number }[];
     end: { debtKurus: number; cashKurus: number };
@@ -218,17 +253,30 @@ describe('gidisat tahmini', () => {
 
     for (const n of [1, 2]) {
       const month = monthsAgo(n);
-      await tahminci.post('/api/transactions', { type: 'income', amountKurus: 5_000_000, date: `${month}-01` });
       await tahminci.post('/api/transactions', {
-        type: 'expense', categoryId: kira.id, amountKurus: 2_000_000, date: `${month}-02`,
+        type: 'income',
+        amountKurus: 5_000_000,
+        date: `${month}-01`,
       });
       await tahminci.post('/api/transactions', {
-        type: 'expense', categoryId: market.id, amountKurus: 1_000_000, date: `${month}-10`,
+        type: 'expense',
+        categoryId: kira.id,
+        amountKurus: 2_000_000,
+        date: `${month}-02`,
+      });
+      await tahminci.post('/api/transactions', {
+        type: 'expense',
+        categoryId: market.id,
+        amountKurus: 1_000_000,
+        date: `${month}-10`,
       });
     }
     // Bu ayin yarim verisi ortalamaya girmemeli
     await tahminci.post('/api/transactions', {
-      type: 'expense', categoryId: market.id, amountKurus: 9_000_000, date: `${monthsAgo(0)}-01`,
+      type: 'expense',
+      categoryId: market.id,
+      amountKurus: 9_000_000,
+      date: `${monthsAgo(0)}-01`,
     });
 
     await tahminci.post('/api/debts', {
@@ -239,7 +287,11 @@ describe('gidisat tahmini', () => {
       taxesIncluded: true,
       monthlyPaymentKurus: 300_000,
     });
-    await tahminci.post('/api/savings', { name: 'Tatil', targetKurus: 1_000_000, monthlyPlanKurus: 200_000 });
+    await tahminci.post('/api/savings', {
+      name: 'Tatil',
+      targetKurus: 1_000_000,
+      monthlyPlanKurus: 200_000,
+    });
 
     const res = await tahminci.get<Forecast>('/api/reports/forecast?basis=3');
     assert.equal(res.status, 200, JSON.stringify(res.body));

@@ -49,7 +49,12 @@ describe('islemler', () => {
 
     const updated = await ayse.patch<{ transaction: Transaction }>(
       `/api/transactions/${created.id}`,
-      { type: 'expense', amountKurus: 15_000, date: '2026-08-05', description: 'Market (duzeltildi)' },
+      {
+        type: 'expense',
+        amountKurus: 15_000,
+        date: '2026-08-05',
+        description: 'Market (duzeltildi)',
+      },
     );
     assert.equal(updated.status, 200);
     assert.equal(updated.body.transaction.amountKurus, 15_000);

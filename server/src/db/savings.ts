@@ -69,7 +69,11 @@ export function insertGoal(userId: number, input: GoalInput): number {
   return Number(result.lastInsertRowid);
 }
 
-export function updateGoal(userId: number, id: number, input: GoalInput & { closed: boolean }): void {
+export function updateGoal(
+  userId: number,
+  id: number,
+  input: GoalInput & { closed: boolean },
+): void {
   getDb()
     .prepare(
       `UPDATE savings_goals

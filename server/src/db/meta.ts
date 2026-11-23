@@ -4,8 +4,7 @@ const SETUP_KEY = 'setup_completed';
 
 export function getMeta(key: string): string | null {
   const row = getDb().prepare('SELECT value FROM app_meta WHERE key = ?').get(key) as
-    | { value: string }
-    | undefined;
+    { value: string } | undefined;
   return row?.value ?? null;
 }
 

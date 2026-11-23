@@ -44,7 +44,10 @@ export function GidisatRaporu() {
   const debouncedCut = useDebounced(cutKurus, 300);
   const [showTable, setShowTable] = useState(false);
 
-  const forecast = useAsync(() => reportService.forecast(basis, debouncedCut), [basis, debouncedCut]);
+  const forecast = useAsync(
+    () => reportService.forecast(basis, debouncedCut),
+    [basis, debouncedCut],
+  );
   const data = forecast.data;
 
   if (forecast.error) return <Alert tone="error">{forecast.error}</Alert>;
@@ -63,10 +66,17 @@ export function GidisatRaporu() {
   }
 
   const avg = data.averages;
-  const maxCut = Math.max(CUT_STEP_KURUS, Math.floor(avg.variableExpenseKurus / CUT_STEP_KURUS) * CUT_STEP_KURUS);
+  const maxCut = Math.max(
+    CUT_STEP_KURUS,
+    Math.floor(avg.variableExpenseKurus / CUT_STEP_KURUS) * CUT_STEP_KURUS,
+  );
   const lastMonth = data.projection[data.projection.length - 1]?.month;
   const DirectionIcon =
-    data.direction === 'improving' ? TrendingDown : data.direction === 'worsening' ? TrendingUp : Flat;
+    data.direction === 'improving'
+      ? TrendingDown
+      : data.direction === 'worsening'
+        ? TrendingUp
+        : Flat;
   const hasDebt = data.start.debtKurus > 0;
 
   return (
@@ -122,7 +132,8 @@ export function GidisatRaporu() {
             {lastMonth && formatYearMonth(lastMonth)} sonunda
             {hasDebt && (
               <>
-                {' '}borcunuz <strong>{formatTRY(data.start.debtKurus)}</strong> →{' '}
+                {' '}
+                borcunuz <strong>{formatTRY(data.start.debtKurus)}</strong> →{' '}
                 <strong>{formatTRY(data.end.debtKurus)}</strong>,
               </>
             )}{' '}
@@ -208,8 +219,11 @@ export function GidisatRaporu() {
       >
         {!hasDebt ? (
           <p className="text-sm text-slate-500">
-            Kayitli borcunuz yok. Borc eklerseniz, harcamayi kisarak ne kadar erken bitirebileceginizi
-            burada gorursunuz. <Link to="/borclar" className="font-medium text-brand-600 hover:underline">Borclar</Link>
+            Kayitli borcunuz yok. Borc eklerseniz, harcamayi kisarak ne kadar erken
+            bitirebileceginizi burada gorursunuz.{' '}
+            <Link to="/borclar" className="font-medium text-brand-600 hover:underline">
+              Borclar
+            </Link>
           </p>
         ) : (
           <>
@@ -234,15 +248,19 @@ export function GidisatRaporu() {
               <div className="mt-4 rounded-lg bg-sky-50 p-3 text-sm text-sky-950">
                 {data.scenario.debtFreeMonth ? (
                   <>
-                    Borclariniz <strong>{formatYearMonth(data.scenario.debtFreeMonth)}</strong> ayinda
-                    biter
+                    Borclariniz <strong>{formatYearMonth(data.scenario.debtFreeMonth)}</strong>{' '}
+                    ayinda biter
                     {data.scenario.baselineDebtFreeMonth && (
-                      <> (simdiki tempoyla {formatYearMonth(data.scenario.baselineDebtFreeMonth)})</>
+                      <>
+                        {' '}
+                        (simdiki tempoyla {formatYearMonth(data.scenario.baselineDebtFreeMonth)})
+                      </>
                     )}
                     .
                     {data.scenario.monthsSaved !== null && data.scenario.monthsSaved > 0 && (
                       <>
-                        {' '}<strong>{data.scenario.monthsSaved} ay</strong> erken ve yaklasik{' '}
+                        {' '}
+                        <strong>{data.scenario.monthsSaved} ay</strong> erken ve yaklasik{' '}
                         <strong>{formatTRY(data.scenario.interestSavedKurus ?? 0)}</strong> daha az
                         faiz.
                       </>

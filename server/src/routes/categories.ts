@@ -59,7 +59,9 @@ categoriesRouter.post(
 
     res
       .status(201)
-      .json({ category: serializeCategory(createCategory(user.id, input.name, input.kind, input.nature)) });
+      .json({
+        category: serializeCategory(createCategory(user.id, input.name, input.kind, input.nature)),
+      });
   }),
 );
 

@@ -119,8 +119,8 @@ export default function Kullanicilar() {
 
       <div className="mb-4">
         <Alert tone="info">
-          Bu panelde yalnizca hesap yonetimi yapilir. Kullanicilarin finansal verilerine
-          (bakiye, islem, kategori) buradan erisim <strong>yoktur</strong>.
+          Bu panelde yalnizca hesap yonetimi yapilir. Kullanicilarin finansal verilerine (bakiye,
+          islem, kategori) buradan erisim <strong>yoktur</strong>.
         </Alert>
       </div>
 
@@ -285,8 +285,8 @@ export default function Kullanicilar() {
       >
         <div className="space-y-4">
           <Alert tone="warning" title="Bu sifre yalnizca bir kez gosterilir">
-            Pencereyi kapattiginizda tekrar goruntulenemez. Kullaniciya guvenli bir kanaldan
-            iletin; ilk giriste degistirmek zorunda kalacak.
+            Pencereyi kapattiginizda tekrar goruntulenemez. Kullaniciya guvenli bir kanaldan iletin;
+            ilk giriste degistirmek zorunda kalacak.
           </Alert>
 
           <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-3">
@@ -313,8 +313,8 @@ export default function Kullanicilar() {
         onConfirm={() => void handleReset()}
         message={
           <>
-            <strong>{resetting?.username}</strong> icin yeni bir gecici sifre uretilecek. Kullanicinin
-            tum acik oturumlari kapanir ve ilk giriste sifresini degistirmesi istenir.
+            <strong>{resetting?.username}</strong> icin yeni bir gecici sifre uretilecek.
+            Kullanicinin tum acik oturumlari kapanir ve ilk giriste sifresini degistirmesi istenir.
           </>
         }
       />
@@ -329,8 +329,8 @@ export default function Kullanicilar() {
         message={
           <>
             <strong>{deleting?.username}</strong> hesabi ve bu hesaba ait{' '}
-            <strong>tum finansal veri</strong> (islemler, butceler, bekleyen odemeler) kalici
-            olarak silinecek. Bu islem geri alinamaz.
+            <strong>tum finansal veri</strong> (islemler, butceler, bekleyen odemeler) kalici olarak
+            silinecek. Bu islem geri alinamaz.
           </>
         }
       />

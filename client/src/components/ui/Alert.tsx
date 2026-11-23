@@ -22,7 +22,10 @@ export function Alert({
   const { box, icon: Icon } = TONES[tone];
 
   return (
-    <div className={`flex gap-3 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${box}`} role="alert">
+    <div
+      className={`flex gap-3 rounded-lg px-4 py-3 text-sm ring-1 ring-inset ${box}`}
+      role="alert"
+    >
       <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <div className="min-w-0">
         {title && <p className="font-semibold">{title}</p>}

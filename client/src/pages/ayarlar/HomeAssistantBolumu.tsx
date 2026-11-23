@@ -134,9 +134,8 @@ export default function HomeAssistantBolumu() {
     >
       <div className="space-y-4">
         <Alert tone="info">
-          Bu entegrasyon <strong>istege baglidir</strong>. Kapali olsa da uyarilar uygulama
-          icindeki bildirim zilinde gorunmeye devam eder — Home Assistant yalnizca ek bir
-          kanaldir.
+          Bu entegrasyon <strong>istege baglidir</strong>. Kapali olsa da uyarilar uygulama icindeki
+          bildirim zilinde gorunmeye devam eder — Home Assistant yalnizca ek bir kanaldir.
         </Alert>
 
         <TextField
@@ -180,7 +179,7 @@ export default function HomeAssistantBolumu() {
           hint={
             targets.length === 0
               ? 'Hedefleri listelemek icin once baglantiyi test edin'
-              : 'HA\'daki notify servislerinden birini secin'
+              : "HA'daki notify servislerinden birini secin"
           }
         >
           <option value="">Secilmedi</option>
@@ -235,8 +234,8 @@ export default function HomeAssistantBolumu() {
         </div>
 
         <p className="text-xs text-slate-400">
-          Erisim token'iniz sunucuda AES-256-GCM ile sifrelenerek saklanir, hicbir kayda duz
-          metin yazilmaz ve bu ekranda yalnizca maskeli hali gosterilir.
+          Erisim token'iniz sunucuda AES-256-GCM ile sifrelenerek saklanir, hicbir kayda duz metin
+          yazilmaz ve bu ekranda yalnizca maskeli hali gosterilir.
         </p>
       </div>
     </Card>
