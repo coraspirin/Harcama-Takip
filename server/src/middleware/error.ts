@@ -39,34 +39,46 @@ const CLIENT_ERROR_BY_TYPE: Record<string, ClientError> = {
   'encoding.unsupported': { code: 'UNSUPPORTED_ENCODING', message: 'Desteklenmeyen kodlama' },
   'charset.unsupported': { code: 'UNSUPPORTED_CHARSET', message: 'Desteklenmeyen karakter seti' },
   'request.aborted': { code: 'REQUEST_ABORTED', message: 'Istek yarida kesildi' },
-  'entity.verify.failed': { code: 'BAD_REQUEST', message: 'Istek govdesi dogrulanamadi' },
+  'entity.verify.failed': { code: 'FORBIDDEN', message: 'Istek govdesi dogrulanamadi' },
   'request.size.invalid': { code: 'BAD_REQUEST', message: 'Istek boyutu gecersiz' },
   'parameters.too.many': { code: 'PAYLOAD_TOO_LARGE', message: 'Cok fazla parametre' },
 };
 
 const CLIENT_ERROR_BY_STATUS: Record<number, ClientError> = {
+  400: { code: 'BAD_REQUEST', message: 'Gecersiz istek' },
+  401: { code: 'UNAUTHORIZED', message: 'Kimlik dogrulamasi gerekli' },
+  403: { code: 'FORBIDDEN', message: 'Bu islem icin yetkiniz yok' },
+  404: { code: 'NOT_FOUND', message: 'Kaynak bulunamadi' },
+  405: { code: 'METHOD_NOT_ALLOWED', message: 'Yontem desteklenmiyor' },
   413: { code: 'PAYLOAD_TOO_LARGE', message: 'Istek govdesi cok buyuk' },
   415: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Desteklenmeyen icerik tipi' },
+  429: { code: 'TOO_MANY_REQUESTS', message: 'Cok fazla istek' },
 };
 
+const DEFAULT_CLIENT_ERROR: ClientError = { code: 'BAD_REQUEST', message: 'Gecersiz istek' };
+
 /**
- * body-parser / http-errors kaynakli istemci hatalarini (4xx) tanir. Mesaj ve
- * govde istemciye/loga ASLA aktarilmaz: V8 JSON.parse mesaji ham govdeden
- * parca icerir.
+ * Istemci hatasi (4xx) sayilanlar: (a) body-parser hatalari (err.type
+ * CLIENT_ERROR_BY_TYPE'ta) veya (b) http-errors deseni (expose === true ve
+ * numerik status/statusCode 400-499). Baska "status alanli" hatalar (ornegin
+ * upstream HTTP istemcisi 404'u) 5xx yoluna duser. Mesaj ve govde istemciye/loga
+ * ASLA aktarilmaz: V8 JSON.parse mesaji ham govdeden parca icerir.
  */
-function clientErrorOf(err: unknown): (ClientError & { status: number }) | null {
-  if (typeof err !== 'object' || err === null) return null;
-  const e = err as { status?: unknown; statusCode?: unknown; type?: unknown };
+function clientErrorOf(err: Error): (ClientError & { status: number; type: string | null }) | null {
+  const e = err as { status?: unknown; statusCode?: unknown; type?: unknown; expose?: unknown };
   const raw = typeof e.status === 'number' ? e.status : e.statusCode;
-  if (typeof raw !== 'number' || raw < 400 || raw > 499) return null;
-  const byType = typeof e.type === 'string' ? CLIENT_ERROR_BY_TYPE[e.type] : undefined;
-  const picked = byType ??
-    CLIENT_ERROR_BY_STATUS[raw] ?? { code: 'BAD_REQUEST', message: 'Gecersiz istek' };
-  return { status: raw, ...picked };
+  const status = typeof raw === 'number' && raw >= 400 && raw <= 499 ? raw : null;
+  const type = typeof e.type === 'string' ? e.type : null;
+  const byType = type !== null ? CLIENT_ERROR_BY_TYPE[type] : undefined;
+  if (byType) return { ...byType, status: status ?? 400, type };
+  if (e.expose === true && status !== null) {
+    return { ...(CLIENT_ERROR_BY_STATUS[status] ?? DEFAULT_CLIENT_ERROR), status, type };
+  }
+  return null;
 }
 
 export function createErrorHandler(log: Logger): ErrorRequestHandler {
-  return (err, _req, res, _next) => {
+  return (err: unknown, _req, res, _next) => {
     if (err instanceof AppError) {
       res.status(err.status).json({
         error: { code: err.code, message: err.message, details: err.details ?? undefined },
@@ -85,23 +97,33 @@ export function createErrorHandler(log: Logger): ErrorRequestHandler {
       return;
     }
 
-    // Istemci hatasi (bozuk/cok buyuk govde vb.): 4xx doner. Ayri log satiri
-    // yazilmaz; pino-http zaten bu istek icin warn satiri yazar (cift satir
-    // olmasin) ve hicbir satira err nesnesi/mesaji girmez.
-    const client = clientErrorOf(err);
+    // Error olmayan deger (next('raw ...')): ham deger loga/yanita girmesin.
+    const wrapped = err instanceof Error ? err : new Error('Error olmayan hata degeri');
+
+    // Istemci hatasi: 4xx doner. Log'a err/mesaj girmez; yalnizca tur ve status.
+    const client = clientErrorOf(wrapped);
     if (client) {
+      log.warn({
+        event: 'client_error',
+        type: client.type === null ? null : client.type.slice(0, 100),
+        status: client.status,
+      });
       res.status(client.status).json({ error: { code: client.code, message: client.message } });
       return;
     }
 
     // Beklenmeyen hata: istemciye ic detay sizdirmayiz, sunucuya log dusuruz
-    // (err, logger'in serializeErr'i ile govde/hassas alanlardan arindirilir).
-    log.error({ event: 'unhandled_error', err }, 'beklenmeyen hata');
+    // (err, logger'in serializeErr'i ile allowlist'e indirgenir).
+    log.error({ event: 'unhandled_error', err: wrapped }, 'beklenmeyen hata');
     res.status(500).json({
       error: {
         code: 'INTERNAL_ERROR',
         message: 'Beklenmeyen bir hata olustu',
-        details: env.isProd ? undefined : String((err as Error)?.stack ?? err),
+        details: env.isProd
+          ? undefined
+          : err instanceof Error
+            ? String(err.stack ?? err.message)
+            : `[${typeof err}]`,
       },
     });
   };

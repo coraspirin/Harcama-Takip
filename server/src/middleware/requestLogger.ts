@@ -23,7 +23,16 @@ export function createRequestLogger(logger: Logger): RequestHandler {
     // Docker 30 sn'de bir /api/health cagirir; log'u bogmasin.
     autoLogging: { ignore: (req) => pathOf(req) === '/api/health' },
     serializers: {
-      err: serializeErr,
+      // pino-http 5xx'te sentetik 'failed with status code' err'i ekler ve err'i
+      // serializer'a ONCE kendi std serializer'indan gecirip (duz nesne) verir.
+      // errorHandler zaten stack'li unhandled_error yazdigi icin sentetik err
+      // dusurulur; digerleri allowlist'ten gecer (duz nesne -> yalnizca typeof).
+      err: (err: unknown) => {
+        const message = (err as { message?: unknown } | null)?.message;
+        return typeof message === 'string' && message.startsWith('failed with status code')
+          ? undefined
+          : serializeErr(err);
+      },
       req: (req: IncomingMessage) => ({ method: req.method, path: pathOf(req) }),
       res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
     },
